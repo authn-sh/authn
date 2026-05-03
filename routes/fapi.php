@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
+use App\Http\Controllers\Fapi\MeController;
 use App\Http\Controllers\Fapi\PingController;
 use App\Http\Controllers\Fapi\SessionsController;
 use App\Http\Controllers\Fapi\SessionTokenController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Fapi\SignInController;
 use App\Http\Controllers\Fapi\SignUpController;
 use App\Http\Controllers\WellKnown\JwksController;
 use App\Http\Controllers\WellKnown\OpenIdConfigurationController;
+use App\Http\Middleware\AuthenticateSessionToken;
 use App\Http\Middleware\EnforceFapiOrigin;
 use App\Http\Middleware\ResolveClientFromCookie;
 use Illuminate\Support\Facades\Route;
@@ -75,6 +77,25 @@ Route::prefix('v1')->group(function (): void {
 
         Route::post('/client/sessions/{sid}/tokens', SessionTokenController::class)->name('fapi.session_token');
         Route::post('/client/sessions/{sid}/tokens/{template}', SessionTokenController::class)->name('fapi.session_token.template');
+    });
+
+    // /v1/me — authenticated by __session JWT (Bearer header or cookie).
+    Route::middleware(AuthenticateSessionToken::class)->group(function (): void {
+        Route::get('/me', [MeController::class, 'show'])->name('fapi.me.show');
+        Route::patch('/me', [MeController::class, 'update'])->name('fapi.me.update');
+        Route::delete('/me', [MeController::class, 'destroy'])->name('fapi.me.destroy');
+        Route::post('/me/delete_self', [MeController::class, 'deleteSelf'])->name('fapi.me.delete_self');
+
+        Route::get('/me/email_addresses', [MeController::class, 'listEmails'])->name('fapi.me.emails.list');
+        Route::post('/me/email_addresses', [MeController::class, 'createEmail'])->name('fapi.me.emails.create');
+        Route::get('/me/email_addresses/{eid}', [MeController::class, 'showEmail'])->name('fapi.me.emails.show');
+        Route::patch('/me/email_addresses/{eid}', [MeController::class, 'updateEmail'])->name('fapi.me.emails.update');
+        Route::delete('/me/email_addresses/{eid}', [MeController::class, 'deleteEmail'])->name('fapi.me.emails.destroy');
+        Route::post('/me/email_addresses/{eid}/prepare_verification', [MeController::class, 'prepareEmailVerification'])->name('fapi.me.emails.prepare_verification');
+        Route::post('/me/email_addresses/{eid}/attempt_verification', [MeController::class, 'attemptEmailVerification'])->name('fapi.me.emails.attempt_verification');
+
+        Route::get('/me/sessions', [MeController::class, 'listSessions'])->name('fapi.me.sessions.list');
+        Route::post('/me/change_password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');
     });
 });
 

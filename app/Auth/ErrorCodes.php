@@ -93,4 +93,16 @@ final class ErrorCodes
     public const NO_VERIFICATION_IN_PROGRESS = 'no_verification_in_progress';
 
     public const SIGN_UP_NOT_READY = 'sign_up_not_ready';
+
+    // /v1/me
+
+    public const ACTOR_SESSION_FORBIDDEN = 'actor_session_forbidden';
+
+    public const DELETE_SELF_DISABLED = 'delete_self_disabled';
+
+    public const EMAIL_NOT_FOUND = 'email_not_found';
+
+    public const EMAIL_NOT_VERIFIED = 'email_not_verified';
+
+    public const PRIMARY_EMAIL_NOT_REMOVABLE = 'primary_email_not_removable';
 }
