@@ -57,7 +57,7 @@ it('POST /v1/me/email_addresses creates an unverified row; verifies via prepare 
     $created = meReq('POST', '/me/email_addresses', $auth['jwt'], ['email_address' => 'alt@example.com']);
     $created->assertStatus(201)
         ->assertJsonPath('email_address', 'alt@example.com')
-        ->assertJsonPath('verified', false);
+        ->assertJsonPath('verification', null);
     $eid = $created->json('id');
 
     meReq('POST', "/me/email_addresses/{$eid}/prepare_verification", $auth['jwt'], [
@@ -73,7 +73,7 @@ it('POST /v1/me/email_addresses creates an unverified row; verifies via prepare 
     meReq('POST', "/me/email_addresses/{$eid}/attempt_verification", $auth['jwt'], [
         'strategy' => 'email_code',
         'code' => $known,
-    ])->assertOk()->assertJsonPath('verified', true);
+    ])->assertOk()->assertJsonPath('verification.status', 'verified');
 
     expect(EmailAddress::query()->withoutGlobalScopes()->where('id', $eid)->first()->isVerified())->toBeTrue();
 });

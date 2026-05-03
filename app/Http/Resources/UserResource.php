@@ -19,7 +19,7 @@ final class UserResource
     {
         $emails = $user->emailAddresses()->withoutGlobalScopes()->get();
 
-        return [
+        $shape = [
             'object' => 'user',
             'id' => $user->id,
             'external_id' => $user->external_id,
@@ -30,22 +30,36 @@ final class UserResource
             'has_image' => (bool) $user->has_image,
             'primary_email_address_id' => $user->primary_email_address_id,
             'email_addresses' => $emails->map(fn ($email) => EmailAddressResource::from($email))->all(),
+            // v0.1: stable arrays so SDK types are forward-compatible.
+            'phone_numbers' => [],
+            'external_accounts' => [],
+            'enterprise_accounts' => [],
+            'passkeys' => [],
             'password_enabled' => $user->password_hash !== null,
             'two_factor_enabled' => (bool) $user->two_factor_enabled,
             'totp_enabled' => (bool) $user->totp_enabled,
             'backup_code_enabled' => (bool) $user->backup_code_enabled,
             'banned' => (bool) $user->banned,
             'locked' => (bool) $user->locked,
-            'lockout_expires_in_seconds' => $user->lockout_expires_in_seconds,
+            'lockout_expires_at' => $user->lockout_expires_at?->getTimestampMs(),
             'last_sign_in_at' => $user->last_sign_in_at?->getTimestampMs(),
             'last_active_at' => $user->last_active_at?->getTimestampMs(),
             'delete_self_enabled' => (bool) $user->delete_self_enabled,
             'public_metadata' => is_array($user->public_metadata) ? $user->public_metadata : [],
             'unsafe_metadata' => is_array($user->unsafe_metadata) ? $user->unsafe_metadata : [],
-            'private_metadata' => $includePrivate ? (is_array($user->private_metadata) ? $user->private_metadata : []) : null,
             'locale' => $user->locale,
             'created_at' => $user->created_at?->getTimestampMs(),
             'updated_at' => $user->updated_at?->getTimestampMs(),
         ];
+        if ($includePrivate) {
+            $shape['private_metadata'] = is_array($user->private_metadata) ? $user->private_metadata : [];
+        } else {
+            // The FAPI never surfaces private_metadata; the BAPI does. The
+            // spec marks it required, so always include the key — null when
+            // hidden.
+            $shape['private_metadata'] = null;
+        }
+
+        return $shape;
     }
 }
