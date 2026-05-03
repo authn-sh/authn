@@ -32,6 +32,15 @@ function bootstrapWith(array $overrides = []): array
     return $result;
 }
 
+beforeEach(function (): void {
+    config([
+        'authn.routing_mode' => 'subdomain',
+        'authn.app_host' => 'authn.local',
+        'authn.bapi_host' => 'api.authn.local',
+        'authn.dashboard_host' => 'dashboard.authn.local',
+    ]);
+});
+
 it('provisions the _admin project, environment, workspace org, operator, signing key, and api keys', function (): void {
     $result = bootstrapWith();
 
@@ -43,7 +52,9 @@ it('provisions the _admin project, environment, workspace org, operator, signing
 
     expect($result['environment']->id)->toStartWith('env_');
     expect($result['environment']->kind)->toBe('production');
-    expect($result['environment']->frontend_api_host)->toBe('authn.local');
+    expect($result['environment']->slug)->toBe('_admin');
+    // Subdomain mode (the default for the test suite) prefixes the env slug.
+    expect($result['environment']->frontend_api_host)->toBe('_admin.authn.local');
 
     /** @var Organization $workspace */
     $workspace = $result['workspace'];
@@ -138,4 +149,16 @@ it('exposes Project->is_admin_project for the seeded _admin row', function (): v
     $admin = Project::where('slug', Project::SYSTEM_SLUG)->firstOrFail();
 
     expect($admin->is_admin_project)->toBeTrue();
+});
+
+it('uses the bare app host as the FAPI host in path mode', function (): void {
+    config([
+        'authn.routing_mode' => 'path',
+        'authn.app_host' => 'authn.local',
+    ]);
+
+    $result = bootstrapWith();
+
+    expect($result['environment']->slug)->toBe('_admin');
+    expect($result['environment']->frontend_api_host)->toBe('authn.local');
 });
