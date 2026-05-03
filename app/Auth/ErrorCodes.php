@@ -73,4 +73,24 @@ final class ErrorCodes
     public const SIGN_IN_ABANDONED = 'sign_in_abandoned';
 
     public const SIGN_IN_ALREADY_COMPLETE = 'sign_in_already_complete';
+
+    // Sign-up
+
+    public const FORM_PARAM_UNKNOWN = 'form_param_unknown';
+
+    public const FORM_IDENTIFIER_NOT_ALLOWED = 'form_identifier_not_allowed';
+
+    public const FORM_IDENTIFIER_DISPOSABLE = 'form_identifier_disposable';
+
+    public const LEGAL_ACCEPTED_REQUIRED = 'legal_accepted_required';
+
+    public const SIGN_UP_NOT_FOUND = 'sign_up_not_found';
+
+    public const SIGN_UP_ABANDONED = 'sign_up_abandoned';
+
+    public const SIGN_UP_ALREADY_COMPLETE = 'sign_up_already_complete';
+
+    public const NO_VERIFICATION_IN_PROGRESS = 'no_verification_in_progress';
+
+    public const SIGN_UP_NOT_READY = 'sign_up_not_ready';
 }

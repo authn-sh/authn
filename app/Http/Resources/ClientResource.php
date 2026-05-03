@@ -7,12 +7,10 @@ namespace App\Http\Resources;
 use App\Models\Client;
 use App\Models\Session;
 use App\Models\SignInAttempt;
+use App\Models\SignUpAttempt;
 
 /**
  * The Client snapshot returned to the SDK. Mirrors PLAN §8.2.
- *
- * v0.1: only `sessions` is populated — `sign_in` and `sign_up` arrive
- * with AU-9 / AU-10 once those state machines land.
  */
 final class ClientResource
 {
@@ -49,12 +47,23 @@ final class ClientResource
             }
         }
 
+        $signUp = null;
+        if ($client->current_sign_up_attempt_id !== null) {
+            $attempt = SignUpAttempt::query()
+                ->withoutGlobalScopes()
+                ->where('id', $client->current_sign_up_attempt_id)
+                ->first();
+            if ($attempt !== null && ! in_array($attempt->status, [SignUpAttempt::STATUS_COMPLETE, SignUpAttempt::STATUS_ABANDONED], true)) {
+                $signUp = SignUpResource::from($attempt);
+            }
+        }
+
         return [
             'object' => 'client',
             'id' => $client->id,
             'sessions' => $sessions,
             'sign_in' => $signIn,
-            'sign_up' => null,                      // populated in AU-10
+            'sign_up' => $signUp,
             'last_active_session_id' => $client->last_active_session_id,
             'created_at' => $client->created_at?->getTimestampMs(),
             'updated_at' => $client->updated_at?->getTimestampMs(),
