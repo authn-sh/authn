@@ -52,6 +52,11 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // The `__client` cookie is signed by us (HMAC of the row's
+        // cookie_secret) and read raw by ResolveClientFromCookie — Laravel's
+        // cookie encryption layer would corrupt it.
+        $middleware->encryptCookies(except: ['__client']);
+
         $middleware->group('bapi', [
             AuthenticateBapiKey::class,
         ]);
