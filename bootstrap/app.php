@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Middleware\AuthenticateBapiKey;
+use App\Http\Middleware\EnforceFapiOrigin;
+use App\Http\Middleware\FapiCors;
 use App\Http\Middleware\ResolveProjectFromHost;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -67,6 +69,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->group('fapi', [
             ResolveProjectFromHost::class,
+            FapiCors::class,
+            EnforceFapiOrigin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

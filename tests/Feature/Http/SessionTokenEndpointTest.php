@@ -49,6 +49,7 @@ function bootEnv(): array
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'acme',
         'frontend_api_host' => 'acme.authn.local',
+        'allowed_origins' => ['https://app.example.com'],
     ]);
     (new SigningKeyGenerator)->generate($env);
     $user = User::create(['environment_id' => $env->id]);
@@ -68,7 +69,7 @@ it('mints a __session JWT when the cookie matches the device', function (): void
 
     $response = $this->withUnencryptedCookie('__client', $cookie)
         ->withCredentials()
-        ->withHeader('Host', 'acme.authn.local')
+        ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => 'https://app.example.com'])
         ->postJson("https://acme.authn.local/v1/client/sessions/{$f['session']->id}/tokens");
 
     $response->assertOk()->assertJsonStructure(['jwt', 'expires_at', 'kid']);
@@ -81,7 +82,7 @@ it('mints a __session JWT when the cookie matches the device', function (): void
 it('rejects the request with 401 when the __client cookie is missing', function (): void {
     $f = bootEnv();
 
-    $this->withHeader('Host', 'acme.authn.local')
+    $this->withHeaders(['Host' => 'acme.authn.local', 'Origin' => 'https://app.example.com'])
         ->postJson("https://acme.authn.local/v1/client/sessions/{$f['session']->id}/tokens")
         ->assertUnauthorized()
         ->assertJsonPath('errors.0.code', 'client_not_found');
@@ -94,7 +95,7 @@ it('returns 404 when the session belongs to a different client', function (): vo
 
     $this->withUnencryptedCookie('__client', $cookie)
         ->withCredentials()
-        ->withHeader('Host', 'acme.authn.local')
+        ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => 'https://app.example.com'])
         ->postJson("https://acme.authn.local/v1/client/sessions/{$f['session']->id}/tokens")
         ->assertNotFound()
         ->assertJsonPath('errors.0.code', 'session_not_found');
@@ -109,7 +110,7 @@ it('returns 401 session_revoked for a session in a non-live status', function ()
 
     $this->withUnencryptedCookie('__client', $cookie)
         ->withCredentials()
-        ->withHeader('Host', 'acme.authn.local')
+        ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => 'https://app.example.com'])
         ->postJson("https://acme.authn.local/v1/client/sessions/{$f['session']->id}/tokens")
         ->assertUnauthorized()
         ->assertJsonPath('errors.0.code', 'session_revoked');
@@ -121,7 +122,7 @@ it('returns 404 template_not_found for any non-default template', function (): v
 
     $this->withUnencryptedCookie('__client', $cookie)
         ->withCredentials()
-        ->withHeader('Host', 'acme.authn.local')
+        ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => 'https://app.example.com'])
         ->postJson("https://acme.authn.local/v1/client/sessions/{$f['session']->id}/tokens/supabase")
         ->assertNotFound()
         ->assertJsonPath('errors.0.code', 'template_not_found');
@@ -130,7 +131,7 @@ it('returns 404 template_not_found for any non-default template', function (): v
 it('serves JWKS at /.well-known/jwks.json with cache headers', function (): void {
     $f = bootEnv();
 
-    $response = $this->withHeader('Host', 'acme.authn.local')
+    $response = $this->withHeaders(['Host' => 'acme.authn.local', 'Origin' => 'https://app.example.com'])
         ->getJson('https://acme.authn.local/.well-known/jwks.json');
 
     $response->assertOk();
@@ -143,7 +144,7 @@ it('serves JWKS at /.well-known/jwks.json with cache headers', function (): void
 it('serves OIDC discovery at /.well-known/openid-configuration', function (): void {
     $f = bootEnv();
 
-    $response = $this->withHeader('Host', 'acme.authn.local')
+    $response = $this->withHeaders(['Host' => 'acme.authn.local', 'Origin' => 'https://app.example.com'])
         ->getJson('https://acme.authn.local/.well-known/openid-configuration');
 
     $response->assertOk()->assertJson([
