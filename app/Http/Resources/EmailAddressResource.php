@@ -33,9 +33,12 @@ final class EmailAddressResource
                     'message' => $verification->error_message,
                 ] : null,
             ],
-            'verified' => $email->isVerified(),
-            'is_primary' => (bool) $email->is_primary,
-            'linked_to_external_account_id' => $email->linked_to_external_account_id,
+            // Per OA-2: the spec exposes a uniform `linked_to` array for
+            // OAuth / enterprise / passkey-bound emails (empty in v0.1).
+            'linked_to' => $email->linked_to_external_account_id !== null
+                ? [['id' => $email->linked_to_external_account_id, 'type' => 'external_account']]
+                : [],
+            'reserved' => $email->user_id === null,
             'created_at' => $email->created_at?->getTimestampMs(),
             'updated_at' => $email->updated_at?->getTimestampMs(),
         ];

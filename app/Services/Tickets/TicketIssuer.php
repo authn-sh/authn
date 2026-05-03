@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Tickets;
 
 use App\Models\Environment;
+use App\Models\Invitation;
 use App\Models\SigningKey;
 use App\Support\Url;
 use Lcobucci\JWT\Configuration;
@@ -69,6 +70,27 @@ final class TicketIssuer
         }
 
         return $builder->getToken($config->signer(), $config->signingKey())->toString();
+    }
+
+    /**
+     * Mint a JWT for an invitation. The redemption flow is in
+     * `App\Auth\SignUp\TicketRedeemer`; the URL the operator emails out is
+     * the env's FAPI host + `__authn_ticket=<jwt>` (PLAN §9.7).
+     */
+    public function issueForInvitation(Invitation $invitation, ?int $ttlSeconds = null): string
+    {
+        $ttl = $ttlSeconds
+            ?? ($invitation->expires_at !== null
+                ? max(60, $invitation->expires_at->getTimestamp() - now()->getTimestamp())
+                : 30 * 24 * 60 * 60);
+
+        return $this->issue($invitation->environment, $ttl, [
+            'sub' => strtolower($invitation->email_address),
+            'sid' => $invitation->id,
+            'purpose' => 'invitation',
+            'metadata' => is_array($invitation->public_metadata) ? $invitation->public_metadata : [],
+            'redirect_url' => $invitation->redirect_url,
+        ]);
     }
 
     private function mintJti(): string

@@ -58,6 +58,7 @@ class Invitation extends Model
         'expires_at',
         'accepted_at',
         'revoked_at',
+        'template_slug',
     ];
 
     protected function casts(): array

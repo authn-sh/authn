@@ -73,6 +73,8 @@ class User extends Model implements AuthenticatableContract
         'password',
         'password_hash',
         'password_changed_at',
+        'password_imported',
+        'password_hasher',
         'two_factor_enabled',
         'totp_enabled',
         'backup_code_enabled',
@@ -99,6 +101,7 @@ class User extends Model implements AuthenticatableContract
     {
         return [
             'has_image' => 'boolean',
+            'password_imported' => 'boolean',
             'two_factor_enabled' => 'boolean',
             'totp_enabled' => 'boolean',
             'backup_code_enabled' => 'boolean',
@@ -168,7 +171,18 @@ class User extends Model implements AuthenticatableContract
 
     public function checkPassword(string $plaintext): bool
     {
-        return $this->password_hash !== null && Hash::check($plaintext, $this->password_hash);
+        if ($this->password_hash === null) {
+            return false;
+        }
+        // Imported hashes use the algorithm captured at import time. The
+        // active hasher (argon2id) refuses to verify foreign formats, so
+        // route bcrypt imports through Hash::driver('bcrypt'). PBKDF2 / scrypt
+        // verifiers land in AU-18.
+        if ($this->password_imported && in_array($this->password_hasher, ['bcrypt'], true)) {
+            return Hash::driver('bcrypt')->check($plaintext, $this->password_hash);
+        }
+
+        return Hash::check($plaintext, $this->password_hash);
     }
 
     /**
