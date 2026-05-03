@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\PingController;
+use App\Http\Controllers\Fapi\SessionsController;
 use App\Http\Controllers\Fapi\SessionTokenController;
 use App\Http\Controllers\Fapi\SignInController;
 use App\Http\Controllers\Fapi\SignUpController;
@@ -66,6 +67,11 @@ Route::prefix('v1')->group(function (): void {
         Route::patch('/client/sign_ups/{sid}', [SignUpController::class, 'patch'])->name('fapi.sign_up.patch');
         Route::post('/client/sign_ups/{sid}/prepare_verification', [SignUpController::class, 'prepareVerification'])->name('fapi.sign_up.prepare_verification');
         Route::post('/client/sign_ups/{sid}/attempt_verification', [SignUpController::class, 'attemptVerification'])->name('fapi.sign_up.attempt_verification');
+
+        Route::get('/client/sessions/{sid}', [SessionsController::class, 'show'])->name('fapi.session.show');
+        Route::post('/client/sessions/{sid}/touch', [SessionsController::class, 'touch'])->name('fapi.session.touch');
+        Route::post('/client/sessions/{sid}/end', [SessionsController::class, 'end'])->name('fapi.session.end');
+        Route::post('/client/sessions/{sid}/remove', [SessionsController::class, 'remove'])->name('fapi.session.remove');
 
         Route::post('/client/sessions/{sid}/tokens', SessionTokenController::class)->name('fapi.session_token');
         Route::post('/client/sessions/{sid}/tokens/{template}', SessionTokenController::class)->name('fapi.session_token.template');

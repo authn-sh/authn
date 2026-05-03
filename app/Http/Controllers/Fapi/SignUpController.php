@@ -22,6 +22,7 @@ use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
 use App\Services\Client\ClientResolver;
+use App\Services\Sessions\SessionLifecycle;
 use App\Services\Verification\VerificationManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -362,6 +363,12 @@ final class SignUpController
                 ->withoutGlobalScopes()
                 ->where('id', $client->id)
                 ->update(['last_active_session_id' => $session->id, 'last_active_at' => now()]);
+
+            $reloadedClient = Client::query()->withoutGlobalScopes()->where('id', $client->id)->first();
+            if ($reloadedClient !== null) {
+                app(SessionLifecycle::class)
+                    ->enforceMultiSessionPolicy($env, $reloadedClient, $session);
+            }
 
             if ($redeemingInvitation !== null) {
                 $redeemingInvitation->forceFill([
