@@ -6,6 +6,7 @@ use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\PingController;
 use App\Http\Controllers\Fapi\SessionTokenController;
+use App\Http\Controllers\Fapi\SignInController;
 use App\Http\Controllers\WellKnown\JwksController;
 use App\Http\Controllers\WellKnown\OpenIdConfigurationController;
 use App\Http\Middleware\EnforceFapiOrigin;
@@ -48,9 +49,17 @@ Route::prefix('v1')->group(function (): void {
         Route::match(['get', 'post'], '/client/handshake', [ClientController::class, 'handshake'])->name('fapi.client.handshake');
     });
 
-    // Routes that require an existing Client (resolved from the __client
-    // cookie via ResolveClientFromCookie).
+    // Sign-in: POST creates the attempt (and, if needed, the Client). The
+    // remaining endpoints require an existing Client cookie.
+    Route::post('/client/sign_ins', [SignInController::class, 'store'])->name('fapi.sign_in.store');
     Route::middleware(ResolveClientFromCookie::class)->group(function (): void {
+        Route::get('/client/sign_ins/{sid}', [SignInController::class, 'show'])->name('fapi.sign_in.show');
+        Route::post('/client/sign_ins/{sid}/prepare_first_factor', [SignInController::class, 'prepareFirstFactor'])->name('fapi.sign_in.prepare_first_factor');
+        Route::post('/client/sign_ins/{sid}/attempt_first_factor', [SignInController::class, 'attemptFirstFactor'])->name('fapi.sign_in.attempt_first_factor');
+        Route::post('/client/sign_ins/{sid}/prepare_second_factor', [SignInController::class, 'prepareSecondFactor'])->name('fapi.sign_in.prepare_second_factor');
+        Route::post('/client/sign_ins/{sid}/attempt_second_factor', [SignInController::class, 'attemptSecondFactor'])->name('fapi.sign_in.attempt_second_factor');
+        Route::post('/client/sign_ins/{sid}/reset_password', [SignInController::class, 'resetPassword'])->name('fapi.sign_in.reset_password');
+
         Route::post('/client/sessions/{sid}/tokens', SessionTokenController::class)->name('fapi.session_token');
         Route::post('/client/sessions/{sid}/tokens/{template}', SessionTokenController::class)->name('fapi.session_token.template');
     });

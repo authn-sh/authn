@@ -6,6 +6,7 @@ namespace App\Http\Resources;
 
 use App\Models\Client;
 use App\Models\Session;
+use App\Models\SignInAttempt;
 
 /**
  * The Client snapshot returned to the SDK. Mirrors PLAN §8.2.
@@ -37,11 +38,22 @@ final class ClientResource
             ->map(fn (Session $session) => self::sessionShape($session))
             ->all();
 
+        $signIn = null;
+        if ($client->current_sign_in_attempt_id !== null) {
+            $attempt = SignInAttempt::query()
+                ->withoutGlobalScopes()
+                ->where('id', $client->current_sign_in_attempt_id)
+                ->first();
+            if ($attempt !== null && ! in_array($attempt->status, [SignInAttempt::STATUS_COMPLETE, SignInAttempt::STATUS_ABANDONED], true)) {
+                $signIn = SignInResource::from($attempt);
+            }
+        }
+
         return [
             'object' => 'client',
             'id' => $client->id,
             'sessions' => $sessions,
-            'sign_in' => null,                      // populated in AU-9
+            'sign_in' => $signIn,
             'sign_up' => null,                      // populated in AU-10
             'last_active_session_id' => $client->last_active_session_id,
             'created_at' => $client->created_at?->getTimestampMs(),
