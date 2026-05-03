@@ -12,6 +12,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:dGVzdHRlc3R0ZXN0dGVzdHRlc3R0ZXN0dGVzdHRlc3Q=
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: authn
+      DB_USERNAME: authn
+      DB_PASSWORD: authn
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -68,18 +81,6 @@ jobs:
         run: vendor/bin/pint --test
 
       - name: Migrate against PostgreSQL
-        env:
-          APP_ENV: testing
-          APP_KEY: base64:dGVzdHRlc3R0ZXN0dGVzdHRlc3R0ZXN0dGVzdHRlc3Q=
-          DB_CONNECTION: pgsql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 5432
-          DB_DATABASE: authn
-          DB_USERNAME: authn
-          DB_PASSWORD: authn
-          REDIS_CLIENT: phpredis
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: 6379
         run: php artisan migrate --force
 
       - name: Pest (in-memory SQLite per phpunit.xml)
