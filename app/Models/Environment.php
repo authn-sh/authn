@@ -42,6 +42,7 @@ class Environment extends Model
     protected $fillable = [
         'project_id',
         'kind',
+        'slug',
         'frontend_api_host',
         'dashboard_url',
         'home_url',

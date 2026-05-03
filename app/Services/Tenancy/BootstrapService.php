@@ -62,20 +62,25 @@ final class BootstrapService
             throw new InvalidArgumentException("Bootstrap admin email is not a valid email address: {$email}");
         }
 
-        $host = parse_url((string) $appUrl, PHP_URL_HOST) ?: 'localhost';
+        $appHost = parse_url((string) $appUrl, PHP_URL_HOST) ?: (string) config('authn.app_host', 'localhost');
+        $routingMode = (string) config('authn.routing_mode', 'subdomain');
 
-        return DB::transaction(function () use ($email, $password, $workspaceName, $host): array {
+        return DB::transaction(function () use ($email, $password, $workspaceName, $appHost, $routingMode): array {
             $project = Project::create([
                 'name' => 'authn.sh admin',
                 'slug' => Project::SYSTEM_SLUG,
                 'is_system' => true,
             ]);
 
+            $envSlug = Project::SYSTEM_SLUG;
+            $fapiHost = $routingMode === 'subdomain' ? $envSlug.'.'.$appHost : $appHost;
+
             $environment = Environment::create([
                 'project_id' => $project->id,
                 'kind' => Environment::KIND_PRODUCTION,
-                'frontend_api_host' => $host,
-                'home_url' => sprintf('https://%s', $host),
+                'slug' => $envSlug,
+                'frontend_api_host' => $fapiHost,
+                'home_url' => sprintf('https://%s', $appHost),
                 'allowed_origins' => [],
                 'appearance' => [],
             ]);
