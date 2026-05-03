@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Fapi\ClientController;
+use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\PingController;
 use App\Http\Controllers\Fapi\SessionTokenController;
 use App\Http\Controllers\WellKnown\JwksController;
@@ -27,9 +29,16 @@ Route::get('/.well-known/openid-configuration', OpenIdConfigurationController::c
 Route::prefix('v1')->group(function (): void {
     Route::get('/_ping', PingController::class)->name('fapi.ping');
 
+    // Public bootstrap endpoints — no Client cookie required. `show` mints
+    // one on the fly when none is supplied.
+    Route::get('/environment', [EnvironmentController::class, 'show'])->name('fapi.environment');
+    Route::get('/client', [ClientController::class, 'show'])->name('fapi.client.show');
+    Route::put('/client', [ClientController::class, 'store'])->name('fapi.client.store');
+    Route::delete('/client', [ClientController::class, 'destroy'])->name('fapi.client.destroy');
+    Route::match(['get', 'post'], '/client/handshake', [ClientController::class, 'handshake'])->name('fapi.client.handshake');
+
     // Routes that require an existing Client (resolved from the __client
-    // cookie). The `GET /v1/client` endpoint that mints one on first
-    // contact is intentionally NOT inside this group — it lands in AU-8.
+    // cookie via ResolveClientFromCookie).
     Route::middleware(ResolveClientFromCookie::class)->group(function (): void {
         Route::post('/client/sessions/{sid}/tokens', SessionTokenController::class)->name('fapi.session_token');
         Route::post('/client/sessions/{sid}/tokens/{template}', SessionTokenController::class)->name('fapi.session_token.template');
