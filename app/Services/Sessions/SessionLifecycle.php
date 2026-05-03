@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Sessions;
 
+use App\Models\Client;
+use App\Models\Environment;
 use App\Models\Session;
 use App\Models\SessionActivity;
 use Illuminate\Http\Request;
@@ -30,6 +32,13 @@ final class SessionLifecycle
 {
     /** Per-session debounce window for touch writes (seconds). Matches PLAN §10. */
     public const TOUCH_DEBOUNCE_SECONDS = 60;
+
+    /**
+     * Default cap when `multi_session = true`. Configurable per-env via
+     * `Environment.user_settings.sessions.max_concurrent_sessions_per_client`
+     * once the dashboard exposes it (AU-13). Matches PLAN §13.5.
+     */
+    public const DEFAULT_MAX_CONCURRENT_SESSIONS = 10;
 
     private const TOUCH_CACHE_PREFIX = 'session:touch:';
 
@@ -93,6 +102,92 @@ final class SessionLifecycle
         }
 
         return $this->transitionTo($session, Session::STATUS_ACTIVE);
+    }
+
+    /**
+     * Apply the env's multi-session policy after a fresh Session was minted.
+     *
+     * - multi_session = false: every other live session on the Client is
+     *   evicted (status → replaced).
+     * - multi_session = true:  if the live count exceeds the configured cap,
+     *   evict the oldest-by-`last_active_at` until back under the cap.
+     *
+     * Returns the list of evicted session ids so the caller can fire
+     * webhooks (AU-15 will subscribe to this list).
+     *
+     * @return list<string>
+     */
+    public function enforceMultiSessionPolicy(Environment $environment, Client $client, Session $newSession): array
+    {
+        $userSettings = is_array($environment->user_settings) ? $environment->user_settings : [];
+        $sessionCfg = is_array($userSettings['sessions'] ?? null) ? $userSettings['sessions'] : [];
+        $multiSession = (bool) ($sessionCfg['multi_session'] ?? true);
+        $maxConcurrent = (int) ($sessionCfg['max_concurrent_sessions_per_client'] ?? self::DEFAULT_MAX_CONCURRENT_SESSIONS);
+
+        $live = Session::query()
+            ->withoutGlobalScopes()
+            ->where('client_id', $client->id)
+            ->where('id', '!=', $newSession->id)
+            ->whereIn('status', Session::LIVE_STATUSES)
+            ->orderBy('last_active_at')
+            ->get();
+
+        $evicted = [];
+
+        if (! $multiSession) {
+            foreach ($live as $session) {
+                $this->replaced($session);
+                $evicted[] = $session->id;
+            }
+
+            return $evicted;
+        }
+
+        $excess = ($live->count() + 1) - max(1, $maxConcurrent);
+        if ($excess <= 0) {
+            return [];
+        }
+        foreach ($live->take($excess) as $session) {
+            $this->replaced($session);
+            $evicted[] = $session->id;
+        }
+
+        return $evicted;
+    }
+
+    /**
+     * Lazy collapse on `GET /v1/client` when multi_session was toggled to
+     * false but the client still carries multiple live sessions. Keeps the
+     * one with the most-recent `last_active_at`; evicts the rest.
+     *
+     * @return list<string>
+     */
+    public function enforceSingleSessionOnRead(Environment $environment, Client $client): array
+    {
+        $userSettings = is_array($environment->user_settings) ? $environment->user_settings : [];
+        $sessionCfg = is_array($userSettings['sessions'] ?? null) ? $userSettings['sessions'] : [];
+        if (($sessionCfg['multi_session'] ?? true) !== false) {
+            return [];
+        }
+
+        $live = Session::query()
+            ->withoutGlobalScopes()
+            ->where('client_id', $client->id)
+            ->whereIn('status', Session::LIVE_STATUSES)
+            ->orderByDesc('last_active_at')
+            ->get();
+
+        if ($live->count() <= 1) {
+            return [];
+        }
+
+        $evicted = [];
+        foreach ($live->slice(1) as $session) {
+            $this->replaced($session);
+            $evicted[] = $session->id;
+        }
+
+        return $evicted;
     }
 
     private function transitionTo(Session $session, string $target): Session
