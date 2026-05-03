@@ -37,6 +37,15 @@ class Environment extends Model
         self::KIND_PRODUCTION,
     ];
 
+    public const SIGNUP_MODE_PUBLIC = 'public';
+
+    public const SIGNUP_MODE_RESTRICTED = 'restricted';
+
+    public const SIGNUP_MODES = [
+        self::SIGNUP_MODE_PUBLIC,
+        self::SIGNUP_MODE_RESTRICTED,
+    ];
+
     protected string $idPrefix = 'env_';
 
     protected $fillable = [
@@ -51,6 +60,8 @@ class Environment extends Model
         'allowed_origins',
         'appearance',
         'localization',
+        'user_settings',
+        'signup_mode',
     ];
 
     protected function casts(): array
@@ -60,6 +71,7 @@ class Environment extends Model
             'allowed_origins' => 'array',
             'appearance' => 'array',
             'localization' => 'array',
+            'user_settings' => 'array',
         ];
     }
 
