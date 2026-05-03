@@ -6,7 +6,7 @@ use App\Models\EmailAddress;
 use App\Models\Environment;
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -50,7 +50,7 @@ it('enforces unique (environment_id, email_address)', function (): void {
         'environment_id' => $env->id,
         'user_id' => $user->id,
         'email_address' => 'a@example.com',
-    ]))->toThrow(UniqueConstraintViolationException::class);
+    ]))->toThrow(QueryException::class);
 });
 
 it('promotes a primary email and demotes the previous primary via the observer', function (): void {

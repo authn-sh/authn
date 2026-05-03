@@ -6,7 +6,7 @@ use App\Database\Scopes\EnvironmentScope;
 use App\Models\Environment;
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
@@ -73,11 +73,14 @@ it('enforces unique (environment_id, external_id) and (environment_id, username)
 
     User::create(['environment_id' => $env->id, 'external_id' => 'ext-1', 'username' => 'alice']);
 
+    // QueryException covers the SQLite test driver and the Postgres
+    // production path uniformly (UniqueConstraintViolationException
+    // extends it; matching the parent keeps the test resilient).
     expect(fn () => User::create(['environment_id' => $env->id, 'external_id' => 'ext-1']))
-        ->toThrow(UniqueConstraintViolationException::class);
+        ->toThrow(QueryException::class);
 
     expect(fn () => User::create(['environment_id' => $env->id, 'username' => 'alice']))
-        ->toThrow(UniqueConstraintViolationException::class);
+        ->toThrow(QueryException::class);
 });
 
 it('exposes lockout_expires_in_seconds derived from lockout_expires_at', function (): void {

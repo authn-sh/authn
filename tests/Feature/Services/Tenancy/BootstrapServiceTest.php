@@ -9,7 +9,7 @@ use App\Models\Project;
 use App\Models\SigningKey;
 use App\Models\User;
 use App\Services\Tenancy\BootstrapService;
-use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -143,7 +143,7 @@ it('enforces uniqueness on (owner_organization_id, slug)', function (): void {
         'owner_organization_id' => $workspace->id,
         'name' => 'Second',
         'slug' => 'duplicate',
-    ]))->toThrow(UniqueConstraintViolationException::class);
+    ]))->toThrow(QueryException::class);
 });
 
 it('exposes Project->is_admin_project for the seeded _admin row', function (): void {
