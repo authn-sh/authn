@@ -16,6 +16,7 @@ use App\Models\SignInAttempt;
 use App\Models\User;
 use App\Models\Verification;
 use App\Services\Client\ClientResolver;
+use App\Services\Sessions\SessionLifecycle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -300,6 +301,15 @@ final class SignInController
 
         // Stamp the user as recently signed in.
         $user->forceFill(['last_sign_in_at' => now(), 'last_active_at' => now()])->saveQuietly();
+
+        // Apply the env's multi-session policy: in single-session mode, evict
+        // every other live session on this client; in multi-session mode,
+        // enforce the per-client cap by evicting LRU sessions.
+        $client = Client::query()->withoutGlobalScopes()->where('id', $attempt->client_id)->first();
+        if ($client !== null) {
+            app(SessionLifecycle::class)
+                ->enforceMultiSessionPolicy(app(Environment::class), $client, $session);
+        }
 
         return $session;
     }

@@ -52,6 +52,9 @@ final class ClientController
                 'last_active_at' => now(),
             ]);
             $createdHere = true;
+        } else {
+            // Lazy collapse if the env was toggled to single-session mode.
+            $this->sessions->enforceSingleSessionOnRead($env, $client);
         }
 
         $response = response()

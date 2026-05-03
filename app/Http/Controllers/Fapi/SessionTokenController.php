@@ -6,9 +6,13 @@ namespace App\Http\Controllers\Fapi;
 
 use App\Models\Client;
 use App\Models\Session;
+use App\Models\User;
+use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 use InvalidArgumentException;
 
 /**
@@ -23,7 +27,15 @@ use InvalidArgumentException;
  */
 final class SessionTokenController
 {
-    public function __construct(private readonly SessionTokenIssuer $issuer) {}
+    /** Per-session burst (PLAN §7.3): 3 requests over 30 seconds. */
+    public const RATE_LIMIT_MAX = 3;
+
+    public const RATE_LIMIT_DECAY_SECONDS = 30;
+
+    public function __construct(
+        private readonly SessionTokenIssuer $issuer,
+        private readonly SessionLifecycle $lifecycle,
+    ) {}
 
     public function __invoke(Request $request): JsonResponse
     {
@@ -46,6 +58,35 @@ final class SessionTokenController
             return $this->error(401, 'session_revoked', "Session is in status {$session->status}.");
         }
 
+        // Refuse — and revoke — when the user is banned/locked. The SDK will
+        // then sign out cleanly on the next /v1/client read.
+        $user = User::query()->withoutGlobalScopes()->where('id', $session->user_id)->first();
+        if ($user !== null) {
+            if ($user->banned) {
+                $this->lifecycle->revoke($session);
+
+                return $this->error(401, 'user_banned', 'This user is banned.');
+            }
+            if ($user->locked && $user->lockout_expires_at?->isFuture()) {
+                $this->lifecycle->revoke($session);
+
+                return $this->error(401, 'user_locked', 'This user is temporarily locked.');
+            }
+        }
+
+        $rateLimitKey = 'fapi:session_token:'.$session->id;
+        if (RateLimiter::tooManyAttempts($rateLimitKey, self::RATE_LIMIT_MAX)) {
+            $retryAfter = RateLimiter::availableIn($rateLimitKey);
+
+            return $this->error(
+                429,
+                'rate_limit_exceeded',
+                "Too many token-mint requests for this session. Retry in {$retryAfter}s.",
+                ['Retry-After' => (string) $retryAfter],
+            );
+        }
+        RateLimiter::hit($rateLimitKey, self::RATE_LIMIT_DECAY_SECONDS);
+
         try {
             $minted = $this->issuer->mint($session, $template, $request);
         } catch (InvalidArgumentException $e) {
@@ -55,6 +96,10 @@ final class SessionTokenController
             throw $e;
         }
 
+        if ($user !== null) {
+            $this->bumpUserActivity($user);
+        }
+
         return response()->json([
             'jwt' => $minted['jwt'],
             'expires_at' => $minted['expires_at'],
@@ -62,7 +107,19 @@ final class SessionTokenController
         ]);
     }
 
-    private function error(int $status, string $code, string $message): JsonResponse
+    private function bumpUserActivity(User $user): void
+    {
+        $cacheKey = 'user:active:'.$user->id;
+        if (! Cache::add($cacheKey, 1, 60)) {
+            return;
+        }
+        $user->forceFill(['last_active_at' => now()])->saveQuietly();
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function error(int $status, string $code, string $message, array $headers = []): JsonResponse
     {
         return response()->json([
             'errors' => [[
@@ -72,6 +129,6 @@ final class SessionTokenController
                 'meta' => [],
             ]],
             'trace_id' => null,
-        ], $status);
+        ], $status, $headers);
     }
 }
