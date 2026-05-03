@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Tenancy;
 
 use App\Models\ApiKey;
+use App\Models\EmailAddress;
 use App\Models\Environment;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
@@ -93,11 +94,21 @@ final class BootstrapService
 
             $operator = new User([
                 'environment_id' => $environment->id,
-                'email' => Str::lower($email),
-                'email_verified_at' => now(),
+                'has_image' => false,
+                'delete_self_enabled' => true,
             ]);
             $operator->setPassword($password);
             $operator->save();
+
+            $emailAddress = EmailAddress::query()->withoutGlobalScopes()->create([
+                'environment_id' => $environment->id,
+                'user_id' => $operator->id,
+                'email_address' => Str::lower($email),
+                'verified_at' => now(),
+                'is_primary' => true,
+            ]);
+            $operator->forceFill(['primary_email_address_id' => $emailAddress->id])->saveQuietly();
+            $operator->setRelation('primaryEmailAddress', $emailAddress);
 
             $workspace->update(['created_by_user_id' => $operator->id]);
 
