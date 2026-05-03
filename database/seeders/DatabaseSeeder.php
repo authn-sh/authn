@@ -2,24 +2,18 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * Default seeder is intentionally empty. The first-run setup of authn.sh is
+ * driven by `php artisan authn:bootstrap`, which provisions the `_admin`
+ * system project, the first workspace organization, the first operator user,
+ * and the initial API key + signing key. See App\Console\Commands\BootstrapCommand.
+ */
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        // No-op.
     }
 }
