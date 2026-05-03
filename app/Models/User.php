@@ -5,28 +5,51 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasPrefixedUlid;
+use App\Database\Scopes\EnvironmentScope;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\Access\Authorizable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Minimal v0.1 User shape — just enough for the bootstrap operator and the
- * authentication flows that AU-9 / AU-10 wire up. AU-4 expands this with the
- * full PLAN §4.2 column set (external_id, image_url, MFA flags, lockout,
- * metadata, ...) plus a separate `email_addresses` table.
+ * Full v0.1 User shape per PLAN §4.2. Email storage lives on
+ * `email_addresses` (one row per email, primary tracked here via
+ * `primary_email_address_id`). MFA, lockout, and metadata fields are
+ * present so AU-9 / AU-10 can branch on them without further schema work.
  *
  * @property string $id
  * @property string $environment_id
- * @property string $email
- * @property ?\DateTimeInterface $email_verified_at
- * @property ?string $password_hash
+ * @property ?string $external_id
+ * @property ?string $username
  * @property ?string $first_name
  * @property ?string $last_name
+ * @property ?string $image_url
+ * @property bool $has_image
+ * @property ?string $primary_email_address_id
+ * @property ?string $password_hash
+ * @property ?\DateTimeInterface $password_changed_at
+ * @property bool $two_factor_enabled
+ * @property bool $totp_enabled
+ * @property bool $backup_code_enabled
+ * @property ?\DateTimeInterface $mfa_enabled_at
+ * @property ?\DateTimeInterface $mfa_disabled_at
+ * @property bool $banned
+ * @property bool $locked
+ * @property ?\DateTimeInterface $lockout_expires_at
+ * @property ?\DateTimeInterface $last_sign_in_at
+ * @property ?\DateTimeInterface $last_active_at
+ * @property bool $delete_self_enabled
+ * @property array $public_metadata
+ * @property array $private_metadata
+ * @property array $unsafe_metadata
+ * @property ?string $locale
  */
 class User extends Model implements AuthenticatableContract
 {
@@ -34,32 +57,84 @@ class User extends Model implements AuthenticatableContract
     use HasFactory;
     use HasPrefixedUlid;
     use Notifiable;
+    use SoftDeletes;
 
     protected string $idPrefix = 'user_';
 
     protected $fillable = [
         'environment_id',
-        'email',
-        'email_verified_at',
-        'password_hash',
+        'external_id',
+        'username',
         'first_name',
         'last_name',
+        'image_url',
+        'has_image',
+        'primary_email_address_id',
+        'password',
+        'password_hash',
+        'password_changed_at',
+        'two_factor_enabled',
+        'totp_enabled',
+        'backup_code_enabled',
+        'mfa_enabled_at',
+        'mfa_disabled_at',
+        'banned',
+        'locked',
+        'lockout_expires_at',
+        'last_sign_in_at',
+        'last_active_at',
+        'delete_self_enabled',
+        'public_metadata',
+        'private_metadata',
+        'unsafe_metadata',
+        'locale',
     ];
 
     protected $hidden = [
         'password_hash',
+        'private_metadata',
     ];
 
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'immutable_datetime',
+            'has_image' => 'boolean',
+            'two_factor_enabled' => 'boolean',
+            'totp_enabled' => 'boolean',
+            'backup_code_enabled' => 'boolean',
+            'banned' => 'boolean',
+            'locked' => 'boolean',
+            'delete_self_enabled' => 'boolean',
+            'password_changed_at' => 'immutable_datetime',
+            'mfa_enabled_at' => 'immutable_datetime',
+            'mfa_disabled_at' => 'immutable_datetime',
+            'lockout_expires_at' => 'immutable_datetime',
+            'last_sign_in_at' => 'immutable_datetime',
+            'last_active_at' => 'immutable_datetime',
+            'public_metadata' => 'array',
+            'private_metadata' => 'array',
+            'unsafe_metadata' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new EnvironmentScope);
     }
 
     public function environment(): BelongsTo
     {
         return $this->belongsTo(Environment::class);
+    }
+
+    public function emailAddresses(): HasMany
+    {
+        return $this->hasMany(EmailAddress::class);
+    }
+
+    public function primaryEmailAddress(): BelongsTo
+    {
+        return $this->belongsTo(EmailAddress::class, 'primary_email_address_id');
     }
 
     public function organizationMemberships(): BelongsToMany
@@ -68,14 +143,50 @@ class User extends Model implements AuthenticatableContract
             ->withPivot(['id', 'role', 'created_at', 'updated_at']);
     }
 
+    /**
+     * Mass-assignable `password` attribute. Hashing happens here so test
+     * factories and BAPI / FAPI controllers never see plaintext stored.
+     */
+    protected function password(): Attribute
+    {
+        return Attribute::set(function (?string $value, array $attributes): array {
+            if ($value === null || $value === '') {
+                return ['password_hash' => $attributes['password_hash'] ?? null];
+            }
+
+            return [
+                'password_hash' => Hash::make($value),
+                'password_changed_at' => now(),
+            ];
+        });
+    }
+
     public function setPassword(string $plaintext): void
     {
-        $this->password_hash = Hash::make($plaintext);
+        $this->password = $plaintext;
     }
 
     public function checkPassword(string $plaintext): bool
     {
         return $this->password_hash !== null && Hash::check($plaintext, $this->password_hash);
+    }
+
+    /**
+     * Per PLAN §4.2: cleared automatically when `lockout_expires_at` passes,
+     * or manually via `POST /v1/users/{id}/unlock`. Also exposes the
+     * `lockout_expires_in_seconds` derived field SDKs render in
+     * `<UserProfile />` lockout banners.
+     */
+    protected function lockoutExpiresInSeconds(): Attribute
+    {
+        return Attribute::get(function (): ?int {
+            if (! $this->locked || $this->lockout_expires_at === null) {
+                return null;
+            }
+            $remaining = $this->lockout_expires_at->getTimestamp() - now()->getTimestamp();
+
+            return max(0, $remaining);
+        });
     }
 
     /* ----- Illuminate\Contracts\Auth\Authenticatable bridge ----- */

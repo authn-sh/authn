@@ -64,7 +64,9 @@ it('provisions the _admin project, environment, workspace org, operator, signing
 
     /** @var User $operator */
     $operator = $result['operator'];
-    expect($operator->email)->toBe('op@example.com');
+    expect($operator->primaryEmailAddress->email_address)->toBe('op@example.com');
+    expect($operator->primaryEmailAddress->is_primary)->toBeTrue();
+    expect($operator->primaryEmailAddress->verified_at)->not->toBeNull();
     expect($operator->checkPassword('super-secret-password'))->toBeTrue();
     expect($operator->checkPassword('wrong'))->toBeFalse();
 
