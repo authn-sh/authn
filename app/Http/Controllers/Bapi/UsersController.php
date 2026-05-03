@@ -349,11 +349,13 @@ final class UsersController
             $query->whereIn('id', (array) $request->input('user_id'));
         }
         if ($request->has('query')) {
-            $needle = '%'.(string) $request->input('query').'%';
+            // LOWER() + lowercased needle so both Postgres (case-sensitive
+            // LIKE) and SQLite (case-insensitive ASCII LIKE) match.
+            $needle = '%'.strtolower((string) $request->input('query')).'%';
             $query->where(function ($q) use ($needle): void {
-                $q->where('first_name', 'like', $needle)
-                    ->orWhere('last_name', 'like', $needle)
-                    ->orWhere('username', 'like', $needle);
+                $q->whereRaw('LOWER(first_name) LIKE ?', [$needle])
+                    ->orWhereRaw('LOWER(last_name) LIKE ?', [$needle])
+                    ->orWhereRaw('LOWER(username) LIKE ?', [$needle]);
             });
         }
         foreach (['banned', 'locked'] as $flag) {

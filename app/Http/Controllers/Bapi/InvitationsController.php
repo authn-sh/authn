@@ -40,7 +40,8 @@ final class InvitationsController
             $query->whereIn('status', (array) $request->input('status'));
         }
         if ($request->has('query')) {
-            $needle = '%'.(string) $request->input('query').'%';
+            // Lowercase the needle since email_address is stored lowercased.
+            $needle = '%'.strtolower((string) $request->input('query')).'%';
             $query->where('email_address', 'like', $needle);
         }
         $query->latest('created_at');
