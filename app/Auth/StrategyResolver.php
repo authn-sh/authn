@@ -1,0 +1,38 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Auth;
+
+use App\Auth\Strategies\EmailCodeStrategy;
+use App\Auth\Strategies\PasswordStrategy;
+use App\Auth\Strategies\ResetPasswordEmailCodeStrategy;
+use App\Auth\Strategies\Strategy;
+use App\Auth\Strategies\TicketStrategy;
+use App\Models\Verification;
+use InvalidArgumentException;
+
+/**
+ * Maps strategy names from the wire (per PLAN §9.3) to their concrete
+ * Strategy implementations. Anything not in the v0.1 whitelist throws.
+ */
+final class StrategyResolver
+{
+    public function __construct(
+        private readonly PasswordStrategy $password,
+        private readonly EmailCodeStrategy $emailCode,
+        private readonly ResetPasswordEmailCodeStrategy $resetPasswordEmailCode,
+        private readonly TicketStrategy $ticket,
+    ) {}
+
+    public function resolve(string $name): Strategy
+    {
+        return match ($name) {
+            Verification::STRATEGY_PASSWORD => $this->password,
+            Verification::STRATEGY_EMAIL_CODE => $this->emailCode,
+            Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE => $this->resetPasswordEmailCode,
+            Verification::STRATEGY_TICKET => $this->ticket,
+            default => throw new InvalidArgumentException("Strategy {$name} is not enabled in v0.1."),
+        };
+    }
+}
