@@ -1,28 +1,63 @@
-# Dev override — auto-merged by `docker compose up`. Mounts the project
-# source for hot reload, switches the app container to the `dev` Dockerfile
-# target (composer dev deps + node_modules), and adds mailpit so outbound
-# verification emails land in a UI.
+# Dev override — auto-merged by `docker compose up`.
+#
+# Same shape as production (app + worker + scheduler all running nginx+fpm
+# resp. queue:work / schedule:work) but switched to the `dev` Dockerfile
+# target so composer dev deps + node_modules are present, with selective
+# source bind-mounts so HMR works without clobbering image perms.
+#
+# Vite runs in its own container against the same source mount so the
+# Account Portal / Dashboard assets reload without a host Node toolchain.
+
+x-dev: &dev-base
+  build:
+    target: dev
+  environment:
+    APP_ENV: local
+    APP_DEBUG: "true"
+    MAIL_MAILER: smtp
+    MAIL_HOST: mailpit
+    MAIL_PORT: 1025
+  volumes:
+    # Source dirs worth HMR-ing. Storage, bootstrap/cache, vendor,
+    # node_modules, public/build stay owned by the image so the container
+    # user (uid 82) can write to them.
+    - ./app:/var/www/html/app
+    - ./bootstrap/app.php:/var/www/html/bootstrap/app.php
+    - ./bootstrap/providers.php:/var/www/html/bootstrap/providers.php
+    - ./config:/var/www/html/config
+    - ./database:/var/www/html/database
+    - ./resources:/var/www/html/resources
+    - ./routes:/var/www/html/routes
+    - ./tests:/var/www/html/tests
+    - ./public/index.php:/var/www/html/public/index.php
+    - ./.env:/var/www/html/.env
 
 services:
   app:
-    build:
-      target: dev
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      MAIL_MAILER: smtp
-      MAIL_HOST: mailpit
-      MAIL_PORT: 1025
+    <<: *dev-base
+    # nginx + php-fpm via supervisord (the production CMD); no
+    # `php artisan serve`. Dev exercises the same routing + FPM pool the
+    # release image uses.
+
+  worker:
+    <<: *dev-base
+
+  scheduler:
+    <<: *dev-base
+
+  vite:
+    image: node:20-alpine
+    working_dir: /var/www/html
+    command:
+      - sh
+      - -c
+      - npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0
     volumes:
       - .:/var/www/html
-      - /var/www/html/vendor
-      - /var/www/html/node_modules
-      - /var/www/html/public/build
-    command: ["composer", "run", "dev"]
+      - vite_node_modules:/var/www/html/node_modules
     ports:
-      - "8000:8000"        # `php artisan serve`
-      - "5173:5173"        # Vite HMR
-      - "8080:8080"        # nginx (also rebound, so the prod path keeps working)
+      - "5173:5173"
+    restart: unless-stopped
 
   mailpit:
     image: axllent/mailpit:latest
@@ -30,3 +65,6 @@ services:
     ports:
       - "8025:8025"        # Mailpit UI
       - "1025:1025"        # SMTP listener
+
+volumes:
+  vite_node_modules:

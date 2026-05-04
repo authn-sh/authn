@@ -59,6 +59,16 @@ final class HandleDashboardInertia
                 'role' => $workspace->role,
             ] : null,
             'sign_in_url' => $adminEnv !== null ? Url::fapi($adminEnv, '/sign-in') : null,
+            'admin_environment' => $adminEnv !== null ? [
+                // The `_admin` env publishable key + FAPI URL is what the
+                // sdk-react AuthnProvider authenticates against. Operator
+                // sessions live in `_admin`; AU-17's RequireAdminSession
+                // already enforces this server-side.
+                'publishable_key' => 'pk_'.$adminEnv->keyEnvironmentSegment().'_'.substr($adminEnv->id, 4, 16),
+                'fapi_url' => 'https://'.$adminEnv->frontend_api_host,
+                'sign_in_url' => Url::fapi($adminEnv, '/sign-in'),
+                'after_sign_out_url' => Url::fapi($adminEnv, '/sign-in'),
+            ] : null,
             'active_project' => $activeProject !== null ? [
                 'id' => $activeProject->id,
                 'slug' => $activeProject->slug,
