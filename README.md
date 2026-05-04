@@ -18,43 +18,48 @@ cp .env.example .env
 #   AUTHN_BOOTSTRAP_ADMIN_EMAIL      (operator email for first-boot setup)
 #   AUTHN_BOOTSTRAP_ADMIN_PASSWORD   (initial operator password)
 
-docker compose up -d
+make up                  # production-shaped stack (app + worker + scheduler + postgres + redis)
 docker compose logs -f app
 # First boot prints the workspace + secret/publishable key pair exactly once.
 # Sign in at https://${AUTHN_DASHBOARD_HOST} with the bootstrap operator
 # credentials.
 ```
 
-The same compose file is used in dev — `docker-compose.override.yml` (auto-merged
-by `docker compose up`) switches the app container to the `dev` Dockerfile
-target, mounts the source for HMR, exposes Vite on `:5173`, and adds Mailpit on
-`:8025` for outbound verification emails.
-
-For a production-only stack (no dev tooling, no source mount), pass the
-baseline file explicitly:
+Workers scale independently from the web container:
 
 ```bash
-docker compose -f docker-compose.yml up -d
+docker compose up -d --scale worker=4
 ```
 
-## Local development without Docker
+### Local customisations
+
+`docker-compose.override.yml` is gitignored. Drop one in your checkout
+and Docker Compose auto-merges it on every command — handy for setting
+your own ports, mail driver, S3 endpoint, etc.
+
+## Dev workflow
+
+```bash
+make dev                 # app + worker + scheduler (dev image) + vite + mailpit
+make logs                # tail app
+make logs s=worker
+make sh                  # shell into app
+make test                # Pest suite inside the app container
+make scale w=3           # scale worker
+make down                # stop; add V=1 to drop volumes
+```
+
+`docker-compose.dev.yml` is the dev layer — same nginx + php-fpm stack
+the production image runs (no `php artisan serve`), with selective
+source bind-mounts for HMR. Vite runs in its own container against the
+shared source mount, exposes `:5173`. Mailpit captures outbound mail at
+`http://localhost:8025`.
+
+The Pest suite also runs without Docker against in-memory SQLite per
+`phpunit.xml`:
 
 ```bash
 composer install
-npm install
-cp .env.example .env
-php artisan key:generate
-
-# In separate terminals (or via `composer run dev`):
-php artisan serve
-php artisan queue:work
-php artisan horizon
-npm run dev
-```
-
-The Pest suite runs against in-memory SQLite per `phpunit.xml`:
-
-```bash
 php artisan test
 ```
 
