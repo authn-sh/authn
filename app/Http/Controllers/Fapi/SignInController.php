@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Models\Verification;
 use App\Services\Client\ClientResolver;
 use App\Services\Sessions\SessionLifecycle;
+use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -391,7 +392,43 @@ final class SignInController
             $response = $response->withCookie($this->buildClientCookie($client));
         }
 
+        if ($newSession !== null) {
+            $response = $response->withCookie($this->buildSessionCookie($newSession));
+        }
+
         return $response;
+    }
+
+    /**
+     * Mints a `__session` JWT for the freshly-issued session and stuffs it
+     * into an HttpOnly cookie so top-level Dashboard navigations carry the
+     * operator's session without the SDK having to inject Authorization
+     * headers. Tenants doing pure cross-origin Bearer-only auth can safely
+     * ignore the cookie — they read the JWT from the response body.
+     *
+     * The cookie JWT outlives the in-memory access token (default 60s)
+     * because the browser only re-attaches it on top-level navigations,
+     * not on every API call where the SDK can refresh from /tokens. A
+     * 24h ceiling is short enough that a stolen cookie expires within a
+     * day and long enough that operators don't get bounced mid-shift.
+     */
+    private const SESSION_COOKIE_TTL_SECONDS = 86400;
+
+    private function buildSessionCookie(Session $newSession): Cookie
+    {
+        $minted = app(SessionTokenIssuer::class)->mint($newSession, lifetimeOverride: self::SESSION_COOKIE_TTL_SECONDS);
+
+        return \Illuminate\Support\Facades\Cookie::make(
+            name: '__session',
+            value: (string) $minted['jwt'],
+            minutes: (int) ceil(self::SESSION_COOKIE_TTL_SECONDS / 60),
+            path: '/',
+            domain: null,
+            secure: request()->secure(),
+            httpOnly: true,
+            raw: false,
+            sameSite: 'lax',
+        );
     }
 
     private function buildClientCookie(Client $client): Cookie

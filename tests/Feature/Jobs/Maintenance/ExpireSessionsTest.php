@@ -20,7 +20,7 @@ it('expires live sessions whose expire_at has passed and emits session.ended w/ 
         'project_id' => $project->id,
         'kind' => Environment::KIND_DEVELOPMENT,
         'slug' => 'ses-exp',
-        'frontend_api_host' => 'ses-exp.authn.local',
+        'routing_label' => 'ses-exp',
         'allowed_origins' => [],
     ]);
     $client = Client::create(['environment_id' => $env->id]);

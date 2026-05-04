@@ -29,7 +29,7 @@ function tokenFixture(): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'acme',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
     ]);
     (new SigningKeyGenerator)->generate($env);
 
@@ -138,7 +138,7 @@ it('verifier rejects a token signed by a different env', function (): void {
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'other',
-        'frontend_api_host' => 'other.authn.local',
+        'routing_label' => 'other',
     ]);
     (new SigningKeyGenerator)->generate($other);
 

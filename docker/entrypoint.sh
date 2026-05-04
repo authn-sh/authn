@@ -56,8 +56,16 @@ if [ "${AUTHN_RUN_MIGRATIONS:-false}" = "true" ]; then
     fi
 fi
 
-log "Re-cooking config / route / view caches…"
-php artisan optimize >/dev/null
+if [ "${APP_ENV:-production}" = "local" ]; then
+    # Dev container — avoid the config/route/view cache so PHPUnit's per-test
+    # env overrides (sqlite, :memory:, ...) take effect and bind-mounted
+    # source edits are visible without rebooting the container.
+    log "APP_ENV=local — skipping optimize cache."
+    php artisan optimize:clear >/dev/null
+else
+    log "Re-cooking config / route / view caches…"
+    php artisan optimize >/dev/null
+fi
 
 log "Handing off to: $*"
 exec "$@"

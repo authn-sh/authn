@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Concerns\HasPrefixedUlid;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,7 +15,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $id
  * @property string $project_id
  * @property string $kind development | staging | production
- * @property string $frontend_api_host
+ * @property string $slug operator-facing label, unique per project
+ * @property ?string $routing_label opaque routing identity, globally unique
+ * @property-read string $frontend_api_host derived: routing_label + app_host
  * @property bool $is_satellite
  * @property array $allowed_origins
  * @property array $appearance
@@ -52,7 +55,7 @@ class Environment extends Model
         'project_id',
         'kind',
         'slug',
-        'frontend_api_host',
+        'routing_label',
         'dashboard_url',
         'home_url',
         'is_satellite',
@@ -107,6 +110,28 @@ class Environment extends Model
         return in_array($value, self::TEST_MODES, true)
             ? (string) $value
             : self::TEST_MODE_DISABLED;
+    }
+
+    /**
+     * Derived FAPI host. The reserved `_admin` env (no `routing_label`) lives
+     * at the bare app host; everything else is `<routing_label>.<app_host>`
+     * in subdomain mode and `<app_host>` (with the label as path prefix) in
+     * path mode. The path-mode form just returns the bare host because there
+     * is no host-level partitioning — `Url::fapi()` adds the prefix.
+     */
+    protected function frontendApiHost(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $appHost = (string) config('authn.app_host', 'localhost');
+            if ($this->routing_label === null) {
+                return $appHost;
+            }
+            if ((string) config('authn.routing_mode') === 'subdomain') {
+                return $this->routing_label.'.'.$appHost;
+            }
+
+            return $appHost;
+        });
     }
 
     public function project(): BelongsTo

@@ -22,7 +22,7 @@ function makeProductionEnvironment(): Environment
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'test-'.bin2hex(random_bytes(3)),
-        'frontend_api_host' => 'test-'.bin2hex(random_bytes(3)).'.authn.local',
+        'routing_label' => 'test-'.bin2hex(random_bytes(3)),
     ]);
 }
 

@@ -19,7 +19,7 @@ function makeEnvForEmails(): Environment
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'env',
-        'frontend_api_host' => 'env.authn.local',
+        'routing_label' => 'env',
     ]);
 }
 

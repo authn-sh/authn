@@ -15,6 +15,7 @@ use App\Models\SigningKey;
 use App\Models\User;
 use App\Services\Keys\KeyGenerator;
 use App\Services\Keys\SigningKeyGenerator;
+use App\Support\Url;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -65,25 +66,42 @@ final class BootstrapService
         }
 
         $appHost = parse_url((string) $appUrl, PHP_URL_HOST) ?: (string) config('authn.app_host', 'localhost');
-        $routingMode = (string) config('authn.routing_mode', 'subdomain');
 
-        return DB::transaction(function () use ($email, $password, $workspaceName, $appHost, $routingMode): array {
+        return DB::transaction(function () use ($email, $password, $workspaceName, $appHost): array {
             $project = Project::create([
                 'name' => 'authn.sh admin',
                 'slug' => Project::SYSTEM_SLUG,
                 'is_system' => true,
             ]);
 
-            $envSlug = Project::SYSTEM_SLUG;
-            $fapiHost = $routingMode === 'subdomain' ? $envSlug.'.'.$appHost : $appHost;
+            // The `_admin` env always lives at the bare app host (subdomain
+            // mode) or the bare root (path mode), so the operator signs in
+            // at <APP_URL>/sign-in regardless of routing strategy. It has
+            // no routing_label — ResolveProjectFromHost special-cases it.
+
+            // The Account Portal lives at the same origin as the FAPI for
+            // the `_admin` env (bare app host in both routing modes), so
+            // operator browser calls always carry `Origin: <app_url>`.
+            // Seed it into the allowlist; without this, EnforceFapiOrigin
+            // 403s every state-changing call out of the box. The Dashboard
+            // Origin matches in subdomain mode (different host) so add it
+            // explicitly too — duplicates are harmless after normalization.
+            $scheme = (string) config('authn.app_scheme');
+            $portSuffix = (string) config('authn.app_port_suffix');
+            $appOrigin = $scheme.'://'.$appHost.$portSuffix;
+            $dashboardOrigin = $scheme.'://'.((string) config('authn.dashboard_host', $appHost)).$portSuffix;
 
             $environment = Environment::create([
                 'project_id' => $project->id,
                 'kind' => Environment::KIND_PRODUCTION,
-                'slug' => $envSlug,
-                'frontend_api_host' => $fapiHost,
-                'home_url' => sprintf('https://%s', $appHost),
-                'allowed_origins' => [],
+                'slug' => Project::SYSTEM_SLUG,
+                'routing_label' => null,
+                // After-sign-in lands the operator on the Dashboard host
+                // (subdomain mode) or `/dashboard` path (path mode). Use
+                // Url::dashboard() so the scheme + port match `app.url`
+                // — local dev uses http://localhost:8080 not https://.
+                'home_url' => Url::dashboard(),
+                'allowed_origins' => array_values(array_unique([$appOrigin, $dashboardOrigin])),
                 'appearance' => [],
             ]);
 

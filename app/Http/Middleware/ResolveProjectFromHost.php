@@ -31,11 +31,20 @@ final class ResolveProjectFromHost
     {
         $slug = $this->extractEnvSlug($request);
 
-        if ($slug === null || $this->isReserved($slug)) {
-            return $this->notFound();
+        // Bare host (subdomain mode) / bare root (path mode) → `_admin` env.
+        // The operator's hosted Account Portal lives at the bare URL; the
+        // `_admin` slug is reserved and never reachable as a tenant.
+        if ($slug === null) {
+            $environment = Environment::query()
+                ->with('project')
+                ->whereHas('project', fn ($q) => $q->where('slug', Project::SYSTEM_SLUG)->where('is_system', true))
+                ->first();
+        } else {
+            if ($this->isReserved($slug)) {
+                return $this->notFound();
+            }
+            $environment = $this->resolveEnvironment($request, $slug);
         }
-
-        $environment = $this->resolveEnvironment($request, $slug);
 
         if ($environment === null) {
             return $this->notFound();
@@ -54,6 +63,10 @@ final class ResolveProjectFromHost
             $appHost = (string) config('authn.app_host');
             $suffix = '.'.$appHost;
 
+            // Bare host → admin context.
+            if ($host === $appHost) {
+                return null;
+            }
             if (! str_ends_with($host, $suffix)) {
                 return null;
             }
@@ -63,11 +76,17 @@ final class ResolveProjectFromHost
             return $label === '' ? null : $label;
         }
 
-        // Path mode: first segment after the leading slash.
+        // Path mode: first segment after the leading slash. The bare-root
+        // mount serves the `_admin` env's Account Portal + FAPI paths
+        // (sign-in, sign-up, user, verify, sign-out, /v1/..., /account/...,
+        // /.well-known/...). Tenants get the leading {env_slug}/ prefix.
         $segments = explode('/', ltrim($request->path(), '/'));
         $first = $segments[0] ?? '';
+        if ($first === '' || in_array($first, $this->bareRootSegments(), true)) {
+            return null;
+        }
 
-        return $first === '' ? null : $first;
+        return $first;
     }
 
     private function isReserved(string $slug): bool
@@ -77,15 +96,27 @@ final class ResolveProjectFromHost
         return in_array($slug, $reserved, true);
     }
 
-    private function resolveEnvironment(Request $request, string $slug): ?Environment
+    /**
+     * Path-mode helper: top-level URL segments owned by the bare-root mount
+     * (the `_admin` env's Account Portal + FAPI). Anything else is treated
+     * as a tenant env slug.
+     *
+     * @return list<string>
+     */
+    private function bareRootSegments(): array
     {
-        $query = Environment::query()->with('project');
+        return ['sign-in', 'sign-up', 'user', 'verify', 'sign-out', 'v1', 'account', '.well-known'];
+    }
 
-        if ((string) config('authn.routing_mode') === 'subdomain') {
-            return $query->where('frontend_api_host', $request->getHost())->first();
-        }
-
-        return $query->where('slug', $slug)->first();
+    private function resolveEnvironment(Request $request, string $label): ?Environment
+    {
+        // Both modes look up by the opaque `routing_label`. Subdomain mode
+        // strips the leading host label (the part before `.<app_host>`);
+        // path mode pulls the first URL segment. Either way the same
+        // routing identity column drives dispatch.
+        return Environment::query()->with('project')
+            ->where('routing_label', $label)
+            ->first();
     }
 
     private function notFound(): Response

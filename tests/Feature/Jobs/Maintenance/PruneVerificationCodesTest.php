@@ -19,7 +19,7 @@ it('deletes consumed and stale-past-24h verification codes; keeps recent unconsu
         'project_id' => $project->id,
         'kind' => Environment::KIND_DEVELOPMENT,
         'slug' => 'vc-prune',
-        'frontend_api_host' => 'vc-prune.authn.local',
+        'routing_label' => 'vc-prune',
         'allowed_origins' => [],
     ]);
     $user = User::create(['environment_id' => $env->id]);

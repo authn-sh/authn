@@ -21,7 +21,6 @@ x-app-base: &app-base
   build:
     context: .
     target: runtime
-  env_file: .env
   environment:
     DB_HOST: postgres
     DB_PORT: 5432
@@ -41,7 +40,6 @@ services:
     build:
       context: .
       target: runtime
-    env_file: .env
     environment:
       DB_HOST: postgres
       DB_PORT: 5432

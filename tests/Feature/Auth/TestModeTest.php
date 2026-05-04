@@ -40,14 +40,14 @@ it('Policy returns REJECTED in production by default and TEST in development', f
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'prod-tm',
-        'frontend_api_host' => 'prod-tm.authn.local',
+        'routing_label' => 'prod-tm',
         'allowed_origins' => [],
     ]);
     $dev = Environment::create([
         'project_id' => $project->id,
         'kind' => Environment::KIND_DEVELOPMENT,
         'slug' => 'dev-tm',
-        'frontend_api_host' => 'dev-tm.authn.local',
+        'routing_label' => 'dev-tm',
         'allowed_origins' => [],
     ]);
 
@@ -63,7 +63,7 @@ it('brute-force counter ignores test identifiers', function (): void {
         'project_id' => $project->id,
         'kind' => Environment::KIND_DEVELOPMENT,
         'slug' => 'dev-bf',
-        'frontend_api_host' => 'dev-bf.authn.local',
+        'routing_label' => 'dev-bf',
         'allowed_origins' => [],
         'user_settings' => ['attack_protection' => ['brute_force' => ['enabled' => true, 'max_attempts' => 3, 'lockout_duration_seconds' => 60]]],
     ]);

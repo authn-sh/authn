@@ -25,6 +25,7 @@ use App\Models\Verification;
 use App\Models\VerificationCode;
 use App\Services\Client\ClientResolver;
 use App\Services\Sessions\SessionLifecycle;
+use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Verification\VerificationManager;
 use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
@@ -528,6 +529,8 @@ final class SignUpController
         ]);
     }
 
+    private const SESSION_COOKIE_TTL_SECONDS = 86400;
+
     private function envelope(
         Client $client,
         ?SignUpAttempt $attempt,
@@ -544,7 +547,28 @@ final class SignUpController
             $response = $response->withCookie($this->buildClientCookie($client));
         }
 
+        if ($newSession !== null) {
+            $response = $response->withCookie($this->buildSessionCookie($newSession));
+        }
+
         return $response;
+    }
+
+    private function buildSessionCookie(Session $newSession): Cookie
+    {
+        $minted = app(SessionTokenIssuer::class)->mint($newSession, lifetimeOverride: self::SESSION_COOKIE_TTL_SECONDS);
+
+        return \Illuminate\Support\Facades\Cookie::make(
+            name: '__session',
+            value: (string) $minted['jwt'],
+            minutes: (int) ceil(self::SESSION_COOKIE_TTL_SECONDS / 60),
+            path: '/',
+            domain: null,
+            secure: request()->secure(),
+            httpOnly: true,
+            raw: false,
+            sameSite: 'lax',
+        );
     }
 
     private function buildClientCookie(Client $client): Cookie

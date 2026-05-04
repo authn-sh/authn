@@ -7,9 +7,12 @@ export default function SignUp() {
         return <p>Loading…</p>
     }
 
+    // See SignIn.tsx — `routing="virtual"` keeps verify-email-address /
+    // verify-phone-number / continue steps in component state so tenants
+    // need only one route per surface.
     return (
         <SdkSignUp
-            path={env.paths.sign_up_url}
+            routing="virtual"
             signInUrl={signUpProps.signInUrl}
             fallbackRedirectUrl={signUpProps.afterSignUpUrl}
             appearance={signUpProps.appearance}

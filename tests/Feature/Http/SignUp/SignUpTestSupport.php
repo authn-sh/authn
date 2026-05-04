@@ -51,7 +51,7 @@ final class SignUpTestSupport
             'project_id' => $project->id,
             'kind' => Environment::KIND_PRODUCTION,
             'slug' => 'acme',
-            'frontend_api_host' => 'acme.authn.local',
+            'routing_label' => 'acme',
             'allowed_origins' => [$allowedOrigin],
             'user_settings' => $userSettings,
             'signup_mode' => $signupMode,

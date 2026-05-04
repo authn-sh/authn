@@ -8,6 +8,17 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+// `.env` on developer machines often pre-sets these to a real operator,
+// which would shadow the `--email` / `--password` options and make the
+// "missing arg" test below pass spuriously. Clear them per-test so the
+// command sees only what the test explicitly passes.
+beforeEach(function (): void {
+    foreach (['AUTHN_BOOTSTRAP_ADMIN_EMAIL', 'AUTHN_BOOTSTRAP_ADMIN_PASSWORD'] as $key) {
+        unset($_ENV[$key], $_SERVER[$key]);
+        putenv($key);
+    }
+});
+
 it('runs successfully when env vars are set', function (): void {
     config(['app.url' => 'https://authn.local']);
 

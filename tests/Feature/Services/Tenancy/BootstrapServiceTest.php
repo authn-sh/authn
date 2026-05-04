@@ -53,8 +53,10 @@ it('provisions the _admin project, environment, workspace org, operator, signing
     expect($result['environment']->id)->toStartWith('env_');
     expect($result['environment']->kind)->toBe('production');
     expect($result['environment']->slug)->toBe('_admin');
-    // Subdomain mode (the default for the test suite) prefixes the env slug.
-    expect($result['environment']->frontend_api_host)->toBe('_admin.authn.local');
+    // The `_admin` env always lives at the bare app host, regardless of
+    // routing mode (subdomain or path) — the operator signs in at
+    // https://<APP_HOST>/sign-in either way.
+    expect($result['environment']->frontend_api_host)->toBe('authn.local');
 
     /** @var Organization $workspace */
     $workspace = $result['workspace'];

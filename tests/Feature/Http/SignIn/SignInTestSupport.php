@@ -53,7 +53,7 @@ final class SignInTestSupport
             'project_id' => $project->id,
             'kind' => Environment::KIND_PRODUCTION,
             'slug' => 'acme',
-            'frontend_api_host' => 'acme.authn.local',
+            'routing_label' => 'acme',
             'allowed_origins' => [$allowedOrigin],
         ]);
         (new SigningKeyGenerator)->generate($env);

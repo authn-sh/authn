@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Keys;
 
 use App\Models\Environment;
+use App\Support\Url;
 use Illuminate\Support\Str;
 
 /**
@@ -30,14 +31,19 @@ final class KeyGenerator
     }
 
     /**
-     * Per PLAN §10 the publishable key encodes the FAPI URL: the base64 of
-     * `{frontend_api_host}$`. Browsers / SDK loaders can decode it client-side
-     * to discover the host without a separate config call.
+     * Per PLAN §10 the publishable key encodes the FAPI base URL: base64 of
+     * `<host>[/<path-prefix>]$`. Browsers / SDK loaders decode it client-side
+     * to discover where to call FAPI without a separate config round-trip.
+     *
+     * Includes the path-mode prefix so two envs sharing the same `app_host`
+     * still produce distinct keys (and distinct base URLs). Url::fapi() owns
+     * the routing-mode logic; we just strip the scheme.
      */
     public function publishableKey(Environment $environment): string
     {
         $segment = $environment->keyEnvironmentSegment();
-        $payload = base64_encode($environment->frontend_api_host.'$');
+        $base = preg_replace('~^https?://~', '', Url::fapi($environment));
+        $payload = base64_encode($base.'$');
 
         return "pk_{$segment}_{$payload}";
     }

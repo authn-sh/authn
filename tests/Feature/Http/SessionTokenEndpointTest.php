@@ -48,7 +48,7 @@ function bootEnv(): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'acme',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
         'allowed_origins' => ['https://app.example.com'],
     ]);
     (new SigningKeyGenerator)->generate($env);

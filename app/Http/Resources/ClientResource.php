@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Session;
 use App\Models\SignInAttempt;
 use App\Models\SignUpAttempt;
+use App\Models\User;
 
 /**
  * The Client snapshot returned to the SDK. Mirrors PLAN §8.2.
@@ -75,6 +76,8 @@ final class ClientResource
      */
     private static function sessionShape(Session $session): array
     {
+        $user = User::query()->withoutGlobalScopes()->where('id', $session->user_id)->first();
+
         return [
             'object' => 'session',
             'id' => $session->id,
@@ -85,6 +88,7 @@ final class ClientResource
             'last_active_organization_id' => $session->last_active_organization_id,
             'actor' => $session->actor,
             'user_id' => $session->user_id,
+            'user' => $user !== null ? UserResource::from($user) : null,
         ];
     }
 }

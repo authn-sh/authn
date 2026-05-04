@@ -78,16 +78,11 @@ function makeCustomerEnvironment(string $slug, string $kind = 'production'): Env
         'slug' => 'customer-'.$slug,
     ]);
 
-    $appHost = (string) config('authn.app_host');
-    $fapiHost = (string) config('authn.routing_mode') === 'subdomain'
-        ? $slug.'.'.$appHost
-        : $appHost;
-
     return Environment::create([
         'project_id' => $project->id,
         'kind' => $kind,
         'slug' => $slug,
-        'frontend_api_host' => $fapiHost,
+        'routing_label' => $slug,
     ]);
 }
 

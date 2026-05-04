@@ -23,7 +23,7 @@ function lifecycleFixture(?string $suffix = null): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'env-'.$suffix,
-        'frontend_api_host' => 'env-'.$suffix.'.authn.local',
+        'routing_label' => 'env-'.$suffix,
     ]);
     $client = Client::create(['environment_id' => $env->id]);
     $user = User::create(['environment_id' => $env->id]);
@@ -96,7 +96,7 @@ it('activate transitions a pending session to active', function (): void {
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'env2',
-        'frontend_api_host' => 'env2.authn.local',
+        'routing_label' => 'env2',
     ]);
     $client = Client::create(['environment_id' => $env->id]);
     $user = User::create(['environment_id' => $env->id]);

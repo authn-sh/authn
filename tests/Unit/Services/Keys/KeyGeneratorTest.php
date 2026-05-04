@@ -4,13 +4,26 @@ declare(strict_types=1);
 
 use App\Models\Environment;
 use App\Services\Keys\KeyGenerator;
+use Tests\TestCase;
 
-function makeEnv(string $kind, string $host = 'acme.authn.sh'): Environment
+uses(TestCase::class);
+
+beforeEach(function (): void {
+    config([
+        'authn.app_host' => 'authn.sh',
+        'authn.app_scheme' => 'https',
+        'authn.app_port_suffix' => '',
+        'authn.routing_mode' => 'subdomain',
+    ]);
+});
+
+function makeEnv(string $kind, string $label = 'acme'): Environment
 {
     return new Environment([
         'project_id' => 'prj_01HKX9SY9V7H7TF8C8K7J9X4ZB',
         'kind' => $kind,
-        'frontend_api_host' => $host,
+        'slug' => $label,
+        'routing_label' => $label,
     ]);
 }
 
@@ -38,7 +51,7 @@ it('produces unique secret keys across calls', function (): void {
 });
 
 it('produces a publishable key whose body decodes back to the FAPI host', function (): void {
-    $key = (new KeyGenerator)->publishableKey(makeEnv('production', 'acme.authn.sh'));
+    $key = (new KeyGenerator)->publishableKey(makeEnv('production', 'acme'));
 
     expect($key)->toStartWith('pk_live_');
     $payload = base64_decode(substr($key, strlen('pk_live_')));
@@ -46,7 +59,7 @@ it('produces a publishable key whose body decodes back to the FAPI host', functi
 });
 
 it('produces pk_test_ keys for non-production environments', function (): void {
-    $key = (new KeyGenerator)->publishableKey(makeEnv('development', 'dev.authn.sh'));
+    $key = (new KeyGenerator)->publishableKey(makeEnv('development', 'dev'));
 
     expect($key)->toStartWith('pk_test_');
     $payload = base64_decode(substr($key, strlen('pk_test_')));

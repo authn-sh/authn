@@ -17,6 +17,8 @@ use App\Http\Middleware\AuthenticateSessionToken;
 use App\Http\Middleware\EnforceFapiOrigin;
 use App\Http\Middleware\HandleAccountPortalInertia;
 use App\Http\Middleware\ResolveClientFromCookie;
+use App\Models\Environment;
+use App\Support\Url;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -100,6 +102,19 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/me/change_password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');
     });
 });
+
+// Bare-root landing. For the `_admin` env this is where the operator
+// arrives without a subpath — send them to the Dashboard. Tenant envs
+// fall through to their configured home_url, or to /sign-in if none.
+Route::withoutMiddleware([EnforceFapiOrigin::class])->get('/', function () {
+    $env = app()->bound(Environment::class) ? app(Environment::class) : null;
+    if ($env?->project?->is_admin_project) {
+        return redirect(Url::dashboard());
+    }
+    $home = $env?->home_url;
+
+    return redirect($home !== null && $home !== '' ? $home : Url::accountPortal($env, '/sign-in'));
+})->name('fapi.root');
 
 // Account Portal — Inertia + React pages mounted under the FAPI host root.
 // These routes opt out of the FAPI Origin gate (they're top-level navigations

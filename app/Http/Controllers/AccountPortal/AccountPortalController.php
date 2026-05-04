@@ -111,8 +111,18 @@ final class AccountPortalController
 
     private function hasLiveSession(Client $client): bool
     {
+        // Live + a still-existing User. A deleted user leaves an orphan
+        // Session row, which would otherwise loop the operator: dashboard
+        // bounces them to /sign-in (no user), /sign-in bounces them back to
+        // home_url (live session present). Joining on users breaks the cycle.
         return $client->sessions()
             ->whereIn('status', Session::LIVE_STATUSES)
+            ->whereExists(function ($q): void {
+                $q->select(\DB::raw(1))
+                    ->from('users')
+                    ->whereColumn('users.id', 'sessions.user_id')
+                    ->whereNull('users.deleted_at');
+            })
             ->exists();
     }
 
