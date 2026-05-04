@@ -44,15 +44,28 @@ return Application::configure(basePath: dirname(__DIR__))
             $dashboard->group(__DIR__.'/../routes/dashboard.php');
 
             // -------- FAPI + Account Portal --------
-            $fapi = Route::middleware('fapi');
+            // The reserved `_admin` env always lives at the bare app host
+            // (subdomain mode) or root (path mode) so the operator signs
+            // in at https://<APP_HOST>/sign-in regardless of routing mode.
+            // Tenant envs use the per-routing-mode pattern below.
+            //
+            // Both mounts load the same routes/fapi.php; ResolveProjectFromHost
+            // detects which one served the request and binds the right
+            // Environment.
             if ($routingMode === 'subdomain') {
-                // Wildcard subdomain capture; the env slug arrives as
-                // `{env_slug}` route parameter for any consumer that wants it.
-                $fapi->domain('{env_slug}.'.$appHost);
+                Route::middleware('fapi')
+                    ->domain($appHost)
+                    ->group(__DIR__.'/../routes/fapi.php');
+                Route::middleware('fapi')
+                    ->domain('{env_slug}.'.$appHost)
+                    ->group(__DIR__.'/../routes/fapi.php');
             } else {
-                $fapi->prefix('{env_slug}');
+                Route::middleware('fapi')
+                    ->group(__DIR__.'/../routes/fapi.php');
+                Route::middleware('fapi')
+                    ->prefix('{env_slug}')
+                    ->group(__DIR__.'/../routes/fapi.php');
             }
-            $fapi->group(__DIR__.'/../routes/fapi.php');
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {

@@ -75,14 +75,22 @@ final class BootstrapService
             ]);
 
             $envSlug = Project::SYSTEM_SLUG;
-            $fapiHost = $routingMode === 'subdomain' ? $envSlug.'.'.$appHost : $appHost;
+            // The `_admin` env always lives at the bare app host (subdomain
+            // mode) or the bare root (path mode), so the operator signs in
+            // at https://<APP_HOST>/sign-in regardless of routing strategy.
+            $fapiHost = $appHost;
+            $dashboardHost = (string) (config('authn.dashboard_host') ?: $appHost);
 
             $environment = Environment::create([
                 'project_id' => $project->id,
                 'kind' => Environment::KIND_PRODUCTION,
                 'slug' => $envSlug,
                 'frontend_api_host' => $fapiHost,
-                'home_url' => sprintf('https://%s', $appHost),
+                // After-sign-in lands the operator on the Dashboard host
+                // (subdomain mode) or `/dashboard` path (path mode).
+                'home_url' => $routingMode === 'subdomain'
+                    ? sprintf('https://%s', $dashboardHost)
+                    : sprintf('https://%s/dashboard', $appHost),
                 'allowed_origins' => [],
                 'appearance' => [],
             ]);
