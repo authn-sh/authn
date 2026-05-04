@@ -17,7 +17,7 @@ function siaFixture(): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'env',
-        'frontend_api_host' => 'env.authn.local',
+        'routing_label' => 'env',
     ]);
     $client = Client::create(['environment_id' => $env->id]);
 

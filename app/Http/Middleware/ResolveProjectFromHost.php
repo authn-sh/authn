@@ -108,15 +108,15 @@ final class ResolveProjectFromHost
         return ['sign-in', 'sign-up', 'user', 'verify', 'sign-out', 'v1', 'account', '.well-known'];
     }
 
-    private function resolveEnvironment(Request $request, string $slug): ?Environment
+    private function resolveEnvironment(Request $request, string $label): ?Environment
     {
-        $query = Environment::query()->with('project');
-
-        if ((string) config('authn.routing_mode') === 'subdomain') {
-            return $query->where('frontend_api_host', $request->getHost())->first();
-        }
-
-        return $query->where('slug', $slug)->first();
+        // Both modes look up by the opaque `routing_label`. Subdomain mode
+        // strips the leading host label (the part before `.<app_host>`);
+        // path mode pulls the first URL segment. Either way the same
+        // routing identity column drives dispatch.
+        return Environment::query()->with('project')
+            ->where('routing_label', $label)
+            ->first();
     }
 
     private function notFound(): Response

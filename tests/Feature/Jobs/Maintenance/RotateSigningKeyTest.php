@@ -19,7 +19,7 @@ it('walks the active → pending → promote → retiring → expired state mach
         'project_id' => $project->id,
         'kind' => Environment::KIND_DEVELOPMENT,
         'slug' => 'rot-1',
-        'frontend_api_host' => 'rot-1.authn.local',
+        'routing_label' => 'rot-1',
         'allowed_origins' => [],
         // Tighten the cadence so the test doesn't have to step through 90 days.
         'user_settings' => [

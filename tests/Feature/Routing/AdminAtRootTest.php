@@ -46,9 +46,9 @@ function bootAdminAt(string $appHost = 'authn.local', string $mode = 'subdomain'
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => Project::SYSTEM_SLUG,
-        // The bootstrap stamps `frontend_api_host` to the bare app host
-        // regardless of routing strategy. Mirror that here.
-        'frontend_api_host' => $appHost,
+        // The reserved `_admin` env carries no routing_label; it's
+        // special-cased to the bare app host in both routing modes.
+        'routing_label' => null,
         'allowed_origins' => [],
     ]);
     (new SigningKeyGenerator)->generate($env);
@@ -77,7 +77,7 @@ it('subdomain mode: tenant slug at <slug>.<APP_HOST> still works', function (): 
         'project_id' => $tenantProject->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'acme',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
     (new SigningKeyGenerator)->generate(Environment::query()->withoutGlobalScopes()->where('slug', 'acme')->first());
@@ -112,7 +112,7 @@ it('path mode: tenant slug at /<slug>/sign-in still works', function (): void {
         'project_id' => $tenantProject->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'acme',
-        'frontend_api_host' => 'localhost',
+        'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
     (new SigningKeyGenerator)->generate(Environment::query()->withoutGlobalScopes()->where('slug', 'acme')->first());

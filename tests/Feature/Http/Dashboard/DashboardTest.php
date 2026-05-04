@@ -73,7 +73,7 @@ function bootAdminEnv(): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => Project::SYSTEM_SLUG,
-        'frontend_api_host' => '_admin.authn.local',
+        'routing_label' => '_admin',
         'allowed_origins' => [],
     ]);
     (new SigningKeyGenerator)->generate($env);
@@ -128,7 +128,7 @@ it('redirects unauthenticated requests to the _admin sign-in URL', function (): 
     $r = $this->withHeaders(['Host' => 'dashboard.authn.local'])
         ->get('http://dashboard.authn.local/');
     $r->assertRedirect();
-    expect($r->headers->get('Location'))->toContain('_admin.authn.local/sign-in');
+    expect($r->headers->get('Location'))->toContain('authn.local/sign-in');
 });
 
 it('routes operator without a workspace membership to CreateWorkspace', function (): void {
@@ -171,7 +171,7 @@ it('overview / users / sessions / api keys / webhooks pages render for authed op
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'production',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
     ApiKey::query()->create([
@@ -216,7 +216,7 @@ it('rotates an API key and stashes the secret in the flash bag', function (): vo
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'production',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
     $apiKey = ApiKey::query()->create([
@@ -242,7 +242,7 @@ it('creates a webhook endpoint with the secret returned in the flash bag', funct
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'production',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
 

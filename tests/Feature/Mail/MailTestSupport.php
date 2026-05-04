@@ -21,7 +21,7 @@ final class MailTestSupport
             'project_id' => $project->id,
             'kind' => Environment::KIND_PRODUCTION,
             'slug' => 'mail-'.bin2hex(random_bytes(3)),
-            'frontend_api_host' => 'mail.authn.local',
+            'routing_label' => 'mail-'.bin2hex(random_bytes(3)),
             'allowed_origins' => [],
             'user_settings' => $userSettings,
             'appearance' => ['application_name' => 'Acme'],

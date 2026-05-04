@@ -47,7 +47,7 @@ function corsBoot(array $allowedOrigins = ['https://app.example.com'], string $k
         'project_id' => $project->id,
         'kind' => $kind,
         'slug' => 'acme',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
         'allowed_origins' => $allowedOrigins,
     ]);
     (new SigningKeyGenerator)->generate($env);

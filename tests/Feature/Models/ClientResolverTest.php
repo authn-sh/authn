@@ -18,7 +18,7 @@ function clientEnv(string $slug = 'env'): Environment
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => $slug,
-        'frontend_api_host' => $slug.'.authn.local',
+        'routing_label' => $slug,
     ]);
 }
 

@@ -31,7 +31,15 @@ return new class extends Migration
             $table->string('id', 64)->primary();
             $table->string('project_id', 64);
             $table->string('kind', 32);
-            $table->string('frontend_api_host')->unique();
+            // Operator-facing label — `production` / `staging` / `preview`.
+            // Unique per project so each customer can have their own
+            // `production`. Shown in Dashboard URLs only.
+            $table->string('slug', 64);
+            // Opaque routing identity — `wise-otter-x4f`. Globally unique.
+            // Used as the FAPI subdomain (`<label>.<app_host>`) and as the
+            // path-mode prefix (`/<label>/v1/...`). Nullable so the reserved
+            // `_admin` row can omit it (it's special-cased at the bare host).
+            $table->string('routing_label', 64)->nullable()->unique();
             $table->string('dashboard_url')->nullable();
             $table->string('home_url')->nullable();
             $table->boolean('is_satellite')->default(false);
@@ -48,6 +56,7 @@ return new class extends Migration
 
             $table->foreign('project_id')->references('id')->on('projects')->cascadeOnDelete();
             $table->unique(['project_id', 'kind']);
+            $table->unique(['project_id', 'slug']);
         });
     }
 

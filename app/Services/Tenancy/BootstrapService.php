@@ -74,11 +74,10 @@ final class BootstrapService
                 'is_system' => true,
             ]);
 
-            $envSlug = Project::SYSTEM_SLUG;
             // The `_admin` env always lives at the bare app host (subdomain
             // mode) or the bare root (path mode), so the operator signs in
-            // at <APP_URL>/sign-in regardless of routing strategy.
-            $fapiHost = $appHost;
+            // at <APP_URL>/sign-in regardless of routing strategy. It has
+            // no routing_label — ResolveProjectFromHost special-cases it.
 
             // The Account Portal lives at the same origin as the FAPI for
             // the `_admin` env (bare app host in both routing modes), so
@@ -95,8 +94,8 @@ final class BootstrapService
             $environment = Environment::create([
                 'project_id' => $project->id,
                 'kind' => Environment::KIND_PRODUCTION,
-                'slug' => $envSlug,
-                'frontend_api_host' => $fapiHost,
+                'slug' => Project::SYSTEM_SLUG,
+                'routing_label' => null,
                 // After-sign-in lands the operator on the Dashboard host
                 // (subdomain mode) or `/dashboard` path (path mode). Use
                 // Url::dashboard() so the scheme + port match `app.url`

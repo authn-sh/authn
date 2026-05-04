@@ -11,7 +11,7 @@ function envWith(array $allowed, string $kind = Environment::KIND_PRODUCTION): E
         'project_id' => 'prj_01HKX9SY9V7H7TF8C8K7J9X4ZB',
         'kind' => $kind,
         'slug' => 'env',
-        'frontend_api_host' => 'env.authn.local',
+        'routing_label' => 'env',
         'allowed_origins' => $allowed,
     ]);
 }

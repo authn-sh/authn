@@ -22,7 +22,7 @@ function bootWebhookFixture(): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'wh-'.bin2hex(random_bytes(3)),
-        'frontend_api_host' => 'wh.authn.local',
+        'routing_label' => 'wh',
         'allowed_origins' => [],
     ]);
     $endpoint = WebhookEndpoint::query()->withoutGlobalScopes()->create([

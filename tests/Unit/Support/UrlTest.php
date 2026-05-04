@@ -15,7 +15,7 @@ function envFixture(): Environment
         'project_id' => 'prj_01HKX9SY9V7H7TF8C8K7J9X4ZB',
         'kind' => 'production',
         'slug' => 'acme',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
     ]);
     $project = new Project([
         'name' => 'Acme',
@@ -33,7 +33,7 @@ function adminEnvFixture(): Environment
         'project_id' => 'prj_01HKX9SY9V7H7TF8C8K7J9X4ZA',
         'kind' => 'production',
         'slug' => Project::SYSTEM_SLUG,
-        'frontend_api_host' => 'authn.local',
+        'routing_label' => null,
     ]);
     $project = new Project([
         'name' => 'authn.sh admin',

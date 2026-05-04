@@ -20,7 +20,7 @@ function maintenanceEnv(): Environment
         'project_id' => $project->id,
         'kind' => Environment::KIND_DEVELOPMENT,
         'slug' => 'maint-'.bin2hex(random_bytes(3)),
-        'frontend_api_host' => 'maint.authn.local',
+        'routing_label' => 'maint',
         'allowed_origins' => [],
     ]);
 }

@@ -48,7 +48,7 @@ function bootAccountPortalEnv(array $appearance = ['paths' => []]): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'acme',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
         'allowed_origins' => ['https://app.example.com'],
         'appearance' => array_merge(['application_name' => 'Acme'], $appearance),
         'home_url' => 'https://app.example.com',

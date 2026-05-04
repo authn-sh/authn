@@ -19,7 +19,7 @@ function vmFixture(): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'env',
-        'frontend_api_host' => 'env.authn.local',
+        'routing_label' => 'env',
     ]);
     $user = User::create(['environment_id' => $env->id]);
     $email = EmailAddress::create([

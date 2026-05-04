@@ -48,7 +48,7 @@ function clientBoot(): array
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'acme',
-        'frontend_api_host' => 'acme.authn.local',
+        'routing_label' => 'acme',
     ]);
     (new SigningKeyGenerator)->generate($env);
 
@@ -187,7 +187,7 @@ it('handshake refuses a token issued for a different env', function (): void {
         'project_id' => $project2->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'other',
-        'frontend_api_host' => 'other.authn.local',
+        'routing_label' => 'other',
     ]);
     (new SigningKeyGenerator)->generate($other);
 

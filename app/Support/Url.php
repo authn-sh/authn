@@ -28,13 +28,19 @@ final class Url
     public static function fapi(Environment $environment, string $path = ''): string
     {
         $mode = (string) config('authn.routing_mode');
+        $isAdmin = self::isAdminEnvironment($environment);
+
         if ($mode === 'subdomain') {
-            return self::buildUrl($environment->frontend_api_host, self::normalisePath('', $path));
+            // Admin: bare app host. Tenant: <routing_label>.<app_host>.
+            $host = $isAdmin
+                ? (string) config('authn.app_host')
+                : ($environment->routing_label.'.'.config('authn.app_host'));
+
+            return self::buildUrl($host, self::normalisePath('', $path));
         }
 
-        // The `_admin` env is mounted at the bare root in path mode, so it
-        // does not carry the `/{env_slug}` prefix that tenant envs do.
-        $prefix = self::isAdminEnvironment($environment) ? '' : '/'.$environment->slug;
+        // Path mode. Admin lives at the bare root; tenants under /<routing_label>.
+        $prefix = $isAdmin ? '' : '/'.$environment->routing_label;
 
         return self::buildUrl((string) config('authn.app_host'), self::normalisePath($prefix, $path));
     }
@@ -42,18 +48,24 @@ final class Url
     public static function accountPortal(Environment $environment, string $path = ''): string
     {
         $mode = (string) config('authn.routing_mode');
+        $isAdmin = self::isAdminEnvironment($environment);
+
         if ($mode === 'subdomain') {
-            // Account Portal shares the FAPI host; routes are at the host root, not /v1.
-            return self::buildUrl($environment->frontend_api_host, self::normalisePath('', $path));
+            // Account Portal shares the FAPI host; routes sit at the host root.
+            $host = $isAdmin
+                ? (string) config('authn.app_host')
+                : ($environment->routing_label.'.'.config('authn.app_host'));
+
+            return self::buildUrl($host, self::normalisePath('', $path));
         }
 
-        // Admin Account Portal pages (sign-in, sign-up, user, verify, sign-out)
-        // live at the bare root, not under `/_admin/account`.
-        if (self::isAdminEnvironment($environment)) {
+        // Path mode. Admin Account Portal pages live at the bare root;
+        // tenants under /<routing_label>/account.
+        if ($isAdmin) {
             return self::buildUrl((string) config('authn.app_host'), self::normalisePath('', $path));
         }
 
-        return self::buildUrl((string) config('authn.app_host'), self::normalisePath('/'.$environment->slug.'/account', $path));
+        return self::buildUrl((string) config('authn.app_host'), self::normalisePath('/'.$environment->routing_label.'/account', $path));
     }
 
     /**
@@ -72,9 +84,10 @@ final class Url
 
     private static function isAdminEnvironment(Environment $environment): bool
     {
-        $project = $environment->relationLoaded('project') ? $environment->project : $environment->project()->first();
-
-        return $project !== null && (bool) $project->is_admin_project;
+        // The reserved `_admin` env never carries a routing_label — that's the
+        // unambiguous signal it should be served at the bare host. Falling back
+        // to a project lookup would force a DB roundtrip every URL build.
+        return $environment->routing_label === null;
     }
 
     private static function buildUrl(string $host, string $path): string

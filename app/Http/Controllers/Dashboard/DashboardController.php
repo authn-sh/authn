@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
 use App\Services\Keys\KeyGenerator;
+use App\Support\RoutingLabel;
 use App\Support\Url;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -91,8 +92,8 @@ final class DashboardController
             $env = Environment::query()->withoutGlobalScopes()->create([
                 'project_id' => $project->id,
                 'kind' => Environment::KIND_PRODUCTION,
-                'slug' => $project->slug,
-                'frontend_api_host' => $project->slug.'.'.config('authn.app_host', 'authn.local'),
+                'slug' => 'production',
+                'routing_label' => RoutingLabel::generate(),
                 'allowed_origins' => [],
             ]);
             ApiKey::query()->create([

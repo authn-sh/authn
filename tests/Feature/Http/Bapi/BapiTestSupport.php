@@ -48,7 +48,7 @@ final class BapiTestSupport
             'project_id' => $project->id,
             'kind' => Environment::KIND_PRODUCTION,
             'slug' => $slug,
-            'frontend_api_host' => "{$slug}.authn.local",
+            'routing_label' => $slug,
             'allowed_origins' => [],
         ]);
         (new SigningKeyGenerator)->generate($env);
