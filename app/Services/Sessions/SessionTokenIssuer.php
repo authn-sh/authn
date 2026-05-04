@@ -38,7 +38,7 @@ final class SessionTokenIssuer
      * @throws InvalidArgumentException on `template_not_found`.
      * @throws RuntimeException when no active SigningKey exists for the env.
      */
-    public function mint(Session $session, ?string $template = null, ?Request $request = null): array
+    public function mint(Session $session, ?string $template = null, ?Request $request = null, ?int $lifetimeOverride = null): array
     {
         $environment = $session->environment;
         $template ??= 'default';
@@ -51,7 +51,7 @@ final class SessionTokenIssuer
 
         $config = $this->configForKey($signingKey);
         $now = now();
-        $lifetime = $this->lifetimeFor($environment);
+        $lifetime = $lifetimeOverride ?? $this->lifetimeFor($environment);
         $expiresAt = $now->copy()->addSeconds($lifetime);
         $azp = $this->resolveAzp($request);
 
