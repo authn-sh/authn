@@ -7,9 +7,13 @@ export default function SignIn() {
         return <p>Loading…</p>
     }
 
+    // `routing="virtual"` keeps factor-one / factor-two / reset-password state
+    // in component memory instead of mutating the URL — tenants embedding
+    // <SignIn /> in their own app need exactly one route. The Laravel route
+    // stays `/sign-in/{step?}` so deep-links from emails still resolve.
     return (
         <SdkSignIn
-            path={env.paths.sign_in_url}
+            routing="virtual"
             signUpUrl={signInProps.signUpUrl}
             fallbackRedirectUrl={signInProps.afterSignInUrl}
             appearance={signInProps.appearance}
