@@ -20,6 +20,7 @@ use App\Services\Keys\KeyGenerator;
 use App\Support\Url;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 
@@ -64,14 +65,21 @@ final class DashboardController
 
     public function storeProject(Request $request): RedirectResponse
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'slug' => ['required', 'string', 'regex:/^[a-z0-9-]{3,40}$/', 'not_in:_admin'],
-        ]);
         $workspace = $this->workspace();
         if ($workspace === null) {
             return redirect(Url::dashboardPathPrefix().'/create-workspace');
         }
+
+        $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'slug' => [
+                'required',
+                'string',
+                'regex:/^[a-z0-9-]{3,40}$/',
+                'not_in:_admin',
+                Rule::unique('projects', 'slug')->where('owner_organization_id', $workspace->organization_id),
+            ],
+        ]);
 
         $project = Project::query()->withoutGlobalScopes()->create([
             'name' => (string) $request->input('name'),
@@ -81,7 +89,7 @@ final class DashboardController
         $env = Environment::query()->withoutGlobalScopes()->create([
             'project_id' => $project->id,
             'kind' => Environment::KIND_PRODUCTION,
-            'slug' => 'production',
+            'slug' => $project->slug,
             'frontend_api_host' => $project->slug.'.'.config('authn.app_host', 'authn.local'),
             'allowed_origins' => [],
         ]);
