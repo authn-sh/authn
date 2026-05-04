@@ -1,0 +1,42 @@
+# Keep local-only state out of the build context so the image is always
+# built from a clean checkout, regardless of what dev artifacts the host
+# happens to have lying around.
+
+# Build artifacts (the runtime image rebuilds them in the right stage)
+/node_modules
+/vendor
+/public/build
+/public/hot
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/testing/*
+/storage/framework/views/*
+/storage/logs/*
+/storage/pail
+/bootstrap/cache/*
+!/bootstrap/cache/.gitignore
+
+# Local env + secrets
+.env
+.env.*
+!.env.example
+auth.json
+
+# VCS + CI noise
+.git
+.github
+.idea
+.vscode
+.zed
+.cursor
+.codex
+.nova
+.phpactor.json
+.phpunit.cache
+.phpunit.result.cache
+
+# Tests / scratch
+tests
+*.log
+Thumbs.db
+.DS_Store
