@@ -3,6 +3,8 @@
 use App\Http\Middleware\AuthenticateBapiKey;
 use App\Http\Middleware\EnforceFapiOrigin;
 use App\Http\Middleware\FapiCors;
+use App\Http\Middleware\HandleDashboardInertia;
+use App\Http\Middleware\RequireAdminSession;
 use App\Http\Middleware\ResolveProjectFromHost;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -64,7 +66,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->group('dashboard', [
-            // Operator auth lands in AU-17.
+            RequireAdminSession::class,
+            HandleDashboardInertia::class,
         ]);
 
         $middleware->group('fapi', [

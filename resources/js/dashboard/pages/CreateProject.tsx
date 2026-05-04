@@ -1,0 +1,37 @@
+import { useForm } from '@inertiajs/react'
+
+export default function CreateProject() {
+    const form = useForm({ name: '', slug: '' })
+
+    return (
+        <div>
+            <h1>Create your first project</h1>
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    form.post('/create-project')
+                }}
+            >
+                <label style={{ display: 'block', marginBottom: 12 }}>
+                    Name
+                    <input
+                        value={form.data.name}
+                        onChange={(e) => form.setData('name', e.target.value)}
+                        style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
+                    />
+                </label>
+                <label style={{ display: 'block', marginBottom: 12 }}>
+                    Slug
+                    <input
+                        value={form.data.slug}
+                        onChange={(e) => form.setData('slug', e.target.value)}
+                        style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
+                    />
+                </label>
+                <button type="submit" disabled={form.processing}>
+                    Create project
+                </button>
+            </form>
+        </div>
+    )
+}
