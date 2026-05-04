@@ -4,7 +4,33 @@
 # Helm chart pulls — the compose stack does not depend on it.
 #
 # The auto-merged docker-compose.override.yml turns the same compose into a
-# dev environment (composer dev deps, Vite HMR, mailpit).
+# dev environment (dev Dockerfile target + Vite + Mailpit).
+#
+# Three application services share one image:
+#
+#   app        nginx + php-fpm; runs migrations + authn:bootstrap on boot.
+#   worker     `php artisan queue:work …`; scale with
+#              `docker compose up -d --scale worker=N`.
+#   scheduler  `php artisan schedule:work`; singleton.
+
+x-app-base: &app-base
+  build:
+    context: .
+    target: runtime
+  env_file: .env
+  environment:
+    DB_HOST: postgres
+    DB_PORT: 5432
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    app:
+      condition: service_healthy
+  restart: unless-stopped
 
 services:
   app:
@@ -17,6 +43,7 @@ services:
       DB_PORT: 5432
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      AUTHN_RUN_MIGRATIONS: "true"
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,6 +58,31 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  worker:
+    <<: *app-base
+    command:
+      - php
+      - artisan
+      - queue:work
+      - --queue=default,webhooks,mail
+      - --tries=3
+      - --sleep=1
+      - --backoff=10
+    healthcheck:
+      # `queue:listen --once` style probe — exits 0 when redis + db respond.
+      test: ["CMD", "php", "/var/www/html/artisan", "queue:monitor", "default"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  scheduler:
+    <<: *app-base
+    command:
+      - php
+      - artisan
+      - schedule:work
 
   postgres:
     image: postgres:16-alpine
