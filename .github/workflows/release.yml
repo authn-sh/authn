@@ -1,0 +1,88 @@
+name: release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/authn
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve tag metadata
+        id: meta_in
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          SEMVER="${TAG#v}"
+          MAJORMINOR="${SEMVER%.*}"
+          IS_PRERELEASE="false"
+          case "$SEMVER" in
+            *-*) IS_PRERELEASE="true" ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "semver=$SEMVER" >> "$GITHUB_OUTPUT"
+          echo "majorminor=$MAJORMINOR" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
+
+      - name: Compute image tags
+        id: tags
+        run: |
+          set -euo pipefail
+          TAGS=("${IMAGE}:${{ steps.meta_in.outputs.semver }}")
+          TAGS+=("${IMAGE}:${{ steps.meta_in.outputs.majorminor }}")
+          if [ "${{ steps.meta_in.outputs.is_prerelease }}" = "false" ]; then
+            TAGS+=("${IMAGE}:latest")
+          fi
+          printf 'tags=%s\n' "$(IFS=,; echo "${TAGS[*]}")" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build + push multi-arch
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.tags.outputs.tags }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate SBOM (syft)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE }}:${{ steps.meta_in.outputs.semver }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Attest provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: false
