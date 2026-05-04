@@ -10,6 +10,8 @@ use App\Http\Controllers\Bapi\PingController;
 use App\Http\Controllers\Bapi\RedirectUrlsController;
 use App\Http\Controllers\Bapi\SessionsController;
 use App\Http\Controllers\Bapi\UsersController;
+use App\Http\Controllers\Bapi\WebhookDeliveriesController;
+use App\Http\Controllers\Bapi\WebhookEndpointsController;
 use App\Http\Middleware\RateLimit;
 use Illuminate\Support\Facades\Route;
 
@@ -72,6 +74,18 @@ Route::get('/redirect_urls', [RedirectUrlsController::class, 'index'])->middlewa
 Route::post('/redirect_urls', [RedirectUrlsController::class, 'store'])->middleware(RateLimit::class.':redirect_urls.create,60,60');
 Route::get('/redirect_urls/{id}', [RedirectUrlsController::class, 'show'])->middleware(RateLimit::class.':redirect_urls.read,300,60');
 Route::delete('/redirect_urls/{id}', [RedirectUrlsController::class, 'destroy'])->middleware(RateLimit::class.':redirect_urls.destroy,60,60');
+
+// Webhooks
+Route::get('/webhooks/endpoints', [WebhookEndpointsController::class, 'index'])->middleware(RateLimit::class.':webhooks.list,300,60');
+Route::post('/webhooks/endpoints', [WebhookEndpointsController::class, 'store'])->middleware(RateLimit::class.':webhooks.create,30,60');
+Route::get('/webhooks/endpoints/{id}', [WebhookEndpointsController::class, 'show'])->middleware(RateLimit::class.':webhooks.read,300,60');
+Route::patch('/webhooks/endpoints/{id}', [WebhookEndpointsController::class, 'update'])->middleware(RateLimit::class.':webhooks.update,60,60');
+Route::delete('/webhooks/endpoints/{id}', [WebhookEndpointsController::class, 'destroy'])->middleware(RateLimit::class.':webhooks.destroy,30,60');
+Route::post('/webhooks/endpoints/{id}/rotate_secret', [WebhookEndpointsController::class, 'rotateSecret'])->middleware(RateLimit::class.':webhooks.rotate,10,60');
+
+Route::get('/webhooks/deliveries', [WebhookDeliveriesController::class, 'index'])->middleware(RateLimit::class.':webhooks.list,300,60');
+Route::get('/webhooks/deliveries/{id}', [WebhookDeliveriesController::class, 'show'])->middleware(RateLimit::class.':webhooks.read,300,60');
+Route::post('/webhooks/deliveries/{id}/replay', [WebhookDeliveriesController::class, 'replay'])->middleware(RateLimit::class.':webhooks.replay,30,60');
 
 // Instance settings
 Route::get('/instance', [InstanceController::class, 'show'])->middleware(RateLimit::class.':instance.read,300,60');

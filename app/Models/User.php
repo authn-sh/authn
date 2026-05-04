@@ -6,7 +6,9 @@ namespace App\Models;
 
 use App\Concerns\HasPrefixedUlid;
 use App\Database\Scopes\EnvironmentScope;
+use App\Observers\UserObserver;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -51,6 +53,7 @@ use Illuminate\Support\Facades\Hash;
  * @property array $unsafe_metadata
  * @property ?string $locale
  */
+#[ObservedBy([UserObserver::class])]
 class User extends Model implements AuthenticatableContract
 {
     use Authorizable;

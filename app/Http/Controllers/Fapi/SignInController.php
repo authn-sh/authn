@@ -314,6 +314,8 @@ final class SignInController
                 ->enforceMultiSessionPolicy(app(Environment::class), $client, $session);
         }
 
+        app(SessionLifecycle::class)->notifyCreated($session->fresh() ?? $session);
+
         return $session;
     }
 
