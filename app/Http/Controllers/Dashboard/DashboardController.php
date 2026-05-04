@@ -20,6 +20,7 @@ use App\Services\Keys\KeyGenerator;
 use App\Support\Url;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -44,13 +45,13 @@ final class DashboardController
             return redirect(Url::dashboardPathPrefix().'/create-workspace');
         }
         $project = $this->firstProjectOutsideAdmin();
-        if ($project === null) {
+        $env = $project?->environments()->where('kind', Environment::KIND_PRODUCTION)->first()
+            ?? $project?->environments()->first();
+        if ($project === null || $env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
-        $env = $project->environments()->where('kind', Environment::KIND_PRODUCTION)->first()
-            ?? $project->environments()->first();
 
-        return redirect(Url::dashboardPathPrefix()."/{$project->slug}/".($env?->slug ?? 'production').'/overview');
+        return redirect(Url::dashboardPathPrefix()."/{$project->slug}/{$env->slug}/overview");
     }
 
     public function createWorkspace(): InertiaResponse
@@ -81,25 +82,29 @@ final class DashboardController
             ],
         ]);
 
-        $project = Project::query()->withoutGlobalScopes()->create([
-            'name' => (string) $request->input('name'),
-            'slug' => (string) $request->input('slug'),
-            'owner_organization_id' => $workspace->organization_id,
-        ]);
-        $env = Environment::query()->withoutGlobalScopes()->create([
-            'project_id' => $project->id,
-            'kind' => Environment::KIND_PRODUCTION,
-            'slug' => $project->slug,
-            'frontend_api_host' => $project->slug.'.'.config('authn.app_host', 'authn.local'),
-            'allowed_origins' => [],
-        ]);
-        ApiKey::query()->create([
-            'environment_id' => $env->id,
-            'kind' => ApiKey::KIND_PUBLISHABLE,
-            'prefix' => 'pk_'.$env->keyEnvironmentSegment().'_',
-            'hashed_secret' => $this->keyGenerator->hash($this->keyGenerator->publishableKey($env)),
-            'name' => 'Default publishable key',
-        ]);
+        [$project, $env] = DB::transaction(function () use ($request, $workspace): array {
+            $project = Project::query()->withoutGlobalScopes()->create([
+                'name' => (string) $request->input('name'),
+                'slug' => (string) $request->input('slug'),
+                'owner_organization_id' => $workspace->organization_id,
+            ]);
+            $env = Environment::query()->withoutGlobalScopes()->create([
+                'project_id' => $project->id,
+                'kind' => Environment::KIND_PRODUCTION,
+                'slug' => $project->slug,
+                'frontend_api_host' => $project->slug.'.'.config('authn.app_host', 'authn.local'),
+                'allowed_origins' => [],
+            ]);
+            ApiKey::query()->create([
+                'environment_id' => $env->id,
+                'kind' => ApiKey::KIND_PUBLISHABLE,
+                'prefix' => 'pk_'.$env->keyEnvironmentSegment().'_',
+                'hashed_secret' => $this->keyGenerator->hash($this->keyGenerator->publishableKey($env)),
+                'name' => 'Default publishable key',
+            ]);
+
+            return [$project, $env];
+        });
 
         return redirect(Url::dashboardPathPrefix()."/{$project->slug}/{$env->slug}/overview");
     }
@@ -108,7 +113,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
         return Inertia::render('Dashboard/Overview', [
@@ -128,7 +133,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
         $query = User::query()->withoutGlobalScopes()->where('environment_id', $env->id);
         if ($request->filled('q')) {
@@ -159,7 +164,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
         $rows = Session::query()->withoutGlobalScopes()
             ->where('environment_id', $env->id)
@@ -182,7 +187,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
         return Inertia::render('Dashboard/Invitations', [
@@ -205,7 +210,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
         return Inertia::render('Dashboard/Allowlist', [
@@ -218,7 +223,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
         return Inertia::render('Dashboard/Blocklist', [
@@ -231,7 +236,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
         return Inertia::render('Dashboard/Configure', [
@@ -247,7 +252,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
         return Inertia::render('Dashboard/EmailTemplates', [
@@ -269,7 +274,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
         return Inertia::render('Dashboard/ApiKeys', [
@@ -292,7 +297,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
         $existing = ApiKey::query()->where('environment_id', $env->id)->where('id', $id)->first();
         if ($existing === null) {
@@ -316,7 +321,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
         $endpoints = WebhookEndpoint::query()->withoutGlobalScopes()
             ->where('environment_id', $env->id)
@@ -353,7 +358,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
         $request->validate([
             'url' => ['required', 'url'],
@@ -375,7 +380,7 @@ final class DashboardController
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/');
+            return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
         return Inertia::render('Dashboard/AuditLog', [

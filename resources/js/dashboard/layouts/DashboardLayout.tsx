@@ -1,7 +1,7 @@
 import { RedirectToSignIn, SignedIn, SignedOut, UserButton } from '@authn-sh/sdk-react'
 import { Link } from '@inertiajs/react'
 import type { ReactNode } from 'react'
-import { useDashboard } from '../shared'
+import { useDashboard, useDashboardUrl } from '../shared'
 
 const SECTIONS = [
     ['Overview', 'overview'],
@@ -24,6 +24,7 @@ const SECTIONS = [
  */
 export function DashboardLayout({ children }: { children: ReactNode }) {
     const { active_project, active_environment } = useDashboard()
+    const url = useDashboardUrl()
     const projectSlug = active_project?.slug
     const envSlug = active_environment?.slug
 
@@ -38,7 +39,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                                 {SECTIONS.map(([label, slug]) => (
                                     <Link
                                         key={slug}
-                                        href={`/${projectSlug}/${envSlug}/${slug}`}
+                                        href={url(`/${projectSlug}/${envSlug}/${slug}`)}
                                         style={{ padding: '6px 8px', borderRadius: 6, color: '#0f172a', textDecoration: 'none' }}
                                     >
                                         {label}
