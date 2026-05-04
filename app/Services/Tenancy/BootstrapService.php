@@ -80,6 +80,18 @@ final class BootstrapService
             // at <APP_URL>/sign-in regardless of routing strategy.
             $fapiHost = $appHost;
 
+            // The Account Portal lives at the same origin as the FAPI for
+            // the `_admin` env (bare app host in both routing modes), so
+            // operator browser calls always carry `Origin: <app_url>`.
+            // Seed it into the allowlist; without this, EnforceFapiOrigin
+            // 403s every state-changing call out of the box. The Dashboard
+            // Origin matches in subdomain mode (different host) so add it
+            // explicitly too — duplicates are harmless after normalization.
+            $scheme = (string) config('authn.app_scheme');
+            $portSuffix = (string) config('authn.app_port_suffix');
+            $appOrigin = $scheme.'://'.$appHost.$portSuffix;
+            $dashboardOrigin = $scheme.'://'.((string) config('authn.dashboard_host', $appHost)).$portSuffix;
+
             $environment = Environment::create([
                 'project_id' => $project->id,
                 'kind' => Environment::KIND_PRODUCTION,
@@ -90,7 +102,7 @@ final class BootstrapService
                 // Url::dashboard() so the scheme + port match `app.url`
                 // — local dev uses http://localhost:8080 not https://.
                 'home_url' => Url::dashboard(),
-                'allowed_origins' => [],
+                'allowed_origins' => array_values(array_unique([$appOrigin, $dashboardOrigin])),
                 'appearance' => [],
             ]);
 
