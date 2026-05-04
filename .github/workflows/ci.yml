@@ -128,6 +128,13 @@ jobs:
           done
           echo "app never came up"; exit 1
 
+      - name: Bootstrap operator
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml exec -T \
+            -e AUTHN_BOOTSTRAP_ADMIN_EMAIL=${DUSK_OPERATOR_EMAIL} \
+            -e AUTHN_BOOTSTRAP_ADMIN_PASSWORD=${DUSK_OPERATOR_PASSWORD} \
+            app php artisan authn:bootstrap
+
       - name: Run Dusk smoke suite
         run: make dusk
 
