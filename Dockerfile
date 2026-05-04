@@ -61,7 +61,7 @@ RUN npm run build
 # ---------------------------------------------------------------------------
 # Stage: runtime (production target)
 # ---------------------------------------------------------------------------
-FROM php:8.4-fpm-alpine AS runtime
+FROM php:8.5-fpm-alpine AS runtime
 
 ARG TARGETARCH
 ENV PHP_INI_SCAN_DIR=:/usr/local/etc/php/conf.d \
