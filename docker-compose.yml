@@ -3,8 +3,12 @@
 # running). The released image (`ghcr.io/authn-sh/authn:<tag>`) is what the
 # Helm chart pulls — the compose stack does not depend on it.
 #
-# The auto-merged docker-compose.override.yml turns the same compose into a
-# dev environment (dev Dockerfile target + Vite + Mailpit).
+# Dev workflow lives in the opt-in `docker-compose.dev.yml` layer:
+#   make dev                                            # convenience
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Self-hosters can drop a local `docker-compose.override.yml` (gitignored)
+# for their own customizations; compose auto-merges it.
 #
 # Three application services share one image:
 #

@@ -62,6 +62,9 @@ function bootAdminEnv(): array
         'authn.app_host' => 'authn.local',
         'authn.bapi_host' => 'api.authn.local',
         'authn.dashboard_host' => 'dashboard.authn.local',
+        'authn.app_scheme' => 'http',
+        'authn.app_port_suffix' => '',
+        'app.url' => 'http://authn.local',
     ]);
     reloadDashboardRoutes();
 

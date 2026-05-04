@@ -1,4 +1,12 @@
-# Dev override — auto-merged by `docker compose up`.
+# Dev compose layer — opt-in, NOT auto-merged. Use:
+#
+#   make dev                              # full dev stack (app + worker + scheduler + vite + mailpit)
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Self-hosters who want their own overrides can drop a
+# `docker-compose.override.yml` next to this file (gitignored, so it's
+# safe to keep local). Compose auto-merges that file on every
+# `docker compose ...` call.
 #
 # Same shape as production (app + worker + scheduler all running nginx+fpm
 # resp. queue:work / schedule:work) but switched to the `dev` Dockerfile
