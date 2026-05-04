@@ -1,0 +1,32 @@
+# Dev override — auto-merged by `docker compose up`. Mounts the project
+# source for hot reload, switches the app container to the `dev` Dockerfile
+# target (composer dev deps + node_modules), and adds mailpit so outbound
+# verification emails land in a UI.
+
+services:
+  app:
+    build:
+      target: dev
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      MAIL_MAILER: smtp
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+    volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
+      - /var/www/html/node_modules
+      - /var/www/html/public/build
+    command: ["composer", "run", "dev"]
+    ports:
+      - "8000:8000"        # `php artisan serve`
+      - "5173:5173"        # Vite HMR
+      - "8080:8080"        # nginx (also rebound, so the prod path keeps working)
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "8025:8025"        # Mailpit UI
+      - "1025:1025"        # SMTP listener

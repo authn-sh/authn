@@ -1,58 +1,93 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# authn.sh
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Self-hostable authentication-as-a-service. Laravel-based server that ships
+the Backend API (BAPI), Frontend API (FAPI), Account Portal, and Dashboard
+in one container.
 
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Quickstart (Docker)
 
 ```bash
-composer require laravel/boost --dev
+git clone https://github.com/authn-sh/authn.git
+cd authn
 
-php artisan boost:install
+cp .env.example .env
+# Required edits in .env:
+#   APP_KEY                          (run `openssl rand -base64 32` and prefix with `base64:`)
+#   AUTHN_APP_URL                    (e.g. https://authn.example.com)
+#   AUTHN_APP_HOST + subdomain hosts (or set AUTHN_ROUTING_MODE=path)
+#   AUTHN_BOOTSTRAP_ADMIN_EMAIL      (operator email for first-boot setup)
+#   AUTHN_BOOTSTRAP_ADMIN_PASSWORD   (initial operator password)
+
+docker compose up -d
+docker compose logs -f app
+# First boot prints the workspace + secret/publishable key pair exactly once.
+# Sign in at https://${AUTHN_DASHBOARD_HOST} with the bootstrap operator
+# credentials.
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+The same compose file is used in dev — `docker-compose.override.yml` (auto-merged
+by `docker compose up`) switches the app container to the `dev` Dockerfile
+target, mounts the source for HMR, exposes Vite on `:5173`, and adds Mailpit on
+`:8025` for outbound verification emails.
 
-## Contributing
+For a production-only stack (no dev tooling, no source mount), pass the
+baseline file explicitly:
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+docker compose -f docker-compose.yml up -d
+```
 
-## Code of Conduct
+## Local development without Docker
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+composer install
+npm install
+cp .env.example .env
+php artisan key:generate
 
-## Security Vulnerabilities
+# In separate terminals (or via `composer run dev`):
+php artisan serve
+php artisan queue:work
+php artisan horizon
+npm run dev
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+The Pest suite runs against in-memory SQLite per `phpunit.xml`:
+
+```bash
+php artisan test
+```
+
+## Architecture
+
+- `routes/bapi.php` — server-to-server BAPI, secured by `Authorization: Bearer sk_…`.
+- `routes/fapi.php` — browser-facing FAPI + the hosted Account Portal.
+- `routes/dashboard.php` — operator UI (Inertia + React).
+- `routes/console.php` — background-maintenance schedule (AU-19).
+
+PLAN.md (in the umbrella repo) is the v0.1 spec.
+
+## Container layout
+
+The published `authn/authn` image is a single container running:
+
+- **nginx** (port 8080) → static assets + FastCGI to PHP-FPM,
+- **php-fpm** (`docker/php/www.conf`),
+- **queue worker** (`php artisan queue:work --queue=default,webhooks,mail`),
+- **horizon** (`php artisan horizon`),
+- **scheduler** (`php artisan schedule:work`).
+
+`docker/entrypoint.sh` waits for Postgres + Redis, runs migrations, runs
+`authn:bootstrap` when configured, then exec's supervisord.
+
+## Releasing
+
+`.github/workflows/release.yml` triggers on `v*.*.*` tags. It builds a
+multi-arch image (linux/amd64 + linux/arm64) and publishes
+`ghcr.io/authn-sh/authn:<tag>` to the public GitHub Container Registry,
+along with an SBOM + provenance attestation. The Helm chart pulls those
+images; the compose stack always builds from source.
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+AGPL v3 — see LICENSE.

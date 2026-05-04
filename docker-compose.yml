@@ -1,0 +1,66 @@
+# authn.sh — production-shaped baseline. `docker compose up -d` builds the
+# image from this repo's Dockerfile (so self-hosters always know what they're
+# running). The released image (`ghcr.io/authn-sh/authn:<tag>`) is what the
+# Helm chart pulls — the compose stack does not depend on it.
+#
+# The auto-merged docker-compose.override.yml turns the same compose into a
+# dev environment (composer dev deps, Vite HMR, mailpit).
+
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${AUTHN_HTTP_PORT:-8080}:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--silent", "--fail", "http://127.0.0.1:8080/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-authn}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-authn}
+      POSTGRES_DB: ${DB_DATABASE:-authn}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USERNAME:-authn}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  pgdata:
+  redisdata:
