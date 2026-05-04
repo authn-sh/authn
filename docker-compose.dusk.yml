@@ -1,0 +1,6 @@
+services:
+  selenium:
+    image: selenium/standalone-chromium:latest
+    shm_size: '2gb'
+    network_mode: host
+    restart: unless-stopped

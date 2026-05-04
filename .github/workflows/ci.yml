@@ -89,6 +89,69 @@ jobs:
       - name: Pest (in-memory SQLite per phpunit.xml)
         run: php artisan test
 
+  dusk:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      APP_KEY: base64:dGVzdHRlc3R0ZXN0dGVzdHRlc3R0ZXN0dGVzdHRlc3Q=
+      AUTHN_BOOTSTRAP_ADMIN_EMAIL: op@example.com
+      AUTHN_BOOTSTRAP_ADMIN_PASSWORD: super-secret-password
+      AUTHN_BOOTSTRAP_WORKSPACE_NAME: Acme Inc
+      DUSK_OPERATOR_EMAIL: op@example.com
+      DUSK_OPERATOR_PASSWORD: super-secret-password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, redis, intl, bcmath, gd, sodium
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare .env
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+
+      - name: Boot stack
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml up -d
+
+      - name: Wait for app
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/up >/dev/null && exit 0
+            sleep 2
+          done
+          echo "app never came up"; exit 1
+
+      - name: Bootstrap operator
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml exec -T \
+            -e AUTHN_BOOTSTRAP_ADMIN_EMAIL=${DUSK_OPERATOR_EMAIL} \
+            -e AUTHN_BOOTSTRAP_ADMIN_PASSWORD=${DUSK_OPERATOR_PASSWORD} \
+            app php artisan authn:bootstrap
+
+      - name: Run Dusk smoke suite
+        run: make dusk
+
+      - name: Upload Dusk artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dusk-artifacts
+          path: |
+            tests/Browser/screenshots
+            tests/Browser/console
+            tests/Browser/source
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml down -v
+
   docker:
     runs-on: ubuntu-latest
     needs: test

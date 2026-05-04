@@ -17,6 +17,7 @@ export default function CreateProject() {
                 <label style={{ display: 'block', marginBottom: 12 }}>
                     Name
                     <input
+                        name="name"
                         value={form.data.name}
                         onChange={(e) => form.setData('name', e.target.value)}
                         style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}
@@ -26,6 +27,7 @@ export default function CreateProject() {
                 <label style={{ display: 'block', marginBottom: 12 }}>
                     Slug
                     <input
+                        name="slug"
                         value={form.data.slug}
                         onChange={(e) => form.setData('slug', e.target.value)}
                         style={{ display: 'block', width: '100%', padding: 8, marginTop: 4 }}

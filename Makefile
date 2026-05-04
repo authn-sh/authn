@@ -6,6 +6,7 @@
 #   make logs [s=app]
 #   make sh   [s=app]     shell into a service
 #   make test             run the Pest suite inside the dev `app` container
+#   make dusk             run the Dusk smoke suite against the running stack
 #   make pint             run pint --test
 #   make scale w=N        scale the worker service to N replicas
 #   make build            rebuild images
@@ -16,9 +17,10 @@
 DC          ?= docker compose
 DC_PROD      = $(DC) -f docker-compose.yml
 DC_DEV       = $(DC) -f docker-compose.yml -f docker-compose.dev.yml
+DC_DUSK      = $(DC) -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml
 SERVICE     ?= app
 
-.PHONY: up down dev logs sh shell test pint scale build ps restart help
+.PHONY: up down dev logs sh shell test dusk pint scale build ps restart help
 
 up:
 	$(DC_PROD) up -d --build
@@ -41,6 +43,22 @@ sh shell:
 
 test:
 	$(DC_DEV) exec app php artisan test $(args)
+
+DUSK_OPERATOR_EMAIL    ?= op@example.com
+DUSK_OPERATOR_PASSWORD ?= super-secret-password
+
+dusk:
+	$(DC_DUSK) up -d selenium
+	@for i in $$(seq 1 20); do \
+		curl -sf http://localhost:4444/wd/hub/status >/dev/null 2>&1 && break; \
+		sleep 1; \
+	done
+	DUSK_DRIVER_URL=http://localhost:4444/wd/hub \
+	DUSK_MAILPIT_URL=http://localhost:8025 \
+	DUSK_OPERATOR_EMAIL=$(DUSK_OPERATOR_EMAIL) \
+	DUSK_OPERATOR_PASSWORD=$(DUSK_OPERATOR_PASSWORD) \
+	APP_URL=http://localhost:8080 \
+	php artisan dusk $(args)
 
 pint:
 	$(DC_DEV) exec app vendor/bin/pint --test
