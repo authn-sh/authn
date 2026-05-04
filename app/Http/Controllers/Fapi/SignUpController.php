@@ -157,6 +157,7 @@ final class SignUpController
             $attempt->email_address,
             $code,
             VerificationCode::PURPOSE_EMAIL_CODE,
+            $verification->id,
         );
 
         $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];

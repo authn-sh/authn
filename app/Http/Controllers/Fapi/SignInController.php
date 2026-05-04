@@ -8,6 +8,7 @@ use App\Auth\ErrorCodes;
 use App\Auth\StrategyResolver;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\SignInResource;
+use App\Jobs\Mail\SendPasswordChangedNotification;
 use App\Models\Client;
 use App\Models\EmailAddress;
 use App\Models\Environment;
@@ -229,6 +230,8 @@ final class SignInController
         // (HIBP breach check is a stub for v0.1; AU-18 wires the real call.)
         $user->setPassword($password);
         $user->save();
+
+        SendPasswordChangedNotification::dispatch($user->id);
 
         if ($request->boolean('sign_out_of_other_sessions')) {
             $user->sessions()->whereIn('status', Session::LIVE_STATUSES)->each(function (Session $existing): void {

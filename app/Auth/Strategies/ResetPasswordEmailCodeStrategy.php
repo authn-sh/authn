@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Auth\Strategies;
 
 use App\Auth\ErrorCodes;
-use App\Jobs\Mail\SendVerificationEmail;
+use App\Jobs\Mail\SendResetPasswordCodeEmail;
 use App\Models\EmailAddress;
 use App\Models\SignInAttempt;
 use App\Models\User;
@@ -57,11 +57,12 @@ final class ResetPasswordEmailCodeStrategy implements Strategy
         );
         $code = $this->verifications->mintNumericCode($verification, self::PURPOSE, self::TTL_SECONDS);
 
-        SendVerificationEmail::dispatch(
+        SendResetPasswordCodeEmail::dispatch(
             $attempt->environment_id,
             $emailAddress->email_address,
             $code,
-            self::PURPOSE,
+            $verification->id,
+            $emailAddress->id,
         );
 
         $attempt->forceFill(['first_factor_verification_id' => $verification->id])->save();

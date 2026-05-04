@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Jobs\Mail;
 
+use App\Mail\EmailPipeline;
+use App\Models\EmailTemplate;
+use App\Models\Environment;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,10 +15,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Queue job that renders the configured `invitation` template and ships it
- * via the env's mail driver. v0.1 placeholder — AU-14 lights up the actual
- * MJML renderer + driver abstraction. For now we just log so the BAPI
- * invitation flow can be tested end-to-end.
+ * Application-level invitation email. Built on top of EmailPipeline so it
+ * honours the same test-mode / delivered_by_us / driver branching as the
+ * verification flow.
  */
 final class SendInvitationEmail implements ShouldQueue
 {
@@ -23,6 +25,8 @@ final class SendInvitationEmail implements ShouldQueue
     use InteractsWithQueue;
     use Queueable;
     use SerializesModels;
+
+    public int $tries = 3;
 
     /**
      * @param  array<string, mixed>  $publicMetadata
@@ -32,18 +36,34 @@ final class SendInvitationEmail implements ShouldQueue
         public readonly string $emailAddress,
         public readonly string $url,
         public readonly array $publicMetadata = [],
-        public readonly string $templateSlug = 'invitation',
+        public readonly string $templateSlug = EmailTemplate::SLUG_INVITATION,
     ) {
         $this->onQueue('mail');
     }
 
-    public function handle(): void
+    public function backoff(): array
     {
-        Log::info('SendInvitationEmail (AU-14 stub)', [
-            'environment_id' => $this->environmentId,
-            'to' => $this->emailAddress,
-            'template' => $this->templateSlug,
-            'has_metadata' => $this->publicMetadata !== [],
-        ]);
+        return [10, 60, 300];
+    }
+
+    public function handle(EmailPipeline $pipeline): void
+    {
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $this->environmentId)->first();
+        if ($env === null) {
+            Log::warning('mail_environment_missing', ['environment_id' => $this->environmentId]);
+
+            return;
+        }
+
+        $pipeline->dispatch(
+            environment: $env,
+            templateSlug: $this->templateSlug,
+            toEmail: $this->emailAddress,
+            toName: null,
+            vars: [
+                'action_url' => $this->url,
+                'metadata' => $this->publicMetadata,
+            ],
+        );
     }
 }

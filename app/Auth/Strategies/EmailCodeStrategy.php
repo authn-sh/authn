@@ -67,6 +67,8 @@ final class EmailCodeStrategy implements Strategy
             $emailAddress->email_address,
             $code,
             self::PURPOSE,
+            $verification->id,
+            $emailAddress->id,
         );
 
         $attempt->forceFill(['first_factor_verification_id' => $verification->id])->save();
