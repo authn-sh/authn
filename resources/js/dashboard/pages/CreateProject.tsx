@@ -1,7 +1,9 @@
 import { useForm } from '@inertiajs/react'
+import { useDashboardUrl } from '../shared'
 
 export default function CreateProject() {
     const form = useForm({ name: '', slug: '' })
+    const url = useDashboardUrl()
 
     return (
         <div>
@@ -9,7 +11,7 @@ export default function CreateProject() {
             <form
                 onSubmit={(e) => {
                     e.preventDefault()
-                    form.post('/create-project')
+                    form.post(url('/create-project'))
                 }}
             >
                 <label style={{ display: 'block', marginBottom: 12 }}>

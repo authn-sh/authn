@@ -47,6 +47,7 @@ final class HandleDashboardInertia
         }
 
         Inertia::share([
+            'dashboard_prefix' => Url::dashboardPathPrefix(),
             'operator' => $operator !== null ? [
                 'id' => $operator->id,
                 'name' => trim((string) ($operator->first_name.' '.$operator->last_name)) ?: 'Operator',

@@ -20,6 +20,7 @@ export type ActiveEnvironment = {
 } | null
 
 export type DashboardSharedProps = {
+    dashboard_prefix: string
     operator: Operator | null
     workspace: Workspace
     sign_in_url: string | null
@@ -29,4 +30,9 @@ export type DashboardSharedProps = {
 
 export function useDashboard() {
     return usePage<DashboardSharedProps>().props
+}
+
+export function useDashboardUrl() {
+    const prefix = (usePage<DashboardSharedProps>().props.dashboard_prefix ?? '').replace(/\/+$/, '')
+    return (path: string) => prefix + (path.startsWith('/') ? path : `/${path}`)
 }
