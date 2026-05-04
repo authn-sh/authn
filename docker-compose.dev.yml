@@ -46,6 +46,7 @@ x-dev: &dev-base
     - vite_public:/var/www/html/public
     - ./public/index.php:/var/www/html/public/index.php
     - ./.env:/var/www/html/.env
+    - ./.env.testing:/var/www/html/.env.testing
     # Production OPcache pins validate_timestamps=0 for max throughput.
     # Dev re-enables timestamp checks so bind-mounted source edits take
     # effect without restarting php-fpm. The `zz-` prefix sorts after
