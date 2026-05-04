@@ -37,6 +37,13 @@ x-dev: &dev-base
     - ./resources:/var/www/html/resources
     - ./routes:/var/www/html/routes
     - ./tests:/var/www/html/tests
+    # `public/` is a named volume shared with the vite container so the
+    # `public/hot` file vite writes on startup is visible to the app
+    # container — that file is what flips the Laravel Vite plugin from
+    # serving the manifest-built assets to the live dev server. The
+    # volume gets its initial contents (index.php + build/ fallback)
+    # from the app image.
+    - vite_public:/var/www/html/public
     - ./public/index.php:/var/www/html/public/index.php
     - ./.env:/var/www/html/.env
     # Production OPcache pins validate_timestamps=0 for max throughput.
@@ -64,10 +71,14 @@ services:
     command:
       - sh
       - -c
-      - npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0
+      - npm install --no-audit --no-fund && npm run dev
     volumes:
       - .:/var/www/html
       - vite_node_modules:/var/www/html/node_modules
+      # Share `public/` with the app container — vite writes
+      # `public/hot` here and the app's Laravel Vite plugin picks
+      # it up to switch over to the live dev server.
+      - vite_public:/var/www/html/public
     ports:
       - "5173:5173"
     restart: unless-stopped
@@ -81,3 +92,4 @@ services:
 
 volumes:
   vite_node_modules:
+  vite_public:
