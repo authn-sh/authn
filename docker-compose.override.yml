@@ -1,7 +1,8 @@
-# Dev override — auto-merged by `docker compose up`. Mounts the project
-# source for hot reload, switches the app container to the `dev` Dockerfile
-# target (composer dev deps + node_modules), and adds mailpit so outbound
-# verification emails land in a UI.
+# Dev override — auto-merged by `docker compose up`. Switches the app
+# container to the `dev` Dockerfile target (composer dev deps + node_modules)
+# and selectively mounts source so HMR works without clobbering the image's
+# storage / bootstrap-cache permissions (which are baked for UID 82
+# www-data and would otherwise be re-owned by the host UID).
 
 services:
   app:
@@ -14,10 +15,19 @@ services:
       MAIL_HOST: mailpit
       MAIL_PORT: 1025
     volumes:
-      - .:/var/www/html
-      - /var/www/html/vendor
-      - /var/www/html/node_modules
-      - /var/www/html/public/build
+      # Source directories worth HMR-ing during dev. Storage, bootstrap/cache,
+      # vendor, node_modules, public/build stay owned by the image so the
+      # container user can write to them.
+      - ./app:/var/www/html/app
+      - ./bootstrap/app.php:/var/www/html/bootstrap/app.php
+      - ./bootstrap/providers.php:/var/www/html/bootstrap/providers.php
+      - ./config:/var/www/html/config
+      - ./database:/var/www/html/database
+      - ./resources:/var/www/html/resources
+      - ./routes:/var/www/html/routes
+      - ./tests:/var/www/html/tests
+      - ./public/index.php:/var/www/html/public/index.php
+      - ./.env:/var/www/html/.env
     command: ["composer", "run", "dev"]
     ports:
       - "8000:8000"        # `php artisan serve`

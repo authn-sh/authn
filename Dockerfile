@@ -64,8 +64,7 @@ RUN npm run build
 FROM php:8.4-fpm-alpine AS runtime
 
 ARG TARGETARCH
-ENV PHP_INI_SCAN_DIR=:/usr/local/etc/php/conf.d \
-    APP_ENV=production \
+ENV APP_ENV=production \
     APP_DEBUG=false \
     LOG_CHANNEL=stderr
 
@@ -105,7 +104,15 @@ COPY docker/php/www.conf /usr/local/etc/php-fpm.d/www.conf
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
+    # nginx runs as www-data inside the container; its state dirs ship
+    # owned by the alpine `nginx` user (UID 100), so re-chown them to
+    # www-data (UID 82) and create the bootstrap log path the binary
+    # opens before reading nginx.conf.
+    && mkdir -p /var/lib/nginx/tmp /var/lib/nginx/logs /var/log/nginx \
+    && chown -R www-data:www-data /var/lib/nginx /var/log/nginx \
+    && ln -sf /dev/stderr /var/lib/nginx/logs/error.log \
+    && ln -sf /dev/stdout /var/lib/nginx/logs/access.log
 
 WORKDIR /var/www/html
 COPY --from=php-deps /app/vendor ./vendor
@@ -117,10 +124,12 @@ RUN mkdir -p storage/framework/{cache,sessions,testing,views} storage/logs boots
     && chown -R www-data:www-data storage bootstrap/cache \
     && find storage bootstrap/cache -type d -exec chmod 0775 {} \;
 
-# Compile config / route / view caches.
-RUN php artisan optimize \
-    && php artisan event:cache \
-    && chown -R www-data:www-data bootstrap/cache
+# Caches (config / route / view / events) are built by the entrypoint
+# AFTER the real .env is loaded. Baking them at image-build time would pin
+# whatever defaults composer-stage saw — wrong DB host, wrong APP_URL, etc.
+RUN rm -f bootstrap/cache/config.php bootstrap/cache/routes-v7.php \
+        bootstrap/cache/services.php bootstrap/cache/packages.php \
+        bootstrap/cache/events.php
 
 EXPOSE 8080
 USER www-data
