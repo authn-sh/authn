@@ -32,7 +32,11 @@ final class Url
             return self::buildUrl($environment->frontend_api_host, self::normalisePath('', $path));
         }
 
-        return self::buildUrl((string) config('authn.app_host'), self::normalisePath('/'.$environment->slug, $path));
+        // The `_admin` env is mounted at the bare root in path mode, so it
+        // does not carry the `/{env_slug}` prefix that tenant envs do.
+        $prefix = self::isAdminEnvironment($environment) ? '' : '/'.$environment->slug;
+
+        return self::buildUrl((string) config('authn.app_host'), self::normalisePath($prefix, $path));
     }
 
     public static function accountPortal(Environment $environment, string $path = ''): string
@@ -41,6 +45,12 @@ final class Url
         if ($mode === 'subdomain') {
             // Account Portal shares the FAPI host; routes are at the host root, not /v1.
             return self::buildUrl($environment->frontend_api_host, self::normalisePath('', $path));
+        }
+
+        // Admin Account Portal pages (sign-in, sign-up, user, verify, sign-out)
+        // live at the bare root, not under `/_admin/account`.
+        if (self::isAdminEnvironment($environment)) {
+            return self::buildUrl((string) config('authn.app_host'), self::normalisePath('', $path));
         }
 
         return self::buildUrl((string) config('authn.app_host'), self::normalisePath('/'.$environment->slug.'/account', $path));
@@ -58,6 +68,13 @@ final class Url
     public static function dashboardPathPrefix(): string
     {
         return config('authn.routing_mode') === 'path' ? '/dashboard' : '';
+    }
+
+    private static function isAdminEnvironment(Environment $environment): bool
+    {
+        $project = $environment->relationLoaded('project') ? $environment->project : $environment->project()->first();
+
+        return $project !== null && (bool) $project->is_admin_project;
     }
 
     private static function buildUrl(string $host, string $path): string

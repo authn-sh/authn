@@ -1,7 +1,13 @@
 import { AuthnProvider } from '@authn-sh/sdk-react'
+import '@authn-sh/ui/styles.css'
 import { createInertiaApp, router } from '@inertiajs/react'
 import { createRoot } from 'react-dom/client'
 import { AccountPortalLayout } from './layouts/AccountPortalLayout'
+
+// The SDK stores the injected `fetch` and calls it through that reference.
+// Passing `window.fetch` directly loses the `this=window` binding and the
+// browser throws "Illegal invocation" on the first network call.
+const boundFetch: typeof globalThis.fetch = (...args) => window.fetch(...args)
 
 /**
  * Account Portal entry. Resolves Inertia pages from `pages/`, wraps each
@@ -50,6 +56,7 @@ createInertiaApp({
                 signInFallbackRedirectUrl={env?.paths?.after_sign_in_url}
                 signUpFallbackRedirectUrl={env?.paths?.after_sign_up_url}
                 afterSignOutUrl={env?.paths?.after_sign_out_url}
+                fetch={boundFetch}
                 routerPush={(url) => router.visit(url)}
                 routerReplace={(url) => router.visit(url, { replace: true })}
             >

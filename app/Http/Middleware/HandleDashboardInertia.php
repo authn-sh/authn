@@ -65,9 +65,9 @@ final class HandleDashboardInertia
                 // sessions live in `_admin`; AU-17's RequireAdminSession
                 // already enforces this server-side.
                 'publishable_key' => 'pk_'.$adminEnv->keyEnvironmentSegment().'_'.substr($adminEnv->id, 4, 16),
-                'fapi_url' => 'https://'.$adminEnv->frontend_api_host,
-                'sign_in_url' => Url::fapi($adminEnv, '/sign-in'),
-                'after_sign_out_url' => Url::fapi($adminEnv, '/sign-in'),
+                'fapi_url' => Url::fapi($adminEnv),
+                'sign_in_url' => Url::accountPortal($adminEnv, '/sign-in'),
+                'after_sign_out_url' => Url::accountPortal($adminEnv, '/sign-in'),
             ] : null,
             'active_project' => $activeProject !== null ? [
                 'id' => $activeProject->id,

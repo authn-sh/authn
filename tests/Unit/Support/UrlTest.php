@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Environment;
+use App\Models\Project;
 use App\Support\Url;
 use Tests\TestCase;
 
@@ -10,12 +11,38 @@ uses(TestCase::class);
 
 function envFixture(): Environment
 {
-    return new Environment([
+    $env = new Environment([
         'project_id' => 'prj_01HKX9SY9V7H7TF8C8K7J9X4ZB',
         'kind' => 'production',
         'slug' => 'acme',
         'frontend_api_host' => 'acme.authn.local',
     ]);
+    $project = new Project([
+        'name' => 'Acme',
+        'slug' => 'acme',
+        'is_system' => false,
+    ]);
+    $env->setRelation('project', $project);
+
+    return $env;
+}
+
+function adminEnvFixture(): Environment
+{
+    $env = new Environment([
+        'project_id' => 'prj_01HKX9SY9V7H7TF8C8K7J9X4ZA',
+        'kind' => 'production',
+        'slug' => Project::SYSTEM_SLUG,
+        'frontend_api_host' => 'authn.local',
+    ]);
+    $project = new Project([
+        'name' => 'authn.sh admin',
+        'slug' => Project::SYSTEM_SLUG,
+        'is_system' => true,
+    ]);
+    $env->setRelation('project', $project);
+
+    return $env;
 }
 
 beforeEach(function (): void {
@@ -76,5 +103,13 @@ describe('path mode', function (): void {
 
     it('builds Account Portal URLs under /{env_slug}/account', function (): void {
         expect(Url::accountPortal(envFixture(), '/sign-in'))->toBe('https://authn.local/acme/account/sign-in');
+    });
+
+    it('builds admin FAPI URLs at the bare root (no /_admin prefix)', function (): void {
+        expect(Url::fapi(adminEnvFixture(), '/v1/client'))->toBe('https://authn.local/v1/client');
+    });
+
+    it('builds admin Account Portal URLs at the bare root (no /_admin/account prefix)', function (): void {
+        expect(Url::accountPortal(adminEnvFixture(), '/sign-in'))->toBe('https://authn.local/sign-in');
     });
 });

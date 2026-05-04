@@ -39,6 +39,11 @@ x-dev: &dev-base
     - ./tests:/var/www/html/tests
     - ./public/index.php:/var/www/html/public/index.php
     - ./.env:/var/www/html/.env
+    # Production OPcache pins validate_timestamps=0 for max throughput.
+    # Dev re-enables timestamp checks so bind-mounted source edits take
+    # effect without restarting php-fpm. The `zz-` prefix sorts after
+    # `zz-authn.ini` so it wins.
+    - ./docker/php/opcache.dev.ini:/usr/local/etc/php/conf.d/zzz-opcache-dev.ini:ro
 
 services:
   app:

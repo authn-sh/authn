@@ -15,6 +15,7 @@ use App\Models\SigningKey;
 use App\Models\User;
 use App\Services\Keys\KeyGenerator;
 use App\Services\Keys\SigningKeyGenerator;
+use App\Support\Url;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -65,9 +66,8 @@ final class BootstrapService
         }
 
         $appHost = parse_url((string) $appUrl, PHP_URL_HOST) ?: (string) config('authn.app_host', 'localhost');
-        $routingMode = (string) config('authn.routing_mode', 'subdomain');
 
-        return DB::transaction(function () use ($email, $password, $workspaceName, $appHost, $routingMode): array {
+        return DB::transaction(function () use ($email, $password, $workspaceName, $appHost): array {
             $project = Project::create([
                 'name' => 'authn.sh admin',
                 'slug' => Project::SYSTEM_SLUG,
@@ -77,9 +77,8 @@ final class BootstrapService
             $envSlug = Project::SYSTEM_SLUG;
             // The `_admin` env always lives at the bare app host (subdomain
             // mode) or the bare root (path mode), so the operator signs in
-            // at https://<APP_HOST>/sign-in regardless of routing strategy.
+            // at <APP_URL>/sign-in regardless of routing strategy.
             $fapiHost = $appHost;
-            $dashboardHost = (string) (config('authn.dashboard_host') ?: $appHost);
 
             $environment = Environment::create([
                 'project_id' => $project->id,
@@ -87,10 +86,10 @@ final class BootstrapService
                 'slug' => $envSlug,
                 'frontend_api_host' => $fapiHost,
                 // After-sign-in lands the operator on the Dashboard host
-                // (subdomain mode) or `/dashboard` path (path mode).
-                'home_url' => $routingMode === 'subdomain'
-                    ? sprintf('https://%s', $dashboardHost)
-                    : sprintf('https://%s/dashboard', $appHost),
+                // (subdomain mode) or `/dashboard` path (path mode). Use
+                // Url::dashboard() so the scheme + port match `app.url`
+                // — local dev uses http://localhost:8080 not https://.
+                'home_url' => Url::dashboard(),
                 'allowed_origins' => [],
                 'appearance' => [],
             ]);

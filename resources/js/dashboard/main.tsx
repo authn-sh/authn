@@ -1,7 +1,13 @@
 import { AuthnProvider } from '@authn-sh/sdk-react'
+import '@authn-sh/ui/styles.css'
 import { createInertiaApp, router } from '@inertiajs/react'
 import { createRoot } from 'react-dom/client'
 import { DashboardLayout } from './layouts/DashboardLayout'
+
+// The SDK stores the injected `fetch` and calls it through that reference;
+// passing `window.fetch` directly loses the `this=window` binding and the
+// browser throws "Illegal invocation" on the first network call.
+const boundFetch: typeof globalThis.fetch = (...args) => window.fetch(...args)
 
 type PageModule = { default: React.ComponentType<Record<string, unknown>> & { layout?: (page: React.ReactNode) => React.ReactNode } }
 type SharedProps = {
@@ -35,6 +41,7 @@ createInertiaApp({
                 domain={env?.fapi_url ? new URL(env.fapi_url).host : undefined}
                 signInUrl={env?.sign_in_url}
                 afterSignOutUrl={env?.after_sign_out_url}
+                fetch={boundFetch}
                 routerPush={(url) => router.visit(url)}
                 routerReplace={(url) => router.visit(url, { replace: true })}
             >
