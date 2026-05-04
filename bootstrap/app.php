@@ -52,18 +52,25 @@ return Application::configure(basePath: dirname(__DIR__))
             // Both mounts load the same routes/fapi.php; ResolveProjectFromHost
             // detects which one served the request and binds the right
             // Environment.
+            // Each mount namespaces its route names (`admin.` / `tenant.`)
+            // so `php artisan route:cache` doesn't trip on duplicate names
+            // when the same routes/fapi.php is included twice.
             if ($routingMode === 'subdomain') {
                 Route::middleware('fapi')
                     ->domain($appHost)
+                    ->name('admin.')
                     ->group(__DIR__.'/../routes/fapi.php');
                 Route::middleware('fapi')
                     ->domain('{env_slug}.'.$appHost)
+                    ->name('tenant.')
                     ->group(__DIR__.'/../routes/fapi.php');
             } else {
                 Route::middleware('fapi')
+                    ->name('admin.')
                     ->group(__DIR__.'/../routes/fapi.php');
                 Route::middleware('fapi')
                     ->prefix('{env_slug}')
+                    ->name('tenant.')
                     ->group(__DIR__.'/../routes/fapi.php');
             }
         },
