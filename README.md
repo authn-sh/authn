@@ -65,8 +65,6 @@ php artisan test
 - `routes/dashboard.php` — operator UI (Inertia + React).
 - `routes/console.php` — background-maintenance schedule (AU-19).
 
-PLAN.md (in the umbrella repo) is the v0.1 spec.
-
 ## Container layout
 
 The published `authn/authn` image is a single container running:
