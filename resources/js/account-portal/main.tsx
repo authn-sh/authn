@@ -9,6 +9,27 @@ import { AccountPortalLayout } from './layouts/AccountPortalLayout'
 // browser throws "Illegal invocation" on the first network call.
 const boundFetch: typeof globalThis.fetch = (...args) => window.fetch(...args)
 
+// Account Portal pages share an Inertia app, but `home_url` (after sign-in /
+// sign-out) usually points at the Dashboard or the tenant's app — different
+// Blade root + page resolver. Use Inertia for in-portal nav (sign-in ↔
+// sign-up ↔ user) and hard-load everything else.
+const PORTAL_PATHS = ['/sign-in', '/sign-up', '/user', '/verify', '/sign-out']
+function navigate(url: string, replace = false) {
+    try {
+        const target = new URL(url, window.location.origin)
+        const sameOrigin = target.origin === window.location.origin
+        const inPortal = PORTAL_PATHS.some((p) => target.pathname === p || target.pathname.startsWith(`${p}/`))
+        if (sameOrigin && inPortal) {
+            router.visit(url, replace ? { replace: true } : {})
+            return
+        }
+    } catch {
+        /* fall through */
+    }
+    if (replace) window.location.replace(url)
+    else window.location.assign(url)
+}
+
 /**
  * Account Portal entry. Resolves Inertia pages from `pages/`, wraps each
  * one in <AccountPortalLayout>, and mounts the tree inside an
@@ -57,8 +78,8 @@ createInertiaApp({
                 signUpFallbackRedirectUrl={env?.paths?.after_sign_up_url}
                 afterSignOutUrl={env?.paths?.after_sign_out_url}
                 fetch={boundFetch}
-                routerPush={(url) => router.visit(url)}
-                routerReplace={(url) => router.visit(url, { replace: true })}
+                routerPush={(url) => navigate(url)}
+                routerReplace={(url) => navigate(url, true)}
             >
                 <App {...props} />
             </AuthnProvider>
