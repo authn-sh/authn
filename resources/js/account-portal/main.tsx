@@ -49,7 +49,7 @@ createInertiaApp({
         const tree = (
             <AuthnProvider
                 publishableKey={env?.publishable_key ?? ''}
-                domain={env?.fapi_url ? new URL(env.fapi_url).host : undefined}
+                domain={env?.fapi_url}
                 appearance={env?.appearance ?? {}}
                 signInUrl={env?.paths?.sign_in_url}
                 signUpUrl={env?.paths?.sign_up_url}
