@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Fapi;
 use App\Auth\ErrorCodes;
 use App\Http\Resources\EmailAddressResource;
 use App\Http\Resources\UserResource;
+use App\Jobs\Mail\SendPasswordChangedNotification;
 use App\Jobs\Mail\SendVerificationEmail;
 use App\Models\EmailAddress;
 use App\Models\Environment;
@@ -240,6 +241,8 @@ final class MeController
             $email->email_address,
             $code,
             VerificationCode::PURPOSE_EMAIL_CODE,
+            $verification->id,
+            $email->id,
         );
 
         return response()->json(EmailAddressResource::from($email->fresh()))->header('Cache-Control', 'no-store');
@@ -330,6 +333,8 @@ final class MeController
 
         $user->setPassword($new);
         $user->save();
+
+        SendPasswordChangedNotification::dispatch($user->id);
 
         if ($request->boolean('sign_out_of_other_sessions')) {
             Session::query()

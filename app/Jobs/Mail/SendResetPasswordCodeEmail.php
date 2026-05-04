@@ -19,16 +19,10 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Sign-in / sign-up / `<UserProfile />`-add-email verification code email.
- *
- * Constructor takes scalar ids (env, email, code, purpose) so the job
- * payload stays small and replays survive model deletion. The handler does
- * the lookups itself and routes through `EmailPipeline` for test-mode +
- * debounce + delivered_by_us branching.
- *
- * Backwards compatible with the AU-9 stub signature.
+ * Reset-password OTP email. Always rendered against the
+ * `reset_password_code` template; runs through EmailPipeline.
  */
-final class SendVerificationEmail implements ShouldQueue
+final class SendResetPasswordCodeEmail implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -41,7 +35,6 @@ final class SendVerificationEmail implements ShouldQueue
         public readonly string $environmentId,
         public readonly string $emailAddress,
         public readonly string $code,
-        public readonly string $purpose,
         public readonly ?string $verificationId = null,
         public readonly ?string $emailAddressId = null,
     ) {
@@ -75,13 +68,9 @@ final class SendVerificationEmail implements ShouldQueue
             ? User::query()->withoutGlobalScopes()->where('id', $emailRow->user_id)->first()
             : null;
 
-        $slug = $this->purpose === 'reset_password_email_code'
-            ? EmailTemplate::SLUG_RESET_PASSWORD_CODE
-            : EmailTemplate::SLUG_VERIFICATION_CODE;
-
         $pipeline->dispatch(
             environment: $env,
-            templateSlug: $slug,
+            templateSlug: EmailTemplate::SLUG_RESET_PASSWORD_CODE,
             toEmail: $this->emailAddress,
             toName: $user?->first_name,
             vars: [
