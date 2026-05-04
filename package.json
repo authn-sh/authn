@@ -9,8 +9,15 @@
     },
     "size-limit": [
         {
-            "name": "Account Portal initial JS",
+            "name": "Account Portal + Dashboard entry shims",
             "path": "public/build/assets/main-*.js",
+            "limit": "20 KB",
+            "gzip": true,
+            "brotli": false
+        },
+        {
+            "name": "Shared React/Inertia vendor chunk",
+            "path": "public/build/assets/dist-*.js",
             "limit": "200 KB",
             "gzip": true,
             "brotli": false

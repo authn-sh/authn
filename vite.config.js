@@ -10,6 +10,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/js/account-portal/main.tsx',
+                'resources/js/dashboard/main.tsx',
             ],
             refresh: true,
         }),
