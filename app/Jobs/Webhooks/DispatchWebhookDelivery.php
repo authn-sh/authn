@@ -68,6 +68,7 @@ final class DispatchWebhookDelivery implements ShouldQueue
             'type' => $event->type,
             'object' => 'event',
             'data' => $event->data,
+            'was_test' => (bool) $event->was_test,
             'timestamp' => $event->created_at->getTimestamp(),
             'instance_id' => $event->environment_id,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);

@@ -363,6 +363,15 @@ final class UsersController
                 $query->where($flag, $request->boolean($flag));
             }
         }
+
+        // include_test=false (PLAN §9.11): exclude any user whose primary
+        // email matches the +authn_test pattern. Default true so existing
+        // operator dashboards don't hide users that were always counted.
+        if ($request->has('include_test') && $request->boolean('include_test') === false) {
+            $query->whereDoesntHave('emailAddresses', function ($q): void {
+                $q->whereRaw("LOWER(email_address) LIKE '%+authn_test%'");
+            });
+        }
     }
 
     private function setUserFlags(string $id, array $flags): JsonResponse

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
+use App\Auth\TestMode\Detector;
 use App\Http\Resources\UserResource;
+use App\Models\EmailAddress;
 use App\Models\Environment;
 use App\Models\User;
 use App\Webhooks\Emitter;
@@ -39,6 +41,22 @@ final class UserObserver
         if ($env === null) {
             return;
         }
-        $this->emitter->emit($type, UserResource::from($user, includePrivate: true), $env);
+        $this->emitter->emit(
+            $type,
+            UserResource::from($user, includePrivate: true),
+            $env,
+            $this->isTestUser($user),
+        );
+    }
+
+    private function isTestUser(User $user): bool
+    {
+        $primaryId = $user->primary_email_address_id;
+        if (! is_string($primaryId) || $primaryId === '') {
+            return false;
+        }
+        $row = EmailAddress::query()->withoutGlobalScopes()->where('id', $primaryId)->first();
+
+        return $row !== null && Detector::isTestEmail($row->email_address);
     }
 }

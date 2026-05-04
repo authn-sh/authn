@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Fapi;
 
+use App\Auth\Captcha\CaptchaPolicy;
 use App\Auth\ErrorCodes;
 use App\Auth\StrategyResolver;
+use App\Auth\TestMode\Policy as TestModePolicy;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\SignInResource;
 use App\Jobs\Mail\SendPasswordChangedNotification;
@@ -54,6 +56,20 @@ final class SignInController
             return $this->error(422, ErrorCodes::TRANSFER_NOT_SUPPORTED_IN_V0_1, 'transfer flow lands in a later milestone.', $client);
         }
 
+        // Test-mode gate: in `production` envs (default test_mode=rejected),
+        // a reserved test identifier returns 422 without creating any state.
+        $identifier = $request->input('identifier');
+        $policy = TestModePolicy::resolve($env, is_string($identifier) ? $identifier : null);
+        if ($policy === TestModePolicy::STATUS_REJECTED) {
+            return $this->error(422, ErrorCodes::TEST_IDENTIFIER_FORBIDDEN, 'Test identifiers are not allowed in this environment.', $client);
+        }
+        $isTestAttempt = $policy === TestModePolicy::STATUS_TEST;
+
+        $captchaResult = CaptchaPolicy::evaluate($env, $request->input('captcha_token'), is_string($identifier) ? $identifier : null);
+        if ($captchaResult === CaptchaPolicy::REASON_MISSING_TOKEN) {
+            return $this->error(422, ErrorCodes::CAPTCHA_INVALID, 'A captcha token is required for this request.', $client);
+        }
+
         $strategy = $request->input('strategy');
         if ($strategy !== null && ! in_array($strategy, [
             Verification::STRATEGY_PASSWORD,
@@ -64,7 +80,7 @@ final class SignInController
             return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategy} is not enabled in v0.1.", $client);
         }
 
-        return DB::transaction(function () use ($request, $env, $client, $strategy, $createdClient): JsonResponse {
+        return DB::transaction(function () use ($request, $env, $client, $strategy, $createdClient, $isTestAttempt): JsonResponse {
             // Idempotency: if the Client already has a non-terminal attempt, return it.
             $existing = $client->current_sign_in_attempt_id !== null
                 ? SignInAttempt::query()->withoutGlobalScopes()->where('id', $client->current_sign_in_attempt_id)->first()
@@ -80,6 +96,7 @@ final class SignInController
                 'captcha_token' => $request->input('captcha_token'),
                 'captcha_widget_type' => $request->input('captcha_widget_type'),
                 'captcha_error' => $request->input('captcha_error'),
+                'was_test' => $isTestAttempt,
             ]);
 
             $client->forceFill(['current_sign_in_attempt_id' => $attempt->id])->saveQuietly();
@@ -289,6 +306,7 @@ final class SignInController
             'client_id' => $attempt->client_id,
             'user_id' => $user->id,
             'status' => Session::STATUS_ACTIVE,
+            'was_test' => (bool) $attempt->was_test,
         ]);
 
         $attempt->forceFill([

@@ -92,6 +92,7 @@ class Verification extends Model
         'strategy',
         'status',
         'attempts',
+        'was_test',
         'expire_at',
         'external_verification_redirect_url',
         'nonce',
@@ -111,6 +112,7 @@ class Verification extends Model
     {
         return [
             'attempts' => 'int',
+            'was_test' => 'boolean',
             'expire_at' => 'immutable_datetime',
             'verified_at' => 'immutable_datetime',
         ];

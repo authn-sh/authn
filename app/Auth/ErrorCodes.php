@@ -82,6 +82,8 @@ final class ErrorCodes
 
     public const FORM_IDENTIFIER_DISPOSABLE = 'form_identifier_disposable';
 
+    public const TEST_IDENTIFIER_FORBIDDEN = 'test_identifier_forbidden';
+
     public const LEGAL_ACCEPTED_REQUIRED = 'legal_accepted_required';
 
     public const SIGN_UP_NOT_FOUND = 'sign_up_not_found';

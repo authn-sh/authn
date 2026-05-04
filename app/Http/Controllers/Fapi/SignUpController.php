@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Fapi;
 
+use App\Auth\Captcha\CaptchaPolicy;
 use App\Auth\ErrorCodes;
 use App\Auth\SignUp\IdentifierNormalizer;
 use App\Auth\SignUp\IdentifierRestrictions;
 use App\Auth\SignUp\StageRequirements;
 use App\Auth\SignUp\TicketRedeemer;
+use App\Auth\TestMode\Policy as TestModePolicy;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\SignUpResource;
 use App\Jobs\Mail\SendVerificationEmail;
@@ -64,6 +66,17 @@ final class SignUpController
 
         if ($request->boolean('transfer')) {
             return $this->error(422, ErrorCodes::TRANSFER_NOT_SUPPORTED_IN_V0_1, 'transfer flow lands in a later milestone.', $client);
+        }
+
+        $emailInput = $request->input('email_address');
+        $policy = TestModePolicy::resolve($env, is_string($emailInput) ? $emailInput : null);
+        if ($policy === TestModePolicy::STATUS_REJECTED) {
+            return $this->error(422, ErrorCodes::TEST_IDENTIFIER_FORBIDDEN, 'Test identifiers are not allowed in this environment.', $client);
+        }
+
+        $captchaResult = CaptchaPolicy::evaluate($env, $request->input('captcha_token'), is_string($emailInput) ? $emailInput : null);
+        if ($captchaResult === CaptchaPolicy::REASON_MISSING_TOKEN) {
+            return $this->error(422, ErrorCodes::CAPTCHA_INVALID, 'A captcha token is required for this request.', $client);
         }
 
         return DB::transaction(function () use ($request, $env, $client, $createdClient): JsonResponse {
@@ -242,7 +255,12 @@ final class SignUpController
             $supplied['email_address'] = $canonical;
         }
 
-        $attempt = SignUpAttempt::create(['environment_id' => $env->id, 'client_id' => $client->id]);
+        $isTest = TestModePolicy::isTestAttempt($env, $supplied['email_address'] ?? null);
+        $attempt = SignUpAttempt::create([
+            'environment_id' => $env->id,
+            'client_id' => $client->id,
+            'was_test' => $isTest,
+        ]);
         $this->stageOnto($attempt, $supplied, $eval);
         $attempt->save();
 
@@ -351,6 +369,7 @@ final class SignUpController
                 'client_id' => $client->id,
                 'user_id' => $user->id,
                 'status' => Session::STATUS_ACTIVE,
+                'was_test' => (bool) $attempt->was_test,
             ]);
 
             $attempt->forceFill([
