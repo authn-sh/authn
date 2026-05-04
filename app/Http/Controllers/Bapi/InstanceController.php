@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Bapi;
 
 use App\Models\Environment;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * BAPI instance settings surface.
@@ -119,6 +121,7 @@ final class InstanceController
         $env = app(Environment::class);
         $appearance = is_array($env->appearance) ? $env->appearance : [];
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $previousTestMode = $userSettings['test_mode'] ?? null;
 
         if ($request->has('support_email')) {
             $appearance['support_email'] = $request->input('support_email');
@@ -136,6 +139,24 @@ final class InstanceController
             'appearance' => $appearance,
             'user_settings' => $userSettings,
         ])->save();
+
+        // Audit + warn when an operator flips test_mode to enabled on a
+        // production env. PLAN §9.11: emit system.testmode_enabled_in_production
+        // and surface a persistent banner in the dashboard.
+        $newTestMode = $userSettings['test_mode'] ?? null;
+        if ($env->kind === Environment::KIND_PRODUCTION
+            && $previousTestMode !== Environment::TEST_MODE_ENABLED
+            && $newTestMode === Environment::TEST_MODE_ENABLED
+        ) {
+            Log::warning('system.testmode_enabled_in_production', [
+                'environment_id' => $env->id,
+            ]);
+            app(Emitter::class)->emit(
+                'system.testmode_enabled_in_production',
+                ['environment_id' => $env->id, 'severity' => 'warning'],
+                $env,
+            );
+        }
 
         return $this->show();
     }

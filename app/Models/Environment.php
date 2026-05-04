@@ -75,6 +75,40 @@ class Environment extends Model
         ];
     }
 
+    public const TEST_MODE_ENABLED = 'enabled';
+
+    public const TEST_MODE_DISABLED = 'disabled';
+
+    public const TEST_MODE_REJECTED = 'rejected';
+
+    public const TEST_MODES = [self::TEST_MODE_ENABLED, self::TEST_MODE_DISABLED, self::TEST_MODE_REJECTED];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $env): void {
+            $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+            if (! array_key_exists('test_mode', $userSettings)) {
+                // Production envs default to `rejected` so a CI test against a
+                // reserved identifier in prod fails loudly rather than silently
+                // creating a test user. Dev / staging default to `enabled`.
+                $userSettings['test_mode'] = $env->kind === self::KIND_PRODUCTION
+                    ? self::TEST_MODE_REJECTED
+                    : self::TEST_MODE_ENABLED;
+                $env->user_settings = $userSettings;
+            }
+        });
+    }
+
+    public function testMode(): string
+    {
+        $userSettings = is_array($this->user_settings) ? $this->user_settings : [];
+        $value = $userSettings['test_mode'] ?? null;
+
+        return in_array($value, self::TEST_MODES, true)
+            ? (string) $value
+            : self::TEST_MODE_DISABLED;
+    }
+
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);

@@ -14,7 +14,7 @@ it('reads + patches the env-level instance settings', function (): void {
     $this->withHeaders(BapiTestSupport::headers($f['token']))
         ->getJson(BapiTestSupport::url('/instance'))
         ->assertOk()
-        ->assertJsonPath('test_mode', 'disabled');
+        ->assertJsonPath('test_mode', 'rejected');
 
     $this->withHeaders(BapiTestSupport::headers($f['token']))
         ->patchJson(BapiTestSupport::url('/instance'), [

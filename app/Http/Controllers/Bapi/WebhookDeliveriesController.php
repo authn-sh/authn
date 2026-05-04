@@ -135,6 +135,7 @@ final class WebhookDeliveriesController
                     'type' => $event->type,
                     'object' => 'event',
                     'data' => $event->data,
+                    'was_test' => (bool) $event->was_test,
                     'timestamp' => $event->created_at->getTimestamp(),
                     'instance_id' => $event->environment_id,
                 ])

@@ -68,6 +68,10 @@ final class SessionTokenIssuer
             ->withClaim('fva', $this->factorVerificationAge($session))
             ->withClaim('sts', $session->status === Session::STATUS_PENDING ? 'pending' : 'active');
 
+        if ($session->was_test) {
+            $builder = $builder->withClaim('was_test', true);
+        }
+
         if ($azp !== null) {
             $builder = $builder->withClaim('azp', $azp);
         }

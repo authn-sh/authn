@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Verification;
 
+use App\Auth\TestMode\Detector;
 use App\Models\Environment;
 use App\Models\Verification;
 use App\Models\VerificationCode;
@@ -49,6 +50,7 @@ final class VerificationManager
             'strategy' => $strategy,
             'status' => Verification::STATUS_UNVERIFIED,
             'attempts' => 0,
+            'was_test' => $this->shouldTreatAsTest($owner, $environmentId),
             'expire_at' => now()->addSeconds($ttlSeconds),
         ]);
     }
@@ -60,7 +62,13 @@ final class VerificationManager
      */
     public function mintNumericCode(Verification $verification, string $purpose, int $ttlSeconds): string
     {
-        $cleartext = $this->codeGenerator->generateNumericCode();
+        // Test-mode shortcut (PLAN §9.11): when the verification was opened
+        // against a reserved test identifier in a test-mode-enabled env, mint
+        // the canonical 424242. Still hashed and stored — the verifier checks
+        // the hash, not a hardcoded constant elsewhere.
+        $cleartext = $verification->was_test
+            ? Detector::FIXED_OTP
+            : $this->codeGenerator->generateNumericCode();
 
         VerificationCode::query()->create([
             'verification_id' => $verification->id,
@@ -154,6 +162,40 @@ final class VerificationManager
             'verified_at' => now(),
             'redeemed_by_client_id' => $byClientId,
         ])->save();
+    }
+
+    /**
+     * True when the verification's owner identifier is a reserved test
+     * pattern AND the env has test_mode = enabled. Mirrors the policy in
+     * App\Auth\TestMode\Policy (which the controllers consult before us).
+     */
+    private function shouldTreatAsTest(Model $owner, string $environmentId): bool
+    {
+        $identifier = $this->extractIdentifier($owner);
+        if ($identifier === null || ! Detector::isTestIdentifier($identifier)) {
+            return false;
+        }
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $environmentId)->first();
+        if ($env === null) {
+            return false;
+        }
+
+        return $env->testMode() === Environment::TEST_MODE_ENABLED;
+    }
+
+    private function extractIdentifier(Model $owner): ?string
+    {
+        if (isset($owner->email_address) && is_string($owner->email_address)) {
+            return $owner->email_address;
+        }
+        if (isset($owner->identifier) && is_string($owner->identifier)) {
+            return $owner->identifier;
+        }
+        if (isset($owner->phone_number) && is_string($owner->phone_number)) {
+            return $owner->phone_number;
+        }
+
+        return null;
     }
 
     private function resolveEnvironmentId(Model $owner): string

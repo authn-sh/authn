@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace App\Auth\Strategies;
 
+use App\Auth\BruteForce\RecordFailedAttempt;
 use App\Auth\ErrorCodes;
 use App\Models\EmailAddress;
+use App\Models\Environment;
 use App\Models\SignInAttempt;
 use App\Models\User;
 use App\Models\Verification;
 
 final class PasswordStrategy implements Strategy
 {
+    public function __construct(private readonly RecordFailedAttempt $bruteForce) {}
+
     public function name(): string
     {
         return Verification::STRATEGY_PASSWORD;
@@ -43,6 +47,11 @@ final class PasswordStrategy implements Strategy
         // the user doesn't exist will land alongside HIBP + brute-force
         // lockout in AU-18.)
         if ($user === null || ! $user->checkPassword($password)) {
+            $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
+            if ($env !== null) {
+                $this->bruteForce->record($env, $identifier, $user);
+            }
+
             return StrategyResult::fail($attempt, ErrorCodes::FORM_PASSWORD_INCORRECT, 'Password is incorrect. Try again, or use another method.', 422);
         }
 
@@ -51,6 +60,12 @@ final class PasswordStrategy implements Strategy
         }
         if ($user->locked && $user->lockout_expires_at?->isFuture()) {
             return StrategyResult::fail($attempt, ErrorCodes::USER_LOCKED, 'This user is temporarily locked.', 403);
+        }
+
+        // Reset the failure counter on a successful sign-in.
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
+        if ($env !== null) {
+            $this->bruteForce->reset($env, $identifier);
         }
 
         return StrategyResult::ok($attempt, $user);
