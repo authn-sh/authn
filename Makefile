@@ -44,38 +44,21 @@ sh shell:
 test:
 	$(DC_DEV) exec app php artisan test $(args)
 
-# Boots Selenium and runs the browser smoke suite against the `make dev`
-# stack. Tests use unique data + clean up after themselves, so they run
-# against the live dev DB without disturbing the bootstrapped operator.
-#
-# Operator credentials default to op@example.com / super-secret-password;
-# override with `make dusk DUSK_OPERATOR_EMAIL=… DUSK_OPERATOR_PASSWORD=…`
-# (e.g. on a dev box that bootstrapped with custom creds). CI is expected
-# to bootstrap with the defaults before invoking this target.
 DUSK_OPERATOR_EMAIL    ?= op@example.com
 DUSK_OPERATOR_PASSWORD ?= super-secret-password
 
 dusk:
-	$(DC_DUSK) up -d --force-recreate app selenium
-	# Wait for Selenium WebDriver to be ready (up to ~20s).
+	$(DC_DUSK) up -d selenium
 	@for i in $$(seq 1 20); do \
-		$(DC_DUSK) exec -T app curl -sf http://selenium:4444/wd/hub/status >/dev/null 2>&1 && break; \
+		curl -sf http://localhost:4444/wd/hub/status >/dev/null 2>&1 && break; \
 		sleep 1; \
 	done
-	# Switch the app to manifest mode (built assets, no Vite HMR) by
-	# clearing public/hot — Vite's dev server isn't reachable from the
-	# Selenium container, and Dusk doesn't need HMR anyway.
-	$(DC_DUSK) exec -T -u 0 app rm -f public/hot
-	$(DC_DUSK) exec -T \
-		-e AUTHN_BOOTSTRAP_ADMIN_EMAIL=$(DUSK_OPERATOR_EMAIL) \
-		-e AUTHN_BOOTSTRAP_ADMIN_PASSWORD=$(DUSK_OPERATOR_PASSWORD) \
-		app sh -c "php artisan migrate:fresh --force && php artisan authn:bootstrap"
-	$(DC_DUSK) exec -T \
-		-e DUSK_DRIVER_URL=http://selenium:4444/wd/hub \
-		-e DUSK_MAILPIT_URL=http://mailpit:8025 \
-		-e DUSK_OPERATOR_EMAIL=$(DUSK_OPERATOR_EMAIL) \
-		-e DUSK_OPERATOR_PASSWORD=$(DUSK_OPERATOR_PASSWORD) \
-		app php artisan dusk $(args)
+	DUSK_DRIVER_URL=http://localhost:4444/wd/hub \
+	DUSK_MAILPIT_URL=http://localhost:8025 \
+	DUSK_OPERATOR_EMAIL=$(DUSK_OPERATOR_EMAIL) \
+	DUSK_OPERATOR_PASSWORD=$(DUSK_OPERATOR_PASSWORD) \
+	APP_URL=http://localhost:8080 \
+	php artisan dusk $(args)
 
 pint:
 	$(DC_DEV) exec app vendor/bin/pint --test

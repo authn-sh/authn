@@ -1,42 +1,6 @@
-# Dusk-only compose layer. Stack with the dev layer:
-#
-#   docker compose -f docker-compose.yml -f docker-compose.dev.yml \
-#                  -f docker-compose.dusk.yml up -d selenium
-#
-# Or, easier, `make dusk` — that target boots Selenium, runs the suite,
-# and returns the exit code.
-#
-# Adds:
-#   - selenium/standalone-chromium (port 4444 webdriver, 7900 noVNC) so
-#     Dusk has a real browser to drive without needing Chromium installed
-#     on the host.
-#
-# The suite hits the same `authn` Postgres DB the dev stack uses. Each
-# test seeds unique data (`dusk-{nonce}@example.com`, project slug
-# `dusk-{nonce}`) and force-deletes its rows on teardown, so re-runs stay
-# idempotent and the bootstrapped operator state is untouched.
-
 services:
   selenium:
     image: selenium/standalone-chromium:latest
     shm_size: '2gb'
-    ports:
-      - "4444:4444"
-      - "7900:7900"   # noVNC viewer (http://localhost:7900, password "secret")
+    network_mode: host
     restart: unless-stopped
-
-  # The Dusk run reaches the app via `http://authn.test:8080`. We alias
-  # the app container so the hostname has a dot — Chrome auto-upgrades
-  # single-label names like `app` to https via HttpsUpgrades, and the dev
-  # server speaks plaintext. The publishable key baked into the
-  # bootstrapped `_admin` encodes `authn.test:8080`, so the host browser
-  # at `http://localhost:8080` won't be able to use it after a Dusk run —
-  # re-bootstrap with `make dev` env to recover.
-  app:
-    environment:
-      APP_URL: http://authn.test:8080
-      AUTHN_APP_URL: http://authn.test:8080
-    networks:
-      default:
-        aliases:
-          - authn.test

@@ -4,20 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
-use App\Models\User;
 use Laravel\Dusk\Browser;
 use Tests\Browser\Support\Mailpit;
 use Tests\DuskTestCase;
 
-/**
- * Smoke test: sign up a fresh user against the `_admin` env's Account
- * Portal, click through the email-code verification step (code read from
- * Mailpit), and end up on /dashboard/create-workspace because the new
- * user has no organization yet.
- *
- * Each run uses a unique `dusk-{nonce}@example.com` so the test is
- * idempotent against a long-lived Dusk database.
- */
 final class SignUpFlowTest extends DuskTestCase
 {
     public function test_new_visitor_signs_up_and_lands_on_create_workspace(): void
@@ -44,10 +34,5 @@ final class SignUpFlowTest extends DuskTestCase
                 ->waitUntil("window.location.pathname === '/dashboard/create-workspace'", 10)
                 ->assertPathIs('/dashboard/create-workspace');
         });
-
-        // Force-delete so the table doesn't grow across runs.
-        User::query()
-            ->whereHas('emailAddresses', fn ($q) => $q->where('email_address', $email))
-            ->each(fn (User $u) => $u->forceDelete());
     }
 }

@@ -4,18 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Browser;
 
-use App\Models\Project;
 use Laravel\Dusk\Browser;
 use Tests\DuskTestCase;
 
-/**
- * Smoke test: an authed operator visits /dashboard/create-project, fills
- * a name + slug, submits, and lands on /dashboard/{slug}/production/overview.
- * The sidebar nav must show absolute paths under `/dashboard/...` — the
- * regression that motivated this test was the form posting to
- * `/create-project` (no prefix) and the sidebar links pointing at
- * `/{slug}/production/...` instead of `/dashboard/{slug}/production/...`.
- */
 final class CreateProjectFlowTest extends DuskTestCase
 {
     public function test_operator_creates_a_project_and_lands_on_its_overview(): void
@@ -41,11 +32,6 @@ final class CreateProjectFlowTest extends DuskTestCase
                 ->press('Create project')
                 ->waitUntil("window.location.pathname === '/dashboard/{$slug}/production/overview'", 10)
                 ->assertAttribute("a[href='/dashboard/{$slug}/production/users']", 'href', "/dashboard/{$slug}/production/users");
-        });
-
-        Project::query()->withoutGlobalScopes()->where('slug', $slug)->each(function (Project $p): void {
-            $p->environments()->delete();
-            $p->forceDelete();
         });
     }
 }

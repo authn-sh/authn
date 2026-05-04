@@ -93,11 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     env:
-      AUTHN_DEV_UID: "1000"
-      AUTHN_DEV_GID: "1000"
-      DB_USERNAME: authn
-      DB_PASSWORD: authn
-      DB_DATABASE: authn
+      APP_KEY: base64:dGVzdHRlc3R0ZXN0dGVzdHRlc3R0ZXN0dGVzdHRlc3Q=
       AUTHN_BOOTSTRAP_ADMIN_EMAIL: op@example.com
       AUTHN_BOOTSTRAP_ADMIN_PASSWORD: super-secret-password
       AUTHN_BOOTSTRAP_WORKSPACE_NAME: Acme Inc
@@ -107,19 +103,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build dev + dusk stack
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          extensions: pdo_pgsql, redis, intl, bcmath, gd, sodium
+          coverage: none
+          tools: composer:v2
+
+      - run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare .env
         run: |
           cp .env.example .env
-          sed -i 's/^APP_KEY=.*/APP_KEY=base64:dGVzdHRlc3R0ZXN0dGVzdHRlc3R0ZXN0dGVzdHRlc3Q=/' .env
-          docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml build app
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
 
-      - name: Start dev stack + selenium
+      - name: Boot stack
         run: docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml up -d
 
-      - name: Wait for app to come up
+      - name: Wait for app
         run: |
-          for i in $(seq 1 30); do
-            if curl -sf http://localhost:8080/up >/dev/null; then echo "app ready"; exit 0; fi
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/up >/dev/null && exit 0
             sleep 2
           done
           echo "app never came up"; exit 1
