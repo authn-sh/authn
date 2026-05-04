@@ -89,6 +89,58 @@ jobs:
       - name: Pest (in-memory SQLite per phpunit.xml)
         run: php artisan test
 
+  dusk:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      AUTHN_DEV_UID: "1000"
+      AUTHN_DEV_GID: "1000"
+      DB_USERNAME: authn
+      DB_PASSWORD: authn
+      DB_DATABASE: authn
+      AUTHN_BOOTSTRAP_ADMIN_EMAIL: op@example.com
+      AUTHN_BOOTSTRAP_ADMIN_PASSWORD: super-secret-password
+      AUTHN_BOOTSTRAP_WORKSPACE_NAME: Acme Inc
+      DUSK_OPERATOR_EMAIL: op@example.com
+      DUSK_OPERATOR_PASSWORD: super-secret-password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build dev + dusk stack
+        run: |
+          cp .env.example .env
+          sed -i 's/^APP_KEY=.*/APP_KEY=base64:dGVzdHRlc3R0ZXN0dGVzdHRlc3R0ZXN0dGVzdHRlc3Q=/' .env
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml build app
+
+      - name: Start dev stack + selenium
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml up -d
+
+      - name: Wait for app to come up
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/up >/dev/null; then echo "app ready"; exit 0; fi
+            sleep 2
+          done
+          echo "app never came up"; exit 1
+
+      - name: Run Dusk smoke suite
+        run: make dusk
+
+      - name: Upload Dusk artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dusk-artifacts
+          path: |
+            tests/Browser/screenshots
+            tests/Browser/console
+            tests/Browser/source
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml down -v
+
   docker:
     runs-on: ubuntu-latest
     needs: test

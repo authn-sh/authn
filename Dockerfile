@@ -87,7 +87,7 @@ RUN apk add --no-cache --virtual .build-deps \
         oniguruma-dev libzip-dev libsodium-dev \
     && docker-php-ext-configure gd --with-jpeg --with-webp --with-freetype \
     && docker-php-ext-install -j"$(nproc)" \
-        pdo_pgsql pgsql intl gd bcmath opcache sodium pcntl \
+        pdo_pgsql pgsql intl gd bcmath opcache sodium pcntl zip \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .build-deps \
