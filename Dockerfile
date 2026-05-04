@@ -28,12 +28,17 @@ ENV COMPOSER_ALLOW_SUPERUSER=1 \
 # Copy only the manifest first so changes to source don't bust the
 # composer-install cache.
 COPY composer.json composer.lock ./
+# The composer:2 image PHP only ships a minimal extension set; pin
+# --ignore-platform-reqs for everything our composer.json declares but
+# the runtime stage installs (pdo_pgsql, pgsql, redis, intl, bcmath,
+# sodium, pcntl). The runtime stage re-validates the platform when it
+# runs `php artisan optimize`.
 RUN composer install \
         --no-dev \
         --no-scripts \
         --no-autoloader \
         --prefer-dist \
-        --ignore-platform-req=ext-redis
+        --ignore-platform-reqs
 
 # Copy the rest and finish the autoloader so post-install scripts have
 # everything they need.
@@ -141,7 +146,7 @@ RUN apk add --no-cache git \
 COPY --from=php-deps /usr/bin/composer /usr/local/bin/composer
 
 # Dev image keeps node_modules + composer dev deps for HMR + tests.
-RUN composer install --prefer-dist --no-interaction --ignore-platform-req=ext-redis \
+RUN composer install --prefer-dist --no-interaction \
     && npm ci --no-audit --no-fund
 
 USER www-data
