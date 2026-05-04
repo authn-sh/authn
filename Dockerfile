@@ -154,9 +154,12 @@ RUN apk add --no-cache git \
 
 COPY --from=php-deps /usr/bin/composer /usr/local/bin/composer
 
-# Dev image keeps node_modules + composer dev deps for HMR + tests.
+# Dev image keeps composer dev deps + node_modules for in-container
+# tests / pint runs. The CMD is intentionally inherited from `runtime`
+# (supervisord → nginx + php-fpm) so `make dev` exercises the same
+# routing and FPM pool the released image uses; queue:work / schedule:work
+# / vite / mailpit live in their own compose services.
 RUN composer install --prefer-dist --no-interaction \
     && npm ci --no-audit --no-fund
 
 USER www-data
-CMD ["composer", "run", "dev"]
