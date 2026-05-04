@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\Environment;
 use App\Models\Session;
 use App\Models\SessionActivity;
+use App\Webhooks\Emitter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -72,22 +73,43 @@ final class SessionLifecycle
 
     public function end(Session $session): Session
     {
-        return $this->transitionTo($session, Session::STATUS_ENDED);
+        $session = $this->transitionTo($session, Session::STATUS_ENDED);
+        $this->emit('session.ended', $session);
+
+        return $session;
     }
 
     public function remove(Session $session): Session
     {
-        return $this->transitionTo($session, Session::STATUS_REMOVED);
+        $session = $this->transitionTo($session, Session::STATUS_REMOVED);
+        $this->emit('session.removed', $session);
+
+        return $session;
     }
 
     public function replaced(Session $session): Session
     {
-        return $this->transitionTo($session, Session::STATUS_REPLACED);
+        $session = $this->transitionTo($session, Session::STATUS_REPLACED);
+        $this->emit('session.replaced', $session);
+
+        return $session;
     }
 
     public function revoke(Session $session): Session
     {
-        return $this->transitionTo($session, Session::STATUS_REVOKED);
+        $session = $this->transitionTo($session, Session::STATUS_REVOKED);
+        $this->emit('session.revoked', $session);
+
+        return $session;
+    }
+
+    /**
+     * Fire a `session.created` event. Called from sign-in / sign-up
+     * controllers right after Session::create().
+     */
+    public function notifyCreated(Session $session): void
+    {
+        $this->emit('session.created', $session);
     }
 
     public function expire(Session $session): Session
@@ -200,6 +222,36 @@ final class SessionLifecycle
         $session->save();
 
         return $session;
+    }
+
+    private function emit(string $type, Session $session): void
+    {
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $session->environment_id)->first();
+        if ($env === null) {
+            return;
+        }
+        app(Emitter::class)->emit($type, $this->shape($session), $env, (bool) $session->was_test);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function shape(Session $session): array
+    {
+        return [
+            'object' => 'session',
+            'id' => $session->id,
+            'status' => $session->status,
+            'client_id' => $session->client_id,
+            'user_id' => $session->user_id,
+            'last_active_at' => $session->last_active_at?->getTimestampMs(),
+            'expire_at' => $session->expire_at->getTimestampMs(),
+            'abandon_at' => $session->abandon_at?->getTimestampMs(),
+            'last_active_organization_id' => $session->last_active_organization_id,
+            'actor' => $session->actor,
+            'created_at' => $session->created_at?->getTimestampMs(),
+            'updated_at' => $session->updated_at?->getTimestampMs(),
+        ];
     }
 
     private function extractBrowser(Request $request): ?string

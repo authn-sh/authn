@@ -8,6 +8,7 @@ use App\Models\EmailAddress;
 use App\Models\EmailTemplate;
 use App\Models\Environment;
 use App\Models\Verification;
+use App\Webhooks\Emitter;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
@@ -30,6 +31,7 @@ final class EmailPipeline
     public function __construct(
         private readonly Renderer $renderer,
         private readonly DriverManager $drivers,
+        private readonly Emitter $emitter,
     ) {}
 
     /**
@@ -98,19 +100,41 @@ final class EmailPipeline
 
         if (! $template->delivered_by_us) {
             // Webhook-only delivery: the operator's pipeline ships the email.
-            // AU-15 lands the actual webhook dispatcher; for v0.1 we record
-            // the intent on the audit log so the integration is wireable.
+            // We emit the structured event here AND keep the audit log
+            // breadcrumb so the integration is greppable.
             Log::info('email.created (delivered_by_us=false)', [
                 'environment_id' => $environment->id,
                 'template' => $template->slug,
                 'to' => $toEmail,
                 'subject' => $rendered->subject,
             ]);
+            $this->emitter->emit('email.created', $this->emailEventPayload($template, $envelope, $rendered, deliveredByUs: false), $environment);
 
             return new Receipt(id: null, driver: 'webhook', accepted: true, meta: ['template' => $template->slug]);
         }
 
-        return $this->drivers->for($environment)->send($envelope);
+        $receipt = $this->drivers->for($environment)->send($envelope);
+        $this->emitter->emit('email.created', $this->emailEventPayload($template, $envelope, $rendered, deliveredByUs: true, receipt: $receipt), $environment);
+
+        return $receipt;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emailEventPayload(EmailTemplate $template, Envelope $envelope, RenderedEmail $rendered, bool $deliveredByUs, ?Receipt $receipt = null): array
+    {
+        return [
+            'object' => 'email',
+            'template_slug' => $template->slug,
+            'to_email_address' => $envelope->toEmail,
+            'from_email_name' => $envelope->fromName,
+            'subject' => $rendered->subject,
+            'delivered_by_us' => $deliveredByUs,
+            'driver' => $receipt?->driver,
+            'accepted' => $receipt?->accepted,
+            'provider_message_id' => $receipt?->id,
+        ];
     }
 
     private function isTestRecipient(string $email): bool

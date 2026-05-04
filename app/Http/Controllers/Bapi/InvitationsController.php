@@ -13,6 +13,7 @@ use App\Services\Tickets\TicketIssuer;
 use App\Support\Idempotency;
 use App\Support\IdempotencyMismatch;
 use App\Support\Url;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -118,6 +119,7 @@ final class InvitationsController
                 'status' => Invitation::STATUS_REVOKED,
                 'revoked_at' => now(),
             ])->save();
+            app(Emitter::class)->emit('invitation.revoked', $this->shape($invitation->fresh()), $env);
         }
 
         return response()->json($this->shape($invitation->fresh()));
@@ -151,9 +153,12 @@ final class InvitationsController
             $invitation->template_slug,
         );
 
+        $body = $this->shape($invitation->fresh(), $url);
+        app(Emitter::class)->emit('invitation.created', $body, $env);
+
         return [
             'status' => 201,
-            'body' => $this->shape($invitation->fresh(), $url),
+            'body' => $body,
         ];
     }
 

@@ -24,6 +24,7 @@ use App\Models\VerificationCode;
 use App\Services\Client\ClientResolver;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Verification\VerificationManager;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -371,12 +372,20 @@ final class SignUpController
                     ->enforceMultiSessionPolicy($env, $reloadedClient, $session);
             }
 
+            app(SessionLifecycle::class)->notifyCreated($session->fresh() ?? $session);
+
             if ($redeemingInvitation !== null) {
                 $redeemingInvitation->forceFill([
                     'status' => Invitation::STATUS_ACCEPTED,
                     'redeemed_by_user_id' => $user->id,
                     'accepted_at' => now(),
                 ])->save();
+                app(Emitter::class)->emit('invitation.accepted', [
+                    'object' => 'invitation',
+                    'id' => $redeemingInvitation->id,
+                    'email_address' => $redeemingInvitation->email_address,
+                    'redeemed_by_user_id' => $user->id,
+                ], $env);
             }
 
             return $this->envelope($client, $attempt->fresh(), 200, $session, $attachClientCookie);
