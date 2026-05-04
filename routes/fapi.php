@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\AccountPortal\AccountPortalController;
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\MeController;
@@ -14,6 +15,7 @@ use App\Http\Controllers\WellKnown\JwksController;
 use App\Http\Controllers\WellKnown\OpenIdConfigurationController;
 use App\Http\Middleware\AuthenticateSessionToken;
 use App\Http\Middleware\EnforceFapiOrigin;
+use App\Http\Middleware\HandleAccountPortalInertia;
 use App\Http\Middleware\ResolveClientFromCookie;
 use Illuminate\Support\Facades\Route;
 
@@ -98,6 +100,27 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/me/change_password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');
     });
 });
+
+// Account Portal — Inertia + React pages mounted under the FAPI host root.
+// These routes opt out of the FAPI Origin gate (they're top-level navigations
+// from the browser, not state-changing AJAX) and bind the Inertia root view
+// + shared bootstrap props via HandleAccountPortalInertia.
+Route::withoutMiddleware([EnforceFapiOrigin::class])
+    ->middleware(HandleAccountPortalInertia::class)
+    ->group(function (): void {
+        Route::get('/sign-in/{step?}', [AccountPortalController::class, 'signIn'])
+            ->where('step', 'factor-one|factor-two|reset-password|sso-callback')
+            ->name('account_portal.sign_in');
+        Route::get('/sign-up/{step?}', [AccountPortalController::class, 'signUp'])
+            ->where('step', 'verify-email-address|verify-phone-number|continue|sso-callback')
+            ->name('account_portal.sign_up');
+        Route::get('/user/{section?}', [AccountPortalController::class, 'userProfile'])
+            ->name('account_portal.user');
+        Route::get('/verify', [AccountPortalController::class, 'verify'])
+            ->name('account_portal.verify');
+        Route::post('/sign-out', [AccountPortalController::class, 'signOut'])
+            ->name('account_portal.sign_out');
+    });
 
 Route::prefix('account')->group(function (): void {
     Route::get('/_ping', PingController::class)->name('account_portal.ping');
