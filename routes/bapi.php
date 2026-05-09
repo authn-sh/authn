@@ -10,8 +10,10 @@ use App\Http\Controllers\Bapi\OrganizationController;
 use App\Http\Controllers\Bapi\OrganizationDomainController;
 use App\Http\Controllers\Bapi\OrganizationInvitationController;
 use App\Http\Controllers\Bapi\OrganizationMembershipController;
+use App\Http\Controllers\Bapi\PermissionController;
 use App\Http\Controllers\Bapi\PingController;
 use App\Http\Controllers\Bapi\RedirectUrlsController;
+use App\Http\Controllers\Bapi\RoleController;
 use App\Http\Controllers\Bapi\SessionsController;
 use App\Http\Controllers\Bapi\UsersController;
 use App\Http\Controllers\Bapi\WebhookDeliveriesController;
@@ -114,6 +116,16 @@ Route::get('/organizations/{organization_id}/domains/{domain_id}', [Organization
 Route::patch('/organizations/{organization_id}/domains/{domain_id}', [OrganizationDomainController::class, 'update'])->middleware(RateLimit::class.':orgs.domains.update,60,60')->name('bapi.organizations.domains.update');
 Route::delete('/organizations/{organization_id}/domains/{domain_id}', [OrganizationDomainController::class, 'destroy'])->middleware(RateLimit::class.':orgs.domains.destroy,30,60')->name('bapi.organizations.domains.destroy');
 Route::post('/organizations/{organization_id}/domains/{domain_id}/verify', [OrganizationDomainController::class, 'verify'])->middleware(RateLimit::class.':orgs.domains.verify,30,60')->name('bapi.organizations.domains.verify');
+
+// Roles + Permissions
+Route::get('/roles', [RoleController::class, 'index'])->middleware(RateLimit::class.':roles.list,300,60')->name('bapi.roles.index');
+Route::post('/roles', [RoleController::class, 'store'])->middleware(RateLimit::class.':roles.create,30,60')->name('bapi.roles.store');
+Route::get('/roles/{role_id}', [RoleController::class, 'show'])->middleware(RateLimit::class.':roles.read,300,60')->name('bapi.roles.show');
+Route::patch('/roles/{role_id}', [RoleController::class, 'update'])->middleware(RateLimit::class.':roles.update,60,60')->name('bapi.roles.update');
+Route::delete('/roles/{role_id}', [RoleController::class, 'destroy'])->middleware(RateLimit::class.':roles.destroy,30,60')->name('bapi.roles.destroy');
+Route::put('/roles/{role_id}/permissions', [RoleController::class, 'setPermissions'])->middleware(RateLimit::class.':roles.permissions,60,60')->name('bapi.roles.permissions.set');
+
+Route::get('/permissions', [PermissionController::class, 'index'])->middleware(RateLimit::class.':permissions.list,300,60')->name('bapi.permissions.index');
 
 // Instance settings
 Route::get('/instance', [InstanceController::class, 'show'])->middleware(RateLimit::class.':instance.read,300,60');
