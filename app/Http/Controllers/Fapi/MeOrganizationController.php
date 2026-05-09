@@ -168,7 +168,12 @@ final class MeOrganizationController
 
         $organizationId = $request->input('organization_id');
         if ($organizationId === null) {
-            $session->forceFill(['last_active_organization_id' => null])->save();
+            if ($session->last_active_organization_id !== null) {
+                $session->forceFill([
+                    'last_active_organization_id' => null,
+                    'token_version' => (int) $session->token_version + 1,
+                ])->save();
+            }
 
             return $this->envelope([
                 'object' => 'active_organization',
@@ -186,7 +191,12 @@ final class MeOrganizationController
             return $this->error(404, 'organization_not_found', 'No membership matches that organization for this user.');
         }
 
-        $session->forceFill(['last_active_organization_id' => $organizationId])->save();
+        if ($session->last_active_organization_id !== $organizationId) {
+            $session->forceFill([
+                'last_active_organization_id' => $organizationId,
+                'token_version' => (int) $session->token_version + 1,
+            ])->save();
+        }
 
         return $this->envelope([
             'object' => 'active_organization',

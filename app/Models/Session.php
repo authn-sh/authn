@@ -118,6 +118,7 @@ class Session extends Model
         'expire_at',
         'abandon_at',
         'last_active_organization_id',
+        'token_version',
         'actor',
         'was_test',
     ];

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Fapi;
 
 use App\Http\Resources\ClientResource;
 use App\Models\Client;
+use App\Models\OrganizationMembership;
 use App\Models\Session;
 use App\Services\Sessions\SessionLifecycle;
 use Illuminate\Http\JsonResponse;
@@ -46,12 +47,30 @@ final class SessionsController
             return $this->error(409, 'session_not_live', "Session is in status {$session->status}.");
         }
 
-        // Forward-compat capture: orgs land in v0.2 and `last_active_organization_id`
-        // is already on the Session row. Storing the value now lets the SDK keep
-        // sending it without a flag flip later.
-        $org = $request->input('active_organization_id');
-        if (is_string($org) && $org !== '' && $session->last_active_organization_id !== $org) {
-            $session->forceFill(['last_active_organization_id' => $org])->saveQuietly();
+        // Active-org switching (AU-8). The body either names a new org id or
+        // sends `null` to clear it. On any change we bump `token_version` so
+        // the SDK's in-flight token cache invalidates and the next mint
+        // picks up the right `org` claim.
+        if ($request->has('active_organization_id')) {
+            $candidate = $request->input('active_organization_id');
+            $next = is_string($candidate) && $candidate !== '' ? $candidate : null;
+
+            if ($next !== null) {
+                $isMember = OrganizationMembership::query()
+                    ->where('user_id', $session->user_id)
+                    ->where('organization_id', $next)
+                    ->exists();
+                if (! $isMember) {
+                    return $this->error(422, 'organization_not_a_member', 'User is not a member of that organization.');
+                }
+            }
+
+            if ($session->last_active_organization_id !== $next) {
+                $session->forceFill([
+                    'last_active_organization_id' => $next,
+                    'token_version' => (int) $session->token_version + 1,
+                ])->saveQuietly();
+            }
         }
 
         $this->lifecycle->touch($session->fresh(), $request);
