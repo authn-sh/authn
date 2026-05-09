@@ -48,17 +48,17 @@ it('PATCH /v1/me updates writable fields and ignores unknown', function (): void
         ->assertJsonPath('client.object', 'client');
 });
 
-it('POST /v1/me/email_addresses creates an unverified row; verifies via prepare + attempt', function (): void {
+it('POST /v1/me/email-addresses creates an unverified row; verifies via prepare + attempt', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
 
-    $created = meReq('POST', '/me/email_addresses', $auth['jwt'], ['email_address' => 'alt@example.com']);
+    $created = meReq('POST', '/me/email-addresses', $auth['jwt'], ['email_address' => 'alt@example.com']);
     $created->assertOk()
         ->assertJsonPath('response.email_address', 'alt@example.com')
         ->assertJsonPath('response.verification', null);
     $eid = $created->json('response.id');
 
-    meReq('POST', "/me/email_addresses/{$eid}/prepare_verification", $auth['jwt'], [
+    meReq('POST', "/me/email-addresses/{$eid}/prepare-verification", $auth['jwt'], [
         'strategy' => 'email_code',
     ])->assertOk();
 
@@ -68,7 +68,7 @@ it('POST /v1/me/email_addresses creates an unverified row; verifies via prepare 
     $known = '424242';
     $codeRow->forceFill(['code_hash' => hash('sha256', $known)])->save();
 
-    meReq('POST', "/me/email_addresses/{$eid}/attempt_verification", $auth['jwt'], [
+    meReq('POST', "/me/email-addresses/{$eid}/attempt-verification", $auth['jwt'], [
         'strategy' => 'email_code',
         'code' => $known,
     ])->assertOk()->assertJsonPath('response.verification.status', 'verified');
@@ -76,11 +76,11 @@ it('POST /v1/me/email_addresses creates an unverified row; verifies via prepare 
     expect(EmailAddress::query()->withoutGlobalScopes()->where('id', $eid)->first()->isVerified())->toBeTrue();
 });
 
-it('POST /v1/me/change_password rotates the hash; wrong current returns form_password_incorrect', function (): void {
+it('POST /v1/me/change-password rotates the hash; wrong current returns form_password_incorrect', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
 
-    meReq('POST', '/me/change_password', $auth['jwt'], [
+    meReq('POST', '/me/change-password', $auth['jwt'], [
         'current_password' => 'super-secret-password',
         'new_password' => 'brand-new-password-9000',
     ])->assertOk()->assertJsonPath('response.success', true);
@@ -88,7 +88,7 @@ it('POST /v1/me/change_password rotates the hash; wrong current returns form_pas
     expect(User::query()->withoutGlobalScopes()->where('id', $auth['user']->id)->first()->checkPassword('brand-new-password-9000'))->toBeTrue();
 
     // Wrong current → 422 form_password_incorrect.
-    meReq('POST', '/me/change_password', $auth['jwt'], [
+    meReq('POST', '/me/change-password', $auth['jwt'], [
         'current_password' => 'definitely-wrong',
         'new_password' => 'something-else-12345',
     ])->assertStatus(422)->assertJsonPath('errors.0.code', 'form_password_incorrect');
@@ -117,7 +117,7 @@ it('actor sessions cannot mutate /v1/me/* but can read', function (): void {
     // Mutating endpoints are forbidden.
     meReq('PATCH', '/me', $auth['jwt'], ['first_name' => 'Hacked'])
         ->assertStatus(403)->assertJsonPath('errors.0.code', 'actor_session_forbidden');
-    meReq('POST', '/me/change_password', $auth['jwt'], [
+    meReq('POST', '/me/change-password', $auth['jwt'], [
         'current_password' => 'super-secret-password',
         'new_password' => 'definitely-not-good',
     ])->assertStatus(403)->assertJsonPath('errors.0.code', 'actor_session_forbidden');

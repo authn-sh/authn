@@ -27,7 +27,7 @@ it('POST /v1/webhooks/endpoints returns the signing_secret once', function (): v
     expect($get->json('signing_secret_prefix'))->toStartWith('whsec_');
 });
 
-it('POST /rotate_secret returns the new secret once and stashes the prior', function (): void {
+it('POST /rotate-secret returns the new secret once and stashes the prior', function (): void {
     $f = BapiTestSupport::bootEnv();
     $created = $this->withHeaders(BapiTestSupport::headers($f['token']))
         ->postJson(BapiTestSupport::url('/webhooks/endpoints'), [
@@ -37,7 +37,7 @@ it('POST /rotate_secret returns the new secret once and stashes the prior', func
     $oldDisplayed = $created->json('signing_secret');
 
     $rotate = $this->withHeaders(BapiTestSupport::headers($f['token']))
-        ->postJson(BapiTestSupport::url("/webhooks/endpoints/{$id}/rotate_secret"));
+        ->postJson(BapiTestSupport::url("/webhooks/endpoints/{$id}/rotate-secret"));
     $rotate->assertOk();
     expect($rotate->json('signing_secret'))->toStartWith('whsec_')
         ->not->toBe($oldDisplayed);

@@ -40,9 +40,9 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
-        "@authn-sh/sdk-js": "^0.1.0",
-        "@authn-sh/sdk-react": "^0.1.0",
-        "@authn-sh/types": "^0.1.0",
-        "@authn-sh/ui": "^0.1.0"
+        "@authn-sh/sdk-js": "0.2.0-alpha.0",
+        "@authn-sh/sdk-react": "1.0.0-alpha.0",
+        "@authn-sh/types": "0.2.0-alpha.0",
+        "@authn-sh/ui": "0.2.0-alpha.0"
     }
 }

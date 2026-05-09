@@ -14,7 +14,7 @@ use InvalidArgumentException;
 
 /**
  * State machine for one in-progress sign-in. Drives the FAPI
- * `/v1/client/sign_ins/...` surface in AU-9.
+ * `/v1/client/sign-ins/...` surface in AU-9.
  *
  * Status flow (PLAN §9.1):
  *   needs_identifier

@@ -17,7 +17,7 @@ it('redeems a sign_in_token ticket and lands on complete', function (): void {
 
     $response = $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'strategy' => 'ticket',
             'ticket' => $ticket,
         ]);
@@ -39,7 +39,7 @@ it('refuses a replayed ticket (single-use jti)', function (): void {
     // First redemption succeeds.
     $first = $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'strategy' => 'ticket',
             'ticket' => $ticket,
         ]);
@@ -50,7 +50,7 @@ it('refuses a replayed ticket (single-use jti)', function (): void {
     // attempt). We force a new client / attempt to make the replay obvious.
     $second = $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'strategy' => 'ticket',
             'ticket' => $ticket,
         ]);
@@ -70,7 +70,7 @@ it('redeems an invitation ticket whose sub is the user email', function (): void
 
     $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'strategy' => 'ticket',
             'ticket' => $ticket,
         ])
@@ -83,7 +83,7 @@ it('refuses a malformed ticket', function (): void {
 
     $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'strategy' => 'ticket',
             'ticket' => 'not-a-jwt',
         ])

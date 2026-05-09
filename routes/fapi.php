@@ -65,25 +65,25 @@ Route::prefix('v1')->group(function (): void {
 
         // Magic-link click handler (AU-10). Top-level browser navigation
         // from the email — no Origin header, no Client cookie required.
-        Route::get('/client/magic_link/redeem', [MagicLinkController::class, 'redeem'])->name('fapi.magic_link.redeem');
+        Route::get('/client/magic-link/redeem', [MagicLinkController::class, 'redeem'])->name('fapi.magic_link.redeem');
     });
 
     // Sign-in: POST creates the attempt (and, if needed, the Client). The
     // remaining endpoints require an existing Client cookie.
-    Route::post('/client/sign_ins', [SignInController::class, 'store'])->name('fapi.sign_in.store');
-    Route::post('/client/sign_ups', [SignUpController::class, 'store'])->name('fapi.sign_up.store');
+    Route::post('/client/sign-ins', [SignInController::class, 'store'])->name('fapi.sign_in.store');
+    Route::post('/client/sign-ups', [SignUpController::class, 'store'])->name('fapi.sign_up.store');
     Route::middleware(ResolveClientFromCookie::class)->group(function (): void {
-        Route::get('/client/sign_ins/{sid}', [SignInController::class, 'show'])->name('fapi.sign_in.show');
-        Route::post('/client/sign_ins/{sid}/prepare_first_factor', [SignInController::class, 'prepareFirstFactor'])->name('fapi.sign_in.prepare_first_factor');
-        Route::post('/client/sign_ins/{sid}/attempt_first_factor', [SignInController::class, 'attemptFirstFactor'])->name('fapi.sign_in.attempt_first_factor');
-        Route::post('/client/sign_ins/{sid}/prepare_second_factor', [SignInController::class, 'prepareSecondFactor'])->name('fapi.sign_in.prepare_second_factor');
-        Route::post('/client/sign_ins/{sid}/attempt_second_factor', [SignInController::class, 'attemptSecondFactor'])->name('fapi.sign_in.attempt_second_factor');
-        Route::post('/client/sign_ins/{sid}/reset_password', [SignInController::class, 'resetPassword'])->name('fapi.sign_in.reset_password');
+        Route::get('/client/sign-ins/{sid}', [SignInController::class, 'show'])->name('fapi.sign_in.show');
+        Route::post('/client/sign-ins/{sid}/prepare-first-factor', [SignInController::class, 'prepareFirstFactor'])->name('fapi.sign_in.prepare_first_factor');
+        Route::post('/client/sign-ins/{sid}/attempt-first-factor', [SignInController::class, 'attemptFirstFactor'])->name('fapi.sign_in.attempt_first_factor');
+        Route::post('/client/sign-ins/{sid}/prepare-second-factor', [SignInController::class, 'prepareSecondFactor'])->name('fapi.sign_in.prepare_second_factor');
+        Route::post('/client/sign-ins/{sid}/attempt-second-factor', [SignInController::class, 'attemptSecondFactor'])->name('fapi.sign_in.attempt_second_factor');
+        Route::post('/client/sign-ins/{sid}/reset-password', [SignInController::class, 'resetPassword'])->name('fapi.sign_in.reset_password');
 
-        Route::get('/client/sign_ups/{sid}', [SignUpController::class, 'show'])->name('fapi.sign_up.show');
-        Route::patch('/client/sign_ups/{sid}', [SignUpController::class, 'patch'])->name('fapi.sign_up.patch');
-        Route::post('/client/sign_ups/{sid}/prepare_verification', [SignUpController::class, 'prepareVerification'])->name('fapi.sign_up.prepare_verification');
-        Route::post('/client/sign_ups/{sid}/attempt_verification', [SignUpController::class, 'attemptVerification'])->name('fapi.sign_up.attempt_verification');
+        Route::get('/client/sign-ups/{sid}', [SignUpController::class, 'show'])->name('fapi.sign_up.show');
+        Route::patch('/client/sign-ups/{sid}', [SignUpController::class, 'patch'])->name('fapi.sign_up.patch');
+        Route::post('/client/sign-ups/{sid}/prepare-verification', [SignUpController::class, 'prepareVerification'])->name('fapi.sign_up.prepare_verification');
+        Route::post('/client/sign-ups/{sid}/attempt-verification', [SignUpController::class, 'attemptVerification'])->name('fapi.sign_up.attempt_verification');
 
         Route::get('/client/sessions/{sid}', [SessionsController::class, 'show'])->name('fapi.session.show');
         Route::post('/client/sessions/{sid}/touch', [SessionsController::class, 'touch'])->name('fapi.session.touch');
@@ -99,18 +99,18 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/me', [MeController::class, 'show'])->name('fapi.me.show');
         Route::patch('/me', [MeController::class, 'update'])->name('fapi.me.update');
         Route::delete('/me', [MeController::class, 'destroy'])->name('fapi.me.destroy');
-        Route::post('/me/delete_self', [MeController::class, 'deleteSelf'])->name('fapi.me.delete_self');
+        Route::post('/me/delete-self', [MeController::class, 'deleteSelf'])->name('fapi.me.delete_self');
 
-        Route::get('/me/email_addresses', [MeController::class, 'listEmails'])->name('fapi.me.emails.list');
-        Route::post('/me/email_addresses', [MeController::class, 'createEmail'])->name('fapi.me.emails.create');
-        Route::get('/me/email_addresses/{eid}', [MeController::class, 'showEmail'])->name('fapi.me.emails.show');
-        Route::patch('/me/email_addresses/{eid}', [MeController::class, 'updateEmail'])->name('fapi.me.emails.update');
-        Route::delete('/me/email_addresses/{eid}', [MeController::class, 'deleteEmail'])->name('fapi.me.emails.destroy');
-        Route::post('/me/email_addresses/{eid}/prepare_verification', [MeController::class, 'prepareEmailVerification'])->name('fapi.me.emails.prepare_verification');
-        Route::post('/me/email_addresses/{eid}/attempt_verification', [MeController::class, 'attemptEmailVerification'])->name('fapi.me.emails.attempt_verification');
+        Route::get('/me/email-addresses', [MeController::class, 'listEmails'])->name('fapi.me.emails.list');
+        Route::post('/me/email-addresses', [MeController::class, 'createEmail'])->name('fapi.me.emails.create');
+        Route::get('/me/email-addresses/{eid}', [MeController::class, 'showEmail'])->name('fapi.me.emails.show');
+        Route::patch('/me/email-addresses/{eid}', [MeController::class, 'updateEmail'])->name('fapi.me.emails.update');
+        Route::delete('/me/email-addresses/{eid}', [MeController::class, 'deleteEmail'])->name('fapi.me.emails.destroy');
+        Route::post('/me/email-addresses/{eid}/prepare-verification', [MeController::class, 'prepareEmailVerification'])->name('fapi.me.emails.prepare_verification');
+        Route::post('/me/email-addresses/{eid}/attempt-verification', [MeController::class, 'attemptEmailVerification'])->name('fapi.me.emails.attempt_verification');
 
         Route::get('/me/sessions', [MeController::class, 'listSessions'])->name('fapi.me.sessions.list');
-        Route::post('/me/change_password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');
+        Route::post('/me/change-password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');
 
         // Organizations — user-scoped CRUD (PLAN §4.4 / OA-3 / AU-6).
         Route::post('/organizations', [FapiOrganizationController::class, 'store'])->name('fapi.organizations.store');
@@ -153,22 +153,22 @@ Route::prefix('v1')->group(function (): void {
             ->name('fapi.organizations.invitations.revoke');
 
         // Per-org membership-request approve/reject (AU-7).
-        Route::get('/organizations/{organization_id}/membership_requests', [FapiOrganizationMembershipRequestController::class, 'index'])
+        Route::get('/organizations/{organization_id}/membership-requests', [FapiOrganizationMembershipRequestController::class, 'index'])
             ->middleware(EnsureOrgPermission::class.':org:sys_memberships:read')
             ->name('fapi.organizations.membership_requests.index');
-        Route::post('/organizations/{organization_id}/membership_requests/{request_id}/accept', [FapiOrganizationMembershipRequestController::class, 'accept'])
+        Route::post('/organizations/{organization_id}/membership-requests/{request_id}/accept', [FapiOrganizationMembershipRequestController::class, 'accept'])
             ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
             ->name('fapi.organizations.membership_requests.accept');
-        Route::post('/organizations/{organization_id}/membership_requests/{request_id}/reject', [FapiOrganizationMembershipRequestController::class, 'reject'])
+        Route::post('/organizations/{organization_id}/membership-requests/{request_id}/reject', [FapiOrganizationMembershipRequestController::class, 'reject'])
             ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
             ->name('fapi.organizations.membership_requests.reject');
 
         // /v1/me org-related collections + active-org switching (AU-7).
-        Route::get('/me/organization_memberships', [MeOrganizationController::class, 'listMemberships'])->name('fapi.me.organization_memberships');
-        Route::get('/me/organization_invitations', [MeOrganizationController::class, 'listInvitations'])->name('fapi.me.organization_invitations');
-        Route::post('/me/organization_invitations/{invitation_id}/accept', [MeOrganizationController::class, 'acceptInvitation'])->name('fapi.me.organization_invitations.accept');
-        Route::get('/me/organization_membership_requests', [MeOrganizationController::class, 'listMembershipRequests'])->name('fapi.me.organization_membership_requests');
-        Route::put('/me/active_organization', [MeOrganizationController::class, 'setActiveOrganization'])->name('fapi.me.active_organization');
+        Route::get('/me/organization-memberships', [MeOrganizationController::class, 'listMemberships'])->name('fapi.me.organization_memberships');
+        Route::get('/me/organization-invitations', [MeOrganizationController::class, 'listInvitations'])->name('fapi.me.organization_invitations');
+        Route::post('/me/organization-invitations/{invitation_id}/accept', [MeOrganizationController::class, 'acceptInvitation'])->name('fapi.me.organization_invitations.accept');
+        Route::get('/me/organization-membership-requests', [MeOrganizationController::class, 'listMembershipRequests'])->name('fapi.me.organization_membership_requests');
+        Route::put('/me/active-organization', [MeOrganizationController::class, 'setActiveOrganization'])->name('fapi.me.active_organization');
     });
 });
 

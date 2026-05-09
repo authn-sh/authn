@@ -38,9 +38,9 @@ it('PATCH /instance/restrictions mirrors allowlist_enabled into signup_mode', fu
     expect($env->user_settings['restrictions']['block_email_subaddresses'])->toBeTrue();
 });
 
-it('PATCH /instance/organization_settings is a v0.1 placeholder', function (): void {
+it('PATCH /instance/organization-settings is a v0.1 placeholder', function (): void {
     $f = BapiTestSupport::bootEnv();
     $this->withHeaders(BapiTestSupport::headers($f['token']))
-        ->patchJson(BapiTestSupport::url('/instance/organization_settings'), ['enabled' => true])
+        ->patchJson(BapiTestSupport::url('/instance/organization-settings'), ['enabled' => true])
         ->assertOk()->assertJsonPath('enabled', false);
 });

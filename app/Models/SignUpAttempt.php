@@ -14,7 +14,7 @@ use InvalidArgumentException;
 
 /**
  * State machine for one in-progress sign-up. Drives the FAPI
- * `/v1/client/sign_ups/...` surface in AU-10.
+ * `/v1/client/sign-ups/...` surface in AU-10.
  *
  * Status flow (PLAN §9.2):
  *   missing_requirements

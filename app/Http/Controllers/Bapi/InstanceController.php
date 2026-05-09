@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Log;
  *   GET    /v1/instance                     full env settings blob
  *   PATCH  /v1/instance                     top-level toggles
  *   PATCH  /v1/instance/restrictions        restrictions sub-object
- *   PATCH  /v1/instance/organization_settings  v0.1 placeholder
+ *   PATCH  /v1/instance/organization-settings  v0.1 placeholder
  *
  * The full attribute matrix shape (PLAN §13.2) is exposed read-only via
  * the FAPI `/v1/environment` endpoint; PATCH here writes through to the

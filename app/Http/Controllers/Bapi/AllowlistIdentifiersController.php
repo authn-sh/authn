@@ -10,9 +10,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- *   GET    /v1/allowlist_identifiers
- *   POST   /v1/allowlist_identifiers
- *   DELETE /v1/allowlist_identifiers/{id}
+ *   GET    /v1/allowlist-identifiers
+ *   POST   /v1/allowlist-identifiers
+ *   DELETE /v1/allowlist-identifiers/{id}
  */
 final class AllowlistIdentifiersController
 {

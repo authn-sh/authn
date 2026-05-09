@@ -21,7 +21,7 @@ it('runs the reset_password_email_code → reset_password → complete path end-
     $create = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'identifier' => 'alice@example.com',
         ]);
     $sid = $create->json('response.id');
@@ -30,7 +30,7 @@ it('runs the reset_password_email_code → reset_password → complete path end-
     $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$sid}/prepare_first_factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$sid}/prepare-first-factor", [
             'strategy' => 'reset_password_email_code',
         ])
         ->assertOk();
@@ -44,7 +44,7 @@ it('runs the reset_password_email_code → reset_password → complete path end-
     $attempt = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$sid}/attempt_first_factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$sid}/attempt-first-factor", [
             'strategy' => 'reset_password_email_code',
             'code' => $known,
         ]);
@@ -54,7 +54,7 @@ it('runs the reset_password_email_code → reset_password → complete path end-
     $reset = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$sid}/reset_password", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$sid}/reset-password", [
             'password' => 'brand-new-password-9000',
         ]);
     $reset->assertOk()->assertJsonPath('response.status', 'complete');
@@ -65,7 +65,7 @@ it('runs the reset_password_email_code → reset_password → complete path end-
     expect($user->checkPassword('super-secret-password'))->toBeFalse();
 });
 
-it('refuses /reset_password unless the attempt is in needs_new_password state', function (): void {
+it('refuses /reset-password unless the attempt is in needs_new_password state', function (): void {
     $f = SignInTestSupport::bootEnv();
     SignInTestSupport::makeUser($f['env']);
     $bs = SignInTestSupport::clientWithCookie($f['env']);
@@ -74,7 +74,7 @@ it('refuses /reset_password unless the attempt is in needs_new_password state', 
     $create = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'identifier' => 'alice@example.com',
         ]);
     $sid = $create->json('response.id');
@@ -82,7 +82,7 @@ it('refuses /reset_password unless the attempt is in needs_new_password state', 
     $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$sid}/reset_password", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$sid}/reset-password", [
             'password' => 'whatever',
         ])
         ->assertStatus(422)

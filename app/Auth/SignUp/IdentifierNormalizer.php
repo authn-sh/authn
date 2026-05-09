@@ -12,7 +12,7 @@ namespace App\Auth\SignUp;
  *                                                            == `foo@gmail.com`
  *
  * Used both at sign-up time (collision detection) and at sign-in /
- * /v1/me/email_addresses CRUD time so the same canonical form is what we
+ * /v1/me/email-addresses CRUD time so the same canonical form is what we
  * uniqueness-check against.
  */
 final class IdentifierNormalizer

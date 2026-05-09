@@ -10,7 +10,7 @@ use App\Services\Client\ClientResolver;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-it('prepare_verification email_link issues a magic link, dispatches the email job', function (): void {
+it('prepare-verification email_link issues a magic link, dispatches the email job', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);
     $f = SessionsTestSupport::bootEnv(userSettings: ['identifiers' => ['email_address' => ['enabled' => true, 'used_for_first_factor' => true, 'verifications' => ['email_code', 'email_link']]]]);
     $client = Client::create(['environment_id' => $f['env']->id]);
@@ -24,7 +24,7 @@ it('prepare_verification email_link issues a magic link, dispatches the email jo
 
     $r = test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ups/{$attempt->id}/prepare_verification", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$attempt->id}/prepare-verification", [
             'strategy' => 'email_link',
         ]);
     $r->assertOk();
@@ -40,7 +40,7 @@ it('prepare_verification email_link issues a magic link, dispatches the email jo
         && $job->templateSlug === 'magic_link_sign_up');
 });
 
-it('attempt_verification email_link returns verification_failed while link is unredeemed', function (): void {
+it('attempt-verification email_link returns verification_failed while link is unredeemed', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);
     $f = SessionsTestSupport::bootEnv();
     $client = Client::create(['environment_id' => $f['env']->id]);
@@ -54,13 +54,13 @@ it('attempt_verification email_link returns verification_failed while link is un
 
     test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ups/{$attempt->id}/prepare_verification", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$attempt->id}/prepare-verification", [
             'strategy' => 'email_link',
         ])->assertOk();
 
     test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ups/{$attempt->id}/attempt_verification", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$attempt->id}/attempt-verification", [
             'strategy' => 'email_link',
         ])->assertStatus(422)
         ->assertJsonPath('errors.0.code', 'verification_failed');

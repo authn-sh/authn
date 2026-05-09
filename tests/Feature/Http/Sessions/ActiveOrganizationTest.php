@@ -41,12 +41,12 @@ function setupSessionWithMembership(): array
     return ['env' => $f['env'], 'auth' => $auth, 'org' => $org];
 }
 
-it('PUT /me/active_organization bumps Session.token_version on change', function (): void {
+it('PUT /me/active-organization bumps Session.token_version on change', function (): void {
     $ctx = setupSessionWithMembership();
     $session = $ctx['auth']['session'];
     $beforeVersion = (int) $session->fresh()->token_version;
 
-    activeOrgFapiReq('PUT', '/me/active_organization', $ctx['auth']['jwt'], [
+    activeOrgFapiReq('PUT', '/me/active-organization', $ctx['auth']['jwt'], [
         'organization_id' => $ctx['org']->id,
     ])->assertOk();
 
@@ -55,12 +55,12 @@ it('PUT /me/active_organization bumps Session.token_version on change', function
     expect($after->last_active_organization_id)->toBe($ctx['org']->id);
 });
 
-it('PUT /me/active_organization is a no-op when the org is already active', function (): void {
+it('PUT /me/active-organization is a no-op when the org is already active', function (): void {
     $ctx = setupSessionWithMembership();
     $session = $ctx['auth']['session'];
     $session->forceFill(['last_active_organization_id' => $ctx['org']->id, 'token_version' => 7])->save();
 
-    activeOrgFapiReq('PUT', '/me/active_organization', $ctx['auth']['jwt'], [
+    activeOrgFapiReq('PUT', '/me/active-organization', $ctx['auth']['jwt'], [
         'organization_id' => $ctx['org']->id,
     ])->assertOk();
 

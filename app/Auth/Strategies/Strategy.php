@@ -24,7 +24,7 @@ interface Strategy
 
     /**
      * Issue any out-of-band material (email code, magic link). Called
-     * by `POST /v1/client/sign_ins/{id}/prepare_first_factor`.
+     * by `POST /v1/client/sign-ins/{id}/prepare-first-factor`.
      *
      * @param  array<string, mixed>  $params
      */

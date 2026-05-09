@@ -33,10 +33,10 @@ use Illuminate\Support\Facades\Storage;
  *   PATCH  /v1/users/{id}
  *   DELETE /v1/users/{id}             soft-delete + revoke every session
  *   POST   /v1/users/{id}/ban|unban|lock|unlock
- *   POST   /v1/users/{id}/profile_image
- *   DELETE /v1/users/{id}/profile_image
+ *   POST   /v1/users/{id}/profile-image
+ *   DELETE /v1/users/{id}/profile-image
  *   PATCH  /v1/users/{id}/metadata
- *   POST   /v1/users/{id}/verify_password
+ *   POST   /v1/users/{id}/verify-password
  */
 final class UsersController
 {

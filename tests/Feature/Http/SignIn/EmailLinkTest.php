@@ -41,7 +41,7 @@ function setupMagicLinkUser(Environment $env, string $email = 'alice@example.com
     return ['user' => $user, 'email' => $emailRow];
 }
 
-it('prepare_first_factor email_link issues a magic link, dispatches the email job', function (): void {
+it('prepare-first-factor email_link issues a magic link, dispatches the email job', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);
     $f = SessionsTestSupport::bootEnv();
     $u = setupMagicLinkUser($f['env']);
@@ -62,7 +62,7 @@ it('prepare_first_factor email_link issues a magic link, dispatches the email jo
             'Host' => 'acme.authn.local',
             'Origin' => $f['origin'],
         ])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$attempt->id}/prepare_first_factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/prepare-first-factor", [
             'strategy' => 'email_link',
             'email_address_id' => $u['email']->id,
         ]);
@@ -82,7 +82,7 @@ it('prepare_first_factor email_link issues a magic link, dispatches the email jo
     Bus::assertDispatched(SendMagicLinkEmail::class, fn ($job) => $job->emailAddress === 'alice@example.com');
 });
 
-it('attempt_first_factor email_link returns verification_failed while link is still unredeemed', function (): void {
+it('attempt-first-factor email_link returns verification_failed while link is still unredeemed', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);
     $f = SessionsTestSupport::bootEnv();
     $u = setupMagicLinkUser($f['env']);
@@ -97,14 +97,14 @@ it('attempt_first_factor email_link returns verification_failed while link is st
 
     test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$attempt->id}/prepare_first_factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/prepare-first-factor", [
             'strategy' => 'email_link',
             'email_address_id' => $u['email']->id,
         ])->assertOk();
 
     test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$attempt->id}/attempt_first_factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/attempt-first-factor", [
             'strategy' => 'email_link',
         ])->assertStatus(422)
         ->assertJsonPath('errors.0.code', 'verification_failed');
@@ -125,7 +125,7 @@ it('end-to-end same-device magic link flow: prepare → click → attempt comple
 
     test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$attempt->id}/prepare_first_factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/prepare-first-factor", [
             'strategy' => 'email_link',
             'email_address_id' => $u['email']->id,
         ])->assertOk();
@@ -148,17 +148,17 @@ it('end-to-end same-device magic link flow: prepare → click → attempt comple
 
     // Click the link.
     $click = test()->withHeaders(['Host' => 'acme.authn.local'])
-        ->getJson("https://acme.authn.local/v1/client/magic_link/redeem?__authn_magic_link={$issued['jwt']}");
+        ->getJson("https://acme.authn.local/v1/client/magic-link/redeem?__authn_magic_link={$issued['jwt']}");
     $click->assertOk()->assertJsonPath('verified', true);
 
     // Verification flipped + Client.token_version bumped.
     expect($verification->fresh()->status)->toBe('verified');
     expect((int) Client::query()->withoutGlobalScopes()->where('id', $client->id)->firstOrFail()->token_version)->toBe(1);
 
-    // Now poll attempt_first_factor — should complete and return a session.
+    // Now poll attempt-first-factor — should complete and return a session.
     $r = test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ins/{$attempt->id}/attempt_first_factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/attempt-first-factor", [
             'strategy' => 'email_link',
         ]);
     $r->assertOk()->assertJsonPath('response.status', 'complete');
@@ -187,12 +187,12 @@ it('replay protection: second click on the same link returns 410 consumed', func
     $issued = app(MagicLinkIssuer::class)->issue($verification);
 
     test()->withHeaders(['Host' => 'acme.authn.local'])
-        ->getJson("https://acme.authn.local/v1/client/magic_link/redeem?__authn_magic_link={$issued['jwt']}")
+        ->getJson("https://acme.authn.local/v1/client/magic-link/redeem?__authn_magic_link={$issued['jwt']}")
         ->assertOk();
 
     // Second click — replay.
     test()->withHeaders(['Host' => 'acme.authn.local'])
-        ->getJson("https://acme.authn.local/v1/client/magic_link/redeem?__authn_magic_link={$issued['jwt']}")
+        ->getJson("https://acme.authn.local/v1/client/magic-link/redeem?__authn_magic_link={$issued['jwt']}")
         ->assertStatus(410)
         ->assertJsonPath('errors.0.code', 'magic_link_consumed');
 });
@@ -224,7 +224,7 @@ it('expired link returns 410', function (): void {
     ]);
 
     test()->withHeaders(['Host' => 'acme.authn.local'])
-        ->getJson("https://acme.authn.local/v1/client/magic_link/redeem?__authn_magic_link={$issued['jwt']}")
+        ->getJson("https://acme.authn.local/v1/client/magic-link/redeem?__authn_magic_link={$issued['jwt']}")
         ->assertStatus(410)
         ->assertJsonPath('errors.0.code', 'magic_link_expired');
 });
@@ -233,12 +233,12 @@ it('missing/invalid token returns 400', function (): void {
     SessionsTestSupport::bootEnv();
 
     test()->withHeaders(['Host' => 'acme.authn.local'])
-        ->getJson('https://acme.authn.local/v1/client/magic_link/redeem')
+        ->getJson('https://acme.authn.local/v1/client/magic-link/redeem')
         ->assertStatus(400)
         ->assertJsonPath('errors.0.code', 'magic_link_missing');
 
     test()->withHeaders(['Host' => 'acme.authn.local'])
-        ->getJson('https://acme.authn.local/v1/client/magic_link/redeem?__authn_magic_link=garbage')
+        ->getJson('https://acme.authn.local/v1/client/magic-link/redeem?__authn_magic_link=garbage')
         ->assertStatus(400)
         ->assertJsonPath('errors.0.code', 'magic_link_invalid');
 });
@@ -265,6 +265,6 @@ it('redirect_url query param triggers a 302 redirect', function (): void {
     $issued = app(MagicLinkIssuer::class)->issue($verification, 'https://app.example.com/welcome');
 
     test()->withHeaders(['Host' => 'acme.authn.local'])
-        ->get("https://acme.authn.local/v1/client/magic_link/redeem?__authn_magic_link={$issued['jwt']}&redirect_url=https://app.example.com/welcome")
+        ->get("https://acme.authn.local/v1/client/magic-link/redeem?__authn_magic_link={$issued['jwt']}&redirect_url=https://app.example.com/welcome")
         ->assertRedirect('https://app.example.com/welcome');
 });

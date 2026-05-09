@@ -42,11 +42,11 @@ use Symfony\Component\HttpFoundation\Cookie;
  * FAPI sign-up state-machine controller.
  *
  * Endpoints (PLAN §3.3 / §9.4):
- *   POST   /v1/client/sign_ups
- *   GET    /v1/client/sign_ups/{id}
- *   PATCH  /v1/client/sign_ups/{id}
- *   POST   /v1/client/sign_ups/{id}/prepare_verification
- *   POST   /v1/client/sign_ups/{id}/attempt_verification
+ *   POST   /v1/client/sign-ups
+ *   GET    /v1/client/sign-ups/{id}
+ *   PATCH  /v1/client/sign-ups/{id}
+ *   POST   /v1/client/sign-ups/{id}/prepare-verification
+ *   POST   /v1/client/sign-ups/{id}/attempt-verification
  *
  * v0.1 strategies for verification: email_code (and ticket at create-time).
  * email_link, OAuth transfer, organization-creation, phone are all v0.2+.

@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Click-time handler for the email_link strategy.
  *
- *   GET /v1/client/magic_link/redeem?__authn_magic_link=<jwt>&redirect_url=<url>
+ *   GET /v1/client/magic-link/redeem?__authn_magic_link=<jwt>&redirect_url=<url>
  *
  * Verifies the JWT against the env's signing keys, marks the matching
  * VerificationCode consumed (replay protection), flips the parent
