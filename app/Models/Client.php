@@ -44,6 +44,7 @@ class Client extends Model
         'last_active_session_id',
         'current_sign_in_attempt_id',
         'current_sign_up_attempt_id',
+        'token_version',
         'device_fingerprint',
         'last_active_at',
     ];

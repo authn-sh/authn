@@ -13,9 +13,11 @@ use App\Auth\SignUp\TicketRedeemer;
 use App\Auth\TestMode\Policy as TestModePolicy;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\SignUpResource;
+use App\Jobs\Mail\SendMagicLinkEmail;
 use App\Jobs\Mail\SendVerificationEmail;
 use App\Models\Client;
 use App\Models\EmailAddress;
+use App\Models\EmailTemplate;
 use App\Models\Environment;
 use App\Models\Invitation;
 use App\Models\Session;
@@ -25,6 +27,7 @@ use App\Models\Verification;
 use App\Models\VerificationCode;
 use App\Services\Client\ClientResolver;
 use App\Services\Domains\DomainEnroller;
+use App\Services\MagicLink\MagicLinkIssuer;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Verification\VerificationManager;
@@ -151,15 +154,16 @@ final class SignUpController
         if ($strategy === '') {
             return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'strategy is required.', $client, $attempt);
         }
-        if ($strategy === Verification::STRATEGY_EMAIL_LINK) {
-            return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, 'email_link sign-up lands in v0.2.', $client, $attempt);
-        }
-        if ($strategy !== Verification::STRATEGY_EMAIL_CODE) {
+        if (! in_array($strategy, [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK], true)) {
             return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategy} is not enabled in v0.1.", $client, $attempt);
         }
 
         if (! is_string($attempt->email_address) || $attempt->email_address === '') {
             return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'email_address is required before preparing email verification.', $client, $attempt);
+        }
+
+        if ($strategy === Verification::STRATEGY_EMAIL_LINK) {
+            return $this->prepareEmailLink($client, $attempt, $request);
         }
 
         // For sign-up the email isn't yet on an EmailAddress row — start the
@@ -184,6 +188,35 @@ final class SignUpController
         return $this->envelope($client, $attempt->fresh());
     }
 
+    private function prepareEmailLink(Client $client, SignUpAttempt $attempt, Request $request): JsonResponse
+    {
+        $verification = $this->verifications->start(
+            $attempt,
+            Verification::STRATEGY_EMAIL_LINK,
+            MagicLinkIssuer::TTL_SECONDS,
+        );
+        $redirectUrl = $request->input('redirect_url');
+        $minted = app(MagicLinkIssuer::class)->issue(
+            $verification,
+            is_string($redirectUrl) && $redirectUrl !== '' ? $redirectUrl : null,
+        );
+
+        SendMagicLinkEmail::dispatch(
+            $attempt->environment_id,
+            (string) $attempt->email_address,
+            $minted['url'],
+            EmailTemplate::SLUG_MAGIC_LINK_SIGN_UP,
+            $verification->id,
+        );
+
+        $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];
+        $verifications['email_address'] = $verification->id;
+        $attempt->verifications = $verifications;
+        $attempt->save();
+
+        return $this->envelope($client, $attempt->fresh());
+    }
+
     public function attemptVerification(Request $request): JsonResponse
     {
         $sid = (string) $request->route('sid');
@@ -194,12 +227,8 @@ final class SignUpController
         }
 
         $strategy = (string) $request->input('strategy', '');
-        if ($strategy !== Verification::STRATEGY_EMAIL_CODE) {
+        if (! in_array($strategy, [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK], true)) {
             return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategy} is not enabled in v0.1.", $client, $attempt);
-        }
-        $code = $request->input('code');
-        if (! is_string($code) || $code === '') {
-            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'code is required.', $client, $attempt);
         }
 
         $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];
@@ -210,6 +239,28 @@ final class SignUpController
         $verification = Verification::query()->withoutGlobalScopes()->where('id', $vid)->first();
         if ($verification === null) {
             return $this->error(422, ErrorCodes::NO_VERIFICATION_IN_PROGRESS, 'No email verification has been prepared.', $client, $attempt);
+        }
+
+        if ($strategy === Verification::STRATEGY_EMAIL_LINK) {
+            // Polling shape: the click flips Verification.status out-of-band.
+            if ($verification->status === Verification::STATUS_UNVERIFIED) {
+                return $this->error(422, ErrorCodes::VERIFICATION_FAILED, 'Magic link not yet redeemed.', $client, $attempt);
+            }
+            if ($verification->status === Verification::STATUS_EXPIRED) {
+                return $this->error(422, ErrorCodes::VERIFICATION_EXPIRED, 'Magic link expired.', $client, $attempt);
+            }
+            if ($verification->status !== Verification::STATUS_VERIFIED) {
+                return $this->error(422, ErrorCodes::VERIFICATION_FAILED, "Magic link verification is in status {$verification->status}.", $client, $attempt);
+            }
+
+            $env = app(Environment::class);
+
+            return $this->finalizeIfReady($env, $client, $attempt, ['email_address' => true]);
+        }
+
+        $code = $request->input('code');
+        if (! is_string($code) || $code === '') {
+            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'code is required.', $client, $attempt);
         }
 
         $ok = $this->verifications->attempt($verification, $code);

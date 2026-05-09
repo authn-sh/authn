@@ -108,6 +108,16 @@ class EmailTemplate extends Model
             'body_markup' => "<mjml><mj-body><mj-section><mj-column><mj-text>Hi {{user.first_name}},</mj-text><mj-text>The primary email on your account was changed. If this wasn't you, contact {{app.support_email}}.</mj-text></mj-column></mj-section></mj-body></mjml>",
             'body_html' => "<!doctype html><html><body><p>Hi {{user.first_name}},</p><p>The primary email on your account was changed. If this wasn't you, contact {{app.support_email}}.</p></body></html>",
         ],
+        self::SLUG_MAGIC_LINK_SIGN_IN => [
+            'subject' => 'Sign in to {{app.name}}',
+            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>Click the link below to sign in. It expires {{expires_at_human}}.</mj-text><mj-button href="{{action_url}}">Sign in</mj-button></mj-column></mj-section></mj-body></mjml>',
+            'body_html' => '<!doctype html><html><body><p>Click the link below to sign in. It expires {{expires_at_human}}.</p><p><a href="{{action_url}}">Sign in</a></p></body></html>',
+        ],
+        self::SLUG_MAGIC_LINK_SIGN_UP => [
+            'subject' => 'Finish creating your {{app.name}} account',
+            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>Click the link below to finish creating your account. It expires {{expires_at_human}}.</mj-text><mj-button href="{{action_url}}">Continue</mj-button></mj-column></mj-section></mj-body></mjml>',
+            'body_html' => '<!doctype html><html><body><p>Click the link below to finish creating your account. It expires {{expires_at_human}}.</p><p><a href="{{action_url}}">Continue</a></p></body></html>',
+        ],
     ];
 
     protected string $idPrefix = 'tmpl_';
