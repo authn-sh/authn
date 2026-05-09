@@ -48,4 +48,9 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::post('/webhooks', [DashboardController::class, 'storeWebhook'])->name('dashboard.webhooks.store');
 
     Route::get('/audit-log', [DashboardController::class, 'auditLog'])->name('dashboard.audit_log');
+
+    // v0.2 panels (AU-13).
+    Route::get('/organizations', [DashboardController::class, 'organizations'])->name('dashboard.organizations');
+    Route::get('/organizations/{organization_id}', [DashboardController::class, 'organization'])->name('dashboard.organization');
+    Route::get('/roles', [DashboardController::class, 'rolesAndPermissions'])->name('dashboard.roles_and_permissions');
 });

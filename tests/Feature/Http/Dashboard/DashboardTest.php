@@ -195,10 +195,13 @@ it('overview / users / sessions / api keys / webhooks pages render for authed op
         'allowlist' => 'Dashboard/Allowlist',
         'blocklist' => 'Dashboard/Blocklist',
         'configure/attributes' => 'Dashboard/Configure',
+        'configure/organizations' => 'Dashboard/Configure',
         'email-templates' => 'Dashboard/EmailTemplates',
         'api-keys' => 'Dashboard/ApiKeys',
         'webhooks' => 'Dashboard/Webhooks',
         'audit-log' => 'Dashboard/AuditLog',
+        'organizations' => 'Dashboard/Organizations',
+        'roles' => 'Dashboard/RolesAndPermissions',
     ] as $segment => $component) {
         $r = $this->withHeaders(dashHeaders($bs['jwt']))
             ->get("http://dashboard.authn.local/acme/production/{$segment}");
@@ -258,4 +261,67 @@ it('creates a webhook endpoint with the secret returned in the flash bag', funct
     $r->assertRedirect();
     expect(session('signing_secret'))->toStartWith('whsec_');
     expect(WebhookEndpoint::query()->withoutGlobalScopes()->where('environment_id', $env->id)->count())->toBe(1);
+});
+
+it('renders the single-org dashboard view with members / invitations / requests / domains tabs', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+    $org = Organization::create(['environment_id' => $env->id, 'name' => 'Acme Org', 'slug' => 'acme-org']);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get("http://dashboard.authn.local/acme/production/organizations/{$org->id}");
+    $r->assertOk()
+        ->assertJsonPath('component', 'Dashboard/Organization')
+        ->assertJsonPath('props.organization.id', $org->id)
+        ->assertJsonPath('props.tab', 'members');
+
+    $r2 = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get("http://dashboard.authn.local/acme/production/organizations/{$org->id}?tab=invitations");
+    $r2->assertOk()->assertJsonPath('props.tab', 'invitations');
+});
+
+it('roles panel returns the seeded system roles + permissions', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/roles');
+    $r->assertOk()->assertJsonPath('component', 'Dashboard/RolesAndPermissions');
+    $keys = array_column($r->json('props.roles'), 'key');
+    expect($keys)->toContain('org:admin', 'org:member');
+    expect(count($r->json('props.permissions')))->toBe(13);
+});
+
+it('redirects on unknown organization id back to organizations list', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/organizations/org_nope');
+    $r->assertRedirect();
+    expect($r->headers->get('Location'))->toContain('/acme/production/organizations');
 });
