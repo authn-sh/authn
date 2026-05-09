@@ -7,6 +7,8 @@ use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
 use App\Http\Controllers\Bapi\InstanceController;
 use App\Http\Controllers\Bapi\InvitationsController;
 use App\Http\Controllers\Bapi\OrganizationController;
+use App\Http\Controllers\Bapi\OrganizationDomainController;
+use App\Http\Controllers\Bapi\OrganizationInvitationController;
 use App\Http\Controllers\Bapi\OrganizationMembershipController;
 use App\Http\Controllers\Bapi\PingController;
 use App\Http\Controllers\Bapi\RedirectUrlsController;
@@ -100,6 +102,18 @@ Route::get('/organizations/{organization_id}/memberships', [OrganizationMembersh
 Route::post('/organizations/{organization_id}/memberships', [OrganizationMembershipController::class, 'store'])->middleware(RateLimit::class.':orgs.members.create,60,60')->name('bapi.organizations.memberships.store');
 Route::patch('/organizations/{organization_id}/memberships/{user_id}', [OrganizationMembershipController::class, 'update'])->middleware(RateLimit::class.':orgs.members.update,60,60')->name('bapi.organizations.memberships.update');
 Route::delete('/organizations/{organization_id}/memberships/{user_id}', [OrganizationMembershipController::class, 'destroy'])->middleware(RateLimit::class.':orgs.members.destroy,60,60')->name('bapi.organizations.memberships.destroy');
+
+Route::get('/organizations/{organization_id}/invitations', [OrganizationInvitationController::class, 'index'])->middleware(RateLimit::class.':orgs.invites.list,300,60')->name('bapi.organizations.invitations.index');
+Route::post('/organizations/{organization_id}/invitations', [OrganizationInvitationController::class, 'store'])->middleware(RateLimit::class.':orgs.invites.create,60,60')->name('bapi.organizations.invitations.store');
+Route::post('/organizations/{organization_id}/invitations/bulk', [OrganizationInvitationController::class, 'bulkStore'])->middleware(RateLimit::class.':orgs.invites.bulk,5,60')->name('bapi.organizations.invitations.bulk');
+Route::post('/organizations/{organization_id}/invitations/{invitation_id}/revoke', [OrganizationInvitationController::class, 'revoke'])->middleware(RateLimit::class.':orgs.invites.action,60,60')->name('bapi.organizations.invitations.revoke');
+
+Route::get('/organizations/{organization_id}/domains', [OrganizationDomainController::class, 'index'])->middleware(RateLimit::class.':orgs.domains.list,300,60')->name('bapi.organizations.domains.index');
+Route::post('/organizations/{organization_id}/domains', [OrganizationDomainController::class, 'store'])->middleware(RateLimit::class.':orgs.domains.create,30,60')->name('bapi.organizations.domains.store');
+Route::get('/organizations/{organization_id}/domains/{domain_id}', [OrganizationDomainController::class, 'show'])->middleware(RateLimit::class.':orgs.domains.read,300,60')->name('bapi.organizations.domains.show');
+Route::patch('/organizations/{organization_id}/domains/{domain_id}', [OrganizationDomainController::class, 'update'])->middleware(RateLimit::class.':orgs.domains.update,60,60')->name('bapi.organizations.domains.update');
+Route::delete('/organizations/{organization_id}/domains/{domain_id}', [OrganizationDomainController::class, 'destroy'])->middleware(RateLimit::class.':orgs.domains.destroy,30,60')->name('bapi.organizations.domains.destroy');
+Route::post('/organizations/{organization_id}/domains/{domain_id}/verify', [OrganizationDomainController::class, 'verify'])->middleware(RateLimit::class.':orgs.domains.verify,30,60')->name('bapi.organizations.domains.verify');
 
 // Instance settings
 Route::get('/instance', [InstanceController::class, 'show'])->middleware(RateLimit::class.':instance.read,300,60');
