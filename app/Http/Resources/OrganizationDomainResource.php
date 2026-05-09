@@ -26,10 +26,8 @@ final class OrganizationDomainResource
             'total_pending_invitations' => (int) $domain->total_pending_invitations,
             'total_pending_suggestions' => (int) $domain->total_pending_suggestions,
             'verification' => $verification !== null ? [
-                'object' => 'verification',
-                'id' => $verification->id,
-                'strategy' => $verification->strategy,
                 'status' => $verification->status,
+                'strategy' => $verification->strategy,
                 'attempts' => (int) $verification->attempts,
                 'expire_at' => $verification->expire_at?->getTimestampMs(),
                 'nonce' => $verification->nonce,
