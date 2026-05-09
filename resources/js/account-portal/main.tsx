@@ -13,7 +13,7 @@ const boundFetch: typeof globalThis.fetch = (...args) => window.fetch(...args)
 // sign-out) usually points at the Dashboard or the tenant's app — different
 // Blade root + page resolver. Use Inertia for in-portal nav (sign-in ↔
 // sign-up ↔ user) and hard-load everything else.
-const PORTAL_PATHS = ['/sign-in', '/sign-up', '/user', '/verify', '/sign-out']
+const PORTAL_PATHS = ['/sign-in', '/sign-up', '/user', '/verify', '/sign-out', '/organization', '/organization-list', '/create-organization']
 function navigate(url: string, replace = false) {
     try {
         const target = new URL(url, window.location.origin)

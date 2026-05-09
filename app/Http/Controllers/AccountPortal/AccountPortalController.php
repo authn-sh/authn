@@ -81,6 +81,45 @@ final class AccountPortalController
         return Inertia::render('AccountPortal/Verify', []);
     }
 
+    public function organizationList(Request $request): InertiaResponse|RedirectResponse
+    {
+        $env = app(Environment::class);
+        $client = $this->resolveClient($request, $env);
+        if ($client === null || ! $this->hasLiveSession($client)) {
+            return redirect('/sign-in?redirect_url='.urlencode((string) $request->fullUrl()));
+        }
+
+        return Inertia::render('AccountPortal/OrganizationList', []);
+    }
+
+    public function createOrganization(Request $request): InertiaResponse|RedirectResponse
+    {
+        $env = app(Environment::class);
+        $client = $this->resolveClient($request, $env);
+        if ($client === null || ! $this->hasLiveSession($client)) {
+            return redirect('/sign-in?redirect_url='.urlencode((string) $request->fullUrl()));
+        }
+
+        return Inertia::render('AccountPortal/CreateOrganization', []);
+    }
+
+    public function organizationProfile(Request $request): InertiaResponse|RedirectResponse
+    {
+        $env = app(Environment::class);
+        $client = $this->resolveClient($request, $env);
+        if ($client === null || ! $this->hasLiveSession($client)) {
+            return redirect('/sign-in?redirect_url='.urlencode((string) $request->fullUrl()));
+        }
+
+        $id = $request->route('id');
+        $tab = $request->route('tab');
+
+        return Inertia::render('AccountPortal/OrganizationProfile', [
+            'organizationId' => is_string($id) && $id !== '' ? $id : null,
+            'tab' => is_string($tab) && $tab !== '' ? $tab : null,
+        ]);
+    }
+
     public function signOut(Request $request): RedirectResponse
     {
         $env = app(Environment::class);
