@@ -91,7 +91,6 @@ final class SignInResource
         }
 
         return [
-            'object' => 'verification',
             'status' => $verification->status,
             'strategy' => $verification->strategy,
             'attempts' => $verification->attempts,

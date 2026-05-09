@@ -30,8 +30,11 @@ final class EnvironmentResource
             'id' => $environment->id,
 
             'auth_config' => [
-                // v0.1 supports identifier-based sign-in via email only.
-                'identifiers' => ['email_address'],
+                'identifier_requirements' => [
+                    'email_address' => 'required',
+                    'phone_number' => 'off',
+                    'username' => 'off',
+                ],
                 'first_factors' => ['password', 'email_code', 'reset_password_email_code', 'ticket'],
                 'second_factors' => [],
                 'sign_up_modes' => ['public'],
@@ -99,19 +102,14 @@ final class EnvironmentResource
             // Bot protection (AU-18 wires the actual provider call). Public
             // half only — secret_key never leaves the server.
             'captcha' => [
-                'provider' => $appearance['captcha']['provider'] ?? null,
-                'widget_type' => $appearance['captcha']['widget_type'] ?? null,
+                'provider' => $appearance['captcha']['provider'] ?? 'none',
+                'widget_type' => $appearance['captcha']['widget_type'] ?? 'invisible',
                 'public_key' => $appearance['captcha']['public_key'] ?? null,
             ],
 
             'localization' => [
                 'default_locale' => $localization['default_locale'] ?? 'en-US',
                 'supported_locales' => $localization['supported_locales'] ?? ['en-US'],
-                'fallback_locale' => $localization['fallback_locale'] ?? 'en-US',
-                // override_etag is bumped whenever overrides change so the SDK
-                // can cache the catalog endpoint per-version. Implementation
-                // lands when the localization editor ships.
-                'override_etag' => $localization['override_etag'] ?? null,
             ],
 
             // v0.4 lights this up with preset + custom OIDC/OAuth2 providers.
@@ -120,9 +118,6 @@ final class EnvironmentResource
             'paths' => $appearance['paths'] ?? [],
 
             'sessions' => [
-                // The bare minimum the SDK needs at boot to know its refresh
-                // cadence. Full per-env config (multi_session, inactivity
-                // timeout, …) lands in AU-13.
                 'session_token_lifetime_seconds' => $sessions['lifetime_seconds'] ?? 60,
                 'multi_session' => (bool) ($sessions['multi_session'] ?? true),
             ],

@@ -78,7 +78,10 @@ final class ClientController
         ]);
 
         return response()
-            ->json(ClientResource::from($client))
+            ->json([
+                'response' => ClientResource::from($client),
+                'client' => ClientResource::from($client),
+            ])
             ->header('Cache-Control', 'no-store')
             ->withCookie($this->buildCookie($client));
     }
@@ -97,7 +100,7 @@ final class ClientController
 
         return response()
             ->json([
-                'deleted' => true,
+                'response' => ['object' => 'deleted_object', 'deleted' => true],
                 'client' => null,
             ])
             ->header('Cache-Control', 'no-store')

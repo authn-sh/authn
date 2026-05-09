@@ -55,6 +55,10 @@ final class SchemaValidator
     {
         self::load();
         if (self::$bundles === []) {
+            if (getenv('OPENAPI_BUNDLES_REQUIRED') === '1' || ($_ENV['OPENAPI_BUNDLES_REQUIRED'] ?? null) === '1') {
+                Assert::fail('OpenAPI bundles not found but OPENAPI_BUNDLES_REQUIRED=1. Run `npm run bundle` in the sibling openapi/ repo.');
+            }
+
             return;
         }
 
@@ -73,11 +77,16 @@ final class SchemaValidator
         $method = strtolower($request->getMethod());
         $rawPath = '/'.ltrim($route->uri(), '/');
         $key = self::operationKey($method, $rawPath);
-        if (! isset(self::$operationBundle[$key])) {
+
+        $preferred = self::preferredBundle($request);
+        if ($preferred !== null && isset(self::$bundles[$preferred])
+            && self::operationExists(self::$bundles[$preferred]['spec'], $method, $rawPath)) {
+            $bundleName = $preferred;
+        } elseif (isset(self::$operationBundle[$key])) {
+            $bundleName = self::$operationBundle[$key];
+        } else {
             return;
         }
-
-        $bundleName = self::$operationBundle[$key];
         $bundle = self::$bundles[$bundleName];
 
         $status = (string) $response->getStatusCode();
@@ -179,6 +188,22 @@ final class SchemaValidator
         }
     }
 
+    private static function preferredBundle(Request $request): ?string
+    {
+        $host = (string) $request->getHost();
+        $bapiHost = (string) config('authn.bapi_host');
+        if ($bapiHost !== '' && $host === $bapiHost) {
+            return 'bapi.bundled.json';
+        }
+
+        return 'fapi.bundled.json';
+    }
+
+    private static function operationExists(stdClass $spec, string $method, string $rawPath): bool
+    {
+        return self::lookupOperation($spec, $method, $rawPath) !== null;
+    }
+
     private static function operationKey(string $method, string $path): string
     {
         $normalized = preg_replace('/\{[^}]+\}/', '{}', $path);
@@ -266,13 +291,14 @@ final class SchemaValidator
         }
         if (property_exists($schema, '$ref')) {
             $ref = $schema->{'$ref'};
-            if (is_string($ref) && str_starts_with($ref, '#/')) {
-                return substr($ref, 2);
+            if (is_string($ref)) {
+                $hash = strpos($ref, '#/');
+                if ($hash !== false) {
+                    return substr($ref, $hash + 2);
+                }
             }
         }
 
-        // Inline schemas are rare in our spec; surfacing them would need a
-        // synthetic registration. Return null so we skip rather than block.
         return null;
     }
 

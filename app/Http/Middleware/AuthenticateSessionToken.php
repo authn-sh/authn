@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Models\Client;
 use App\Models\Environment;
 use App\Models\Session;
 use App\Models\User;
@@ -90,6 +91,11 @@ final class AuthenticateSessionToken
 
         app()->instance(Session::class, $session);
         app()->instance(User::class, $user);
+
+        $client = Client::query()->withoutGlobalScopes()->where('id', $session->client_id)->first();
+        if ($client !== null) {
+            app()->instance(Client::class, $client);
+        }
 
         return $next($request);
     }

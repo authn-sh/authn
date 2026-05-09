@@ -57,7 +57,7 @@ final class SessionLifecycle
 
         SessionActivity::create([
             'session_id' => $session->id,
-            'device_type' => $request?->header('Sec-CH-UA-Mobile') ? 'mobile' : 'browser',
+            'device_type' => $request?->header('Sec-CH-UA-Mobile') ? 'mobile' : 'desktop',
             'is_mobile' => $request !== null
                 ? str_contains((string) $request->header('User-Agent'), 'Mobile')
                 : null,

@@ -22,12 +22,6 @@ abstract class TestCase extends BaseTestCase
         return $this;
     }
 
-    /**
-     * Hook the framework's TestResponse construction so every endpoint hit
-     * inside a feature test is automatically validated against the bundled
-     * OpenAPI spec. Tests that explicitly want to bypass (e.g. covering 5xx
-     * paths the spec doesn't model) can call `withoutOpenApiAssertions()`.
-     */
     protected function createTestResponse($response, $request): TestResponse
     {
         $testResponse = parent::createTestResponse($response, $request);
