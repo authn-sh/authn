@@ -9,7 +9,6 @@ use App\Models\Project;
 use App\Models\SignInAttempt;
 use App\Models\SignUpAttempt;
 
-
 function maintenanceEnv(): Environment
 {
     $project = Project::create(['name' => 'P-'.bin2hex(random_bytes(3)), 'slug' => 'p-'.bin2hex(random_bytes(3))]);

@@ -9,7 +9,6 @@ use App\Models\Verification;
 use App\Models\VerificationCode;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
 
-
 it('runs create → prepare → attempt → complete with email + password', function (): void {
     $f = SignUpTestSupport::bootEnv();
     $bs = SignUpTestSupport::clientWithCookie($f['env']);

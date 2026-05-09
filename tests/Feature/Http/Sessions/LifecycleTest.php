@@ -6,7 +6,6 @@ use App\Models\Session;
 use App\Models\SessionActivity;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-
 it('touch updates last_active_at and writes one SessionActivity per debounce window', function (): void {
     $f = SessionsTestSupport::bootEnv();
     $bs = SessionsTestSupport::makeUserWithSession($f['env']);

@@ -1,13 +1,15 @@
 <?php
 
 declare(strict_types=1);
+use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\Artisan;
 
 require __DIR__.'/../vendor/autoload.php';
 
 $app = require __DIR__.'/../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
-Illuminate\Support\Facades\Artisan::call('migrate:fresh', [
+Artisan::call('migrate:fresh', [
     '--force' => true,
     '--seed' => false,
 ]);

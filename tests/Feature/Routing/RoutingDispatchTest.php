@@ -9,7 +9,6 @@ use App\Services\Tenancy\BootstrapService;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-
 /**
  * Reload the route stack against the current routing-mode config. Pest
  * tests share an Application instance per test, but the route loader runs

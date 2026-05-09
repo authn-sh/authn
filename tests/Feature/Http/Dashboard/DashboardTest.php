@@ -18,7 +18,6 @@ use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-
 function reloadDashboardRoutes(): void
 {
     $router = app('router');

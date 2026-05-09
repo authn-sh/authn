@@ -8,7 +8,6 @@ use App\Services\Keys\SigningKeyGenerator;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-
 function reloadAdminRoutes(): void
 {
     $router = app('router');

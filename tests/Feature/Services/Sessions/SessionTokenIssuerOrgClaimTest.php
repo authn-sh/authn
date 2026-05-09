@@ -13,7 +13,6 @@ use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Tests\Feature\Http\Me\MeTestSupport;
 
-
 function decodeJwtClaims(string $jwt): array
 {
     $config = Configuration::forSymmetricSigner(

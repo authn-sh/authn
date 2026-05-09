@@ -11,7 +11,6 @@ use App\Models\WebhookEvent;
 use App\Webhooks\Emitter;
 use Illuminate\Support\Facades\Bus;
 
-
 function makeEnvForWebhooks(): Environment
 {
     $project = Project::create(['name' => 'P-'.bin2hex(random_bytes(3)), 'slug' => 'p-'.bin2hex(random_bytes(3))]);

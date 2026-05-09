@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
 
-
 it('sign-up against +authn_test in dev uses fixed code 424242, no driver call', function (): void {
     Bus::fake();
     $f = SignUpTestSupport::bootEnv();

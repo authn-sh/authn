@@ -9,7 +9,6 @@ use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
-
 function reloadBapiRoutes(): void
 {
     $router = app('router');

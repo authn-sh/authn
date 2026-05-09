@@ -13,7 +13,6 @@ use App\Services\Sessions\HandshakeToken;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-
 function reloadFapiRoutesForClientTest(): void
 {
     $router = app('router');

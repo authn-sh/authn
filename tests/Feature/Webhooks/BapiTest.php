@@ -7,7 +7,6 @@ use App\Models\WebhookEndpoint;
 use App\Models\WebhookEvent;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-
 it('POST /v1/webhooks/endpoints returns the signing_secret once', function (): void {
     $f = BapiTestSupport::bootEnv();
 

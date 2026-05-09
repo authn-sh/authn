@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Tests\Feature\Mail\MailTestSupport;
 
-
 beforeEach(function (): void {
     Cache::flush();
     config([

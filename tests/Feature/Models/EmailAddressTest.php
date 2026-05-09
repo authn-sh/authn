@@ -8,7 +8,6 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 
-
 function makeEnvForEmails(): Environment
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p']);

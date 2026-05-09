@@ -7,7 +7,6 @@ use App\Models\Environment;
 use App\Models\Project;
 use App\Services\Client\ClientResolver;
 
-
 function clientEnv(string $slug = 'env'): Environment
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p-'.$slug]);

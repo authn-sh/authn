@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Models\WebhookEvent;
 use App\Webhooks\Emitter;
 
-
 it('expires live sessions whose expire_at has passed and emits session.ended w/ reason=expired', function (): void {
     $project = Project::create(['name' => 'PSes', 'slug' => 'pses']);
     $env = Environment::create([

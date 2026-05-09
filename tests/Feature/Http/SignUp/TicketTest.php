@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Services\Tickets\TicketIssuer;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
 
-
 it('redeems an invitation ticket and completes the sign-up in one call', function (): void {
     $f = SignUpTestSupport::bootEnv();
     $invitation = Invitation::query()->withoutGlobalScopes()->create([

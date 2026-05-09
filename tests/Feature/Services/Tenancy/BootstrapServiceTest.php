@@ -11,7 +11,6 @@ use App\Models\User;
 use App\Services\Tenancy\BootstrapService;
 use Illuminate\Database\QueryException;
 
-
 function bootstrapWith(array $overrides = []): array
 {
     $service = app(BootstrapService::class);

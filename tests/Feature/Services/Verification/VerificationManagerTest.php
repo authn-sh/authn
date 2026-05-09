@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Models\Verification;
 use App\Services\Verification\VerificationManager;
 
-
 function vmFixture(): array
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p']);

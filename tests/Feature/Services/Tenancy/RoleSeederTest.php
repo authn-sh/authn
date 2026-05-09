@@ -12,7 +12,6 @@ use App\Models\User;
 use App\Services\Tenancy\RoleSeeder;
 use Illuminate\Support\Facades\Gate;
 
-
 function makeSeederEnv(string $slug = 'env-seed'): Environment
 {
     $project = Project::create(['name' => 'P '.$slug, 'slug' => 'p-'.$slug]);

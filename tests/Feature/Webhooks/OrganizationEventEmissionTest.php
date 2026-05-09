@@ -39,7 +39,6 @@ use App\Models\WebhookEvent;
 use App\Services\Keys\SigningKeyGenerator;
 use Illuminate\Support\Facades\Bus;
 
-
 function bootOrgEventsEnv(): array
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p-events']);

@@ -13,7 +13,6 @@ use App\Services\Domains\DnsTxtResolver;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 
-
 class FakeDnsTxtResolver extends DnsTxtResolver
 {
     /** @var array<string, list<string>> */

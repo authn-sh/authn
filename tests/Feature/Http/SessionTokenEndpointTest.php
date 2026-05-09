@@ -13,7 +13,6 @@ use App\Services\Sessions\SessionTokenVerifier;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-
 function reloadFapiRoutes(): void
 {
     $router = app('router');

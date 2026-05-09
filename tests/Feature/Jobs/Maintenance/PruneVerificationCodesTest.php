@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
 
-
 it('deletes consumed and stale-past-24h verification codes; keeps recent unconsumed', function (): void {
     $project = Project::create(['name' => 'PVC', 'slug' => 'pvc']);
     $env = Environment::create([

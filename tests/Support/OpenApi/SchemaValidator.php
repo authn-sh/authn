@@ -270,6 +270,7 @@ final class SchemaValidator
                 return substr($ref, 2);
             }
         }
+
         // Inline schemas are rare in our spec; surfacing them would need a
         // synthetic registration. Return null so we skip rather than block.
         return null;

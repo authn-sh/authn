@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-
 function fapiReq(string $method, string $path, array $body = [], array $headers = []): TestResponse
 {
     return test()->withCredentials()

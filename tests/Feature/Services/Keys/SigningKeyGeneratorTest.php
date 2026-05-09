@@ -7,7 +7,6 @@ use App\Models\Project;
 use App\Models\SigningKey;
 use App\Services\Keys\SigningKeyGenerator;
 
-
 function makeProductionEnvironment(): Environment
 {
     $project = Project::create([

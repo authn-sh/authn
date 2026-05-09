@@ -10,7 +10,6 @@ use App\Services\Client\ClientResolver;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-
 it('prepare_verification email_link issues a magic link, dispatches the email job', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);
     $f = SessionsTestSupport::bootEnv(userSettings: ['identifiers' => ['email_address' => ['enabled' => true, 'used_for_first_factor' => true, 'verifications' => ['email_code', 'email_link']]]]);

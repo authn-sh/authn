@@ -12,7 +12,6 @@ use App\Services\Keys\SigningKeyGenerator;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-
 function reloadFapiRoutesForCors(): void
 {
     $router = app('router');

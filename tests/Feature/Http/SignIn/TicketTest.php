@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Services\Tickets\TicketIssuer;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
 
-
 it('redeems a sign_in_token ticket and lands on complete', function (): void {
     $f = SignInTestSupport::bootEnv();
     $bundle = SignInTestSupport::makeUser($f['env']);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-
 it('emits X-RateLimit-* headers on every BAPI response', function (): void {
     $f = BapiTestSupport::bootEnv();
 

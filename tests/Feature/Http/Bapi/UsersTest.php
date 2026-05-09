@@ -6,7 +6,6 @@ use App\Models\EmailAddress;
 use App\Models\User;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-
 it('lists, creates, reads, updates, deletes a user', function (): void {
     $f = BapiTestSupport::bootEnv();
 

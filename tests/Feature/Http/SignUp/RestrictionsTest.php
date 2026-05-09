@@ -9,7 +9,6 @@ use App\Models\Environment;
 use App\Models\User;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
 
-
 it('rejects fields the env has disabled with form_param_unknown', function (): void {
     $f = SignUpTestSupport::bootEnv([
         'attributes' => [

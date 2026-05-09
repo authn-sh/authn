@@ -12,7 +12,6 @@ use App\Webhooks\Signer;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 
-
 function bootWebhookFixture(): array
 {
     $project = Project::create(['name' => 'P-'.bin2hex(random_bytes(3)), 'slug' => 'p-'.bin2hex(random_bytes(3))]);

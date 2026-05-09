@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Models\Environment;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-
 it('reads + patches the env-level instance settings', function (): void {
     $f = BapiTestSupport::bootEnv();
 

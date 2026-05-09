@@ -15,7 +15,6 @@ use App\Services\Sessions\SessionLifecycle;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-
 it('session.created carries the active organization block when the session has one', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
     $f = SessionsTestSupport::bootEnv();

@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Tests\Feature\Mail\MailTestSupport;
 
-
 function envelope(string $to = 'alice@example.com'): Envelope
 {
     return new Envelope(

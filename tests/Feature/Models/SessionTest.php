@@ -9,7 +9,6 @@ use App\Models\Session;
 use App\Models\SessionActivity;
 use App\Models\User;
 
-
 function sessionFixture(): array
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p']);

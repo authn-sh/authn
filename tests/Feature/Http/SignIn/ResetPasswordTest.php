@@ -9,7 +9,6 @@ use App\Models\VerificationCode;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
 
-
 it('runs the reset_password_email_code → reset_password → complete path end-to-end', function (): void {
     Bus::fake();
     $f = SignInTestSupport::bootEnv();

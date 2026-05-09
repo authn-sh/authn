@@ -10,7 +10,6 @@ use App\Models\Project;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
-
 it('Detector matches +authn_test emails (case-insensitive)', function (): void {
     expect(Detector::isTestEmail('alice+authn_test@example.com'))->toBeTrue();
     expect(Detector::isTestEmail('+AUTHN_TEST@anywhere.dev'))->toBeTrue();

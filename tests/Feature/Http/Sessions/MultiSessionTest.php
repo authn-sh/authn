@@ -9,7 +9,6 @@ use App\Models\User;
 use App\Services\Sessions\SessionLifecycle;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-
 it('multi_session=false evicts the prior session when a fresh one is minted', function (): void {
     $f = SessionsTestSupport::bootEnv([
         'sessions' => ['multi_session' => false],

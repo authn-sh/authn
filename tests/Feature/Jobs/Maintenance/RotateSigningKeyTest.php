@@ -10,7 +10,6 @@ use App\Services\Keys\SigningKeyGenerator;
 use App\Webhooks\Emitter;
 use Illuminate\Support\Carbon;
 
-
 it('walks the active → pending → promote → retiring → expired state machine', function (): void {
     $project = Project::create(['name' => 'PRot', 'slug' => 'prot']);
     $env = Environment::create([

@@ -12,7 +12,6 @@ use App\Services\Sessions\SessionLifecycle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
-
 function lifecycleFixture(?string $suffix = null): array
 {
     $suffix ??= bin2hex(random_bytes(3));

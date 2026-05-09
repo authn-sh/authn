@@ -13,7 +13,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-
 it('GET /v1/roles lists system roles seeded by AU-2', function (): void {
     $f = BapiTestSupport::bootEnv();
     $r = $this->withHeaders(BapiTestSupport::headers($f['token']))->getJson(BapiTestSupport::url('/roles'));

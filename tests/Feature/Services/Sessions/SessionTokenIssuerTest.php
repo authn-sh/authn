@@ -12,7 +12,6 @@ use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Sessions\SessionTokenVerifier;
 use Illuminate\Http\Request;
 
-
 function tokenFixture(): array
 {
     config([

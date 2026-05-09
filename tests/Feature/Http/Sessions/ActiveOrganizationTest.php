@@ -11,7 +11,6 @@ use App\Services\Client\ClientResolver;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Me\MeTestSupport;
 
-
 function activeOrgFapiReq(string $method, string $path, string $jwt, array $body = []): TestResponse
 {
     return test()->withCredentials()

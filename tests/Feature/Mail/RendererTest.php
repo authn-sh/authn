@@ -6,7 +6,6 @@ use App\Mail\Renderer;
 use App\Models\EmailTemplate;
 use Tests\Feature\Mail\MailTestSupport;
 
-
 it('substitutes every standard variable', function (): void {
     $env = MailTestSupport::bootEnv();
     $template = EmailTemplate::query()->withoutGlobalScopes()

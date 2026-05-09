@@ -6,7 +6,6 @@ use App\Models\Verification;
 use App\Models\VerificationCode;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
 
-
 it('runs the prepare → attempt → complete email-code path end-to-end', function (): void {
     $f = SignInTestSupport::bootEnv();
     $bundle = SignInTestSupport::makeUser($f['env']);

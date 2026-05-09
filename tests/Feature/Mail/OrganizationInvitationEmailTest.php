@@ -14,7 +14,6 @@ use App\Models\Role;
 use App\Services\Keys\SigningKeyGenerator;
 use Illuminate\Support\Facades\Bus;
 
-
 function bootOrgEmailEnv(): array
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p-org-email']);

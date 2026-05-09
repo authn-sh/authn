@@ -7,7 +7,6 @@ use App\Models\Environment;
 use App\Models\Project;
 use App\Models\SignUpAttempt;
 
-
 function suiFixture(): array
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p']);

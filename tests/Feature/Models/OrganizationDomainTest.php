@@ -14,7 +14,6 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 
-
 function makeOrgEnv(string $slug = 'env-org'): Environment
 {
     $project = Project::create(['name' => 'P '.$slug, 'slug' => 'p-'.$slug]);

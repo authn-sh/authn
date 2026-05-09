@@ -20,7 +20,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Me\MeTestSupport;
 
-
 function meOrgReq(string $method, string $path, string $jwt, array $body = [], string $origin = 'https://app.example.com'): TestResponse
 {
     return test()->withCredentials()

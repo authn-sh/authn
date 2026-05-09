@@ -7,7 +7,6 @@ use App\Models\Project;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-
 function reloadFapiRoutesForEnvTest(): void
 {
     $router = app('router');

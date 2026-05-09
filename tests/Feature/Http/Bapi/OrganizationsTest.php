@@ -11,7 +11,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-
 function makeUser(Environment $env, string $username): User
 {
     $u = new User(['environment_id' => $env->id, 'username' => $username]);

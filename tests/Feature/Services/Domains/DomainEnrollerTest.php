@@ -18,7 +18,6 @@ use App\Services\Domains\DomainEnroller;
 use App\Services\Keys\SigningKeyGenerator;
 use Illuminate\Support\Facades\Event;
 
-
 function makeEnrollerEnv(string $slug = 'enroller'): array
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p-'.$slug]);

@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Models\Session;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
 
-
 it('completes a sign-in when identifier + strategy=password + password are supplied in one call', function (): void {
     $f = SignInTestSupport::bootEnv();
     SignInTestSupport::makeUser($f['env']);

@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 use Tests\TestCase;
 
-
 /**
  * @return array{env: Environment, token: string, headers: array, org_id: string, admin: User, member: User, other: User}
  */

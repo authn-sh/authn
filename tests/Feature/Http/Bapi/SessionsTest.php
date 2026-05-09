@@ -7,7 +7,6 @@ use App\Models\Session;
 use App\Models\User;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-
 it('lists, shows, revokes, mints tokens for sessions', function (): void {
     $f = BapiTestSupport::bootEnv();
     $user = User::create(['environment_id' => $f['env']->id]);

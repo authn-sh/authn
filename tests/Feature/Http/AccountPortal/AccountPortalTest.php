@@ -13,7 +13,6 @@ use App\Services\Keys\SigningKeyGenerator;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-
 function reloadAccountPortalRoutes(): void
 {
     $router = app('router');

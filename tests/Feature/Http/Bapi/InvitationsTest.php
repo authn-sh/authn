@@ -7,7 +7,6 @@ use App\Models\Invitation;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-
 it('creates an invitation, dispatches the email job, exposes the ticket url, and revokes', function (): void {
     Bus::fake();
     $f = BapiTestSupport::bootEnv();
