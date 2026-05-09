@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\AccountPortal\AccountPortalController;
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
+use App\Http\Controllers\Fapi\MagicLinkController;
 use App\Http\Controllers\Fapi\MeController;
 use App\Http\Controllers\Fapi\MeOrganizationController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
@@ -61,6 +62,10 @@ Route::prefix('v1')->group(function (): void {
         Route::put('/client', [ClientController::class, 'store'])->name('fapi.client.store');
         Route::delete('/client', [ClientController::class, 'destroy'])->name('fapi.client.destroy');
         Route::match(['get', 'post'], '/client/handshake', [ClientController::class, 'handshake'])->name('fapi.client.handshake');
+
+        // Magic-link click handler (AU-10). Top-level browser navigation
+        // from the email — no Origin header, no Client cookie required.
+        Route::get('/client/magic_link/redeem', [MagicLinkController::class, 'redeem'])->name('fapi.magic_link.redeem');
     });
 
     // Sign-in: POST creates the attempt (and, if needed, the Client). The
