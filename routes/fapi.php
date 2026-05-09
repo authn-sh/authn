@@ -6,6 +6,8 @@ use App\Http\Controllers\AccountPortal\AccountPortalController;
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\MeController;
+use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
+use App\Http\Controllers\Fapi\OrganizationMembershipController as FapiOrganizationMembershipController;
 use App\Http\Controllers\Fapi\PingController;
 use App\Http\Controllers\Fapi\SessionsController;
 use App\Http\Controllers\Fapi\SessionTokenController;
@@ -15,6 +17,7 @@ use App\Http\Controllers\WellKnown\JwksController;
 use App\Http\Controllers\WellKnown\OpenIdConfigurationController;
 use App\Http\Middleware\AuthenticateSessionToken;
 use App\Http\Middleware\EnforceFapiOrigin;
+use App\Http\Middleware\EnsureOrgPermission;
 use App\Http\Middleware\HandleAccountPortalInertia;
 use App\Http\Middleware\ResolveClientFromCookie;
 use App\Models\Environment;
@@ -100,6 +103,32 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/me/sessions', [MeController::class, 'listSessions'])->name('fapi.me.sessions.list');
         Route::post('/me/change_password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');
+
+        // Organizations — user-scoped CRUD (PLAN §4.4 / OA-3 / AU-6).
+        Route::post('/organizations', [FapiOrganizationController::class, 'store'])->name('fapi.organizations.store');
+        Route::post('/organizations/{organization_id}/leave', [FapiOrganizationController::class, 'leave'])->name('fapi.organizations.leave');
+        Route::get('/organizations/{organization_id}', [FapiOrganizationController::class, 'show'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_profile:read')
+            ->name('fapi.organizations.show');
+        Route::patch('/organizations/{organization_id}', [FapiOrganizationController::class, 'update'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_profile:manage')
+            ->name('fapi.organizations.update');
+        Route::delete('/organizations/{organization_id}', [FapiOrganizationController::class, 'destroy'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_profile:delete')
+            ->name('fapi.organizations.destroy');
+
+        Route::get('/organizations/{organization_id}/memberships', [FapiOrganizationMembershipController::class, 'index'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:read')
+            ->name('fapi.organizations.memberships.index');
+        Route::post('/organizations/{organization_id}/memberships', [FapiOrganizationMembershipController::class, 'store'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->name('fapi.organizations.memberships.store');
+        Route::patch('/organizations/{organization_id}/memberships/{user_id}', [FapiOrganizationMembershipController::class, 'update'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->name('fapi.organizations.memberships.update');
+        Route::delete('/organizations/{organization_id}/memberships/{user_id}', [FapiOrganizationMembershipController::class, 'destroy'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->name('fapi.organizations.memberships.destroy');
     });
 });
 
