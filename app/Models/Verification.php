@@ -75,6 +75,8 @@ class Verification extends Model
 
     public const STRATEGY_TICKET = 'ticket';
 
+    public const STRATEGY_DOMAIN_DNS_TXT = 'domain_dns_txt';
+
     public const V0_1_STRATEGIES = [
         self::STRATEGY_PASSWORD,
         self::STRATEGY_EMAIL_CODE,
