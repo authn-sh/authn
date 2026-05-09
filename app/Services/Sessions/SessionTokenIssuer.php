@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Sessions;
 
 use App\Models\Environment;
+use App\Models\OrganizationMembership;
 use App\Models\Session;
 use App\Models\SigningKey;
 use App\Support\Url;
@@ -74,6 +75,11 @@ final class SessionTokenIssuer
 
         if ($azp !== null) {
             $builder = $builder->withClaim('azp', $azp);
+        }
+
+        $orgClaim = $this->orgClaim($session);
+        if ($orgClaim !== null) {
+            $builder = $builder->withClaim('org', $orgClaim);
         }
 
         if ($shape === 'flat') {
@@ -146,6 +152,38 @@ final class SessionTokenIssuer
         $origin = $request->headers->get('Origin');
 
         return is_string($origin) && $origin !== '' ? $origin : null;
+    }
+
+    /**
+     * Compact `org` claim populated from the active membership when the
+     * Session has `last_active_organization_id` set. Returns null when the
+     * session has no active org or when the row has been deleted between
+     * the touch and the mint.
+     *
+     * @return array{id: string, slg: string, rol: string, per: list<string>}|null
+     */
+    private function orgClaim(Session $session): ?array
+    {
+        $orgId = $session->last_active_organization_id;
+        if (! is_string($orgId) || $orgId === '') {
+            return null;
+        }
+
+        $membership = OrganizationMembership::query()
+            ->where('organization_id', $orgId)
+            ->where('user_id', $session->user_id)
+            ->with(['organization', 'role.permissions'])
+            ->first();
+        if ($membership === null || $membership->organization === null || $membership->role === null) {
+            return null;
+        }
+
+        return [
+            'id' => $membership->organization->id,
+            'slg' => $membership->organization->slug,
+            'rol' => $membership->role->key,
+            'per' => $membership->role->permissions->pluck('key')->unique()->values()->all(),
+        ];
     }
 
     /**
