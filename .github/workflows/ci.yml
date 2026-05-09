@@ -87,7 +87,7 @@ jobs:
         run: php artisan migrate --force
 
       - name: Pest (in-memory SQLite per phpunit.xml)
-        run: php artisan test
+        run: php artisan test --parallel
 
   dusk:
     runs-on: ubuntu-latest
