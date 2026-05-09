@@ -87,8 +87,25 @@ class WebhookEndpoint extends Model
             return false;
         }
         $list = is_array($this->enabled_event_types) ? $this->enabled_event_types : [];
+        if (in_array('*', $list, true) || in_array($type, $list, true)) {
+            return true;
+        }
+        foreach ($list as $pattern) {
+            if (! is_string($pattern)) {
+                continue;
+            }
+            // Prefix glob: `organization.*` matches `organization.created`,
+            // `organization.updated`, etc. Trailing `*` is the only glob
+            // form supported — anything else is treated as a literal.
+            if (str_ends_with($pattern, '.*')) {
+                $prefix = substr($pattern, 0, -1); // keep the trailing dot
+                if (str_starts_with($type, $prefix)) {
+                    return true;
+                }
+            }
+        }
 
-        return in_array('*', $list, true) || in_array($type, $list, true);
+        return false;
     }
 
     /**

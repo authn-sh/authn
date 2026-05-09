@@ -6,6 +6,7 @@ namespace App\Services\Sessions;
 
 use App\Models\Client;
 use App\Models\Environment;
+use App\Models\OrganizationMembership;
 use App\Models\Session;
 use App\Models\SessionActivity;
 use App\Webhooks\Emitter;
@@ -248,9 +249,42 @@ final class SessionLifecycle
             'expire_at' => $session->expire_at->getTimestampMs(),
             'abandon_at' => $session->abandon_at?->getTimestampMs(),
             'last_active_organization_id' => $session->last_active_organization_id,
+            'organization' => $this->activeOrganizationShape($session),
             'actor' => $session->actor,
             'created_at' => $session->created_at?->getTimestampMs(),
             'updated_at' => $session->updated_at?->getTimestampMs(),
+        ];
+    }
+
+    /**
+     * Compact `{ id, slug, role, permissions[] }` block for the
+     * session's active organization (PLAN §4.4 / OA-5 / AU-11). Returns
+     * null when the session has no active org or when the membership row
+     * has been deleted between the touch and the emit.
+     *
+     * @return array{id: string, slug: string, role: string, permissions: list<string>}|null
+     */
+    private function activeOrganizationShape(Session $session): ?array
+    {
+        $orgId = $session->last_active_organization_id;
+        if (! is_string($orgId) || $orgId === '') {
+            return null;
+        }
+
+        $membership = OrganizationMembership::query()
+            ->where('organization_id', $orgId)
+            ->where('user_id', $session->user_id)
+            ->with(['organization', 'role.permissions'])
+            ->first();
+        if ($membership === null || $membership->organization === null || $membership->role === null) {
+            return null;
+        }
+
+        return [
+            'id' => $membership->organization->id,
+            'slug' => $membership->organization->slug,
+            'role' => $membership->role->key,
+            'permissions' => $membership->role->permissions->pluck('key')->unique()->values()->all(),
         ];
     }
 
