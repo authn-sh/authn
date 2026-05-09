@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Route;
 
 uses(RefreshDatabase::class);
 
-function reloadApRoutesV02(): void
+function reloadOrgPagesRoutes(): void
 {
     $router = app('router');
     $router->setRoutes(new RouteCollection);
@@ -31,7 +31,7 @@ function reloadApRoutesV02(): void
     $fapi->group(base_path('routes/fapi.php'));
 }
 
-function bootApEnvV02(): array
+function bootOrgPagesEnv(): array
 {
     config([
         'authn.routing_mode' => 'subdomain',
@@ -41,9 +41,9 @@ function bootApEnvV02(): array
         'authn.bapi_host' => 'api.authn.local',
         'authn.dashboard_host' => 'dashboard.authn.local',
     ]);
-    reloadApRoutesV02();
+    reloadOrgPagesRoutes();
 
-    $project = Project::create(['name' => 'P', 'slug' => 'p-ap-v02']);
+    $project = Project::create(['name' => 'P', 'slug' => 'p-org-pages']);
     $env = Environment::create([
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
@@ -58,7 +58,7 @@ function bootApEnvV02(): array
     return ['env' => $env];
 }
 
-function makeApSessionV02(Environment $env): array
+function makeOrgPagesSession(Environment $env): array
 {
     $client = Client::create(['environment_id' => $env->id]);
     $cookie = app(ClientResolver::class)->mintCookieValue($client);
@@ -82,8 +82,8 @@ function makeApSessionV02(Environment $env): array
 }
 
 it('GET /organization-list returns the Inertia page when authenticated', function (): void {
-    $f = bootApEnvV02();
-    $auth = makeApSessionV02($f['env']);
+    $f = bootOrgPagesEnv();
+    $auth = makeOrgPagesSession($f['env']);
 
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $auth['cookie'])
@@ -98,7 +98,7 @@ it('GET /organization-list returns the Inertia page when authenticated', functio
 });
 
 it('GET /organization-list redirects anon to sign-in', function (): void {
-    bootApEnvV02();
+    bootOrgPagesEnv();
 
     $r = $this->withHeaders(['Host' => 'acme.authn.local'])
         ->get('https://acme.authn.local/organization-list');
@@ -108,8 +108,8 @@ it('GET /organization-list redirects anon to sign-in', function (): void {
 });
 
 it('GET /create-organization returns the Inertia page when authenticated', function (): void {
-    $f = bootApEnvV02();
-    $auth = makeApSessionV02($f['env']);
+    $f = bootOrgPagesEnv();
+    $auth = makeOrgPagesSession($f['env']);
 
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $auth['cookie'])
@@ -124,7 +124,7 @@ it('GET /create-organization returns the Inertia page when authenticated', funct
 });
 
 it('GET /create-organization redirects anon to sign-in', function (): void {
-    bootApEnvV02();
+    bootOrgPagesEnv();
 
     $r = $this->withHeaders(['Host' => 'acme.authn.local'])
         ->get('https://acme.authn.local/create-organization');
@@ -134,8 +134,8 @@ it('GET /create-organization redirects anon to sign-in', function (): void {
 });
 
 it('GET /organization renders the page; passes organizationId/tab to Inertia', function (): void {
-    $f = bootApEnvV02();
-    $auth = makeApSessionV02($f['env']);
+    $f = bootOrgPagesEnv();
+    $auth = makeOrgPagesSession($f['env']);
 
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $auth['cookie'])
@@ -153,8 +153,8 @@ it('GET /organization renders the page; passes organizationId/tab to Inertia', f
 });
 
 it('GET /organization without an id renders the page with null id (defaults to active org)', function (): void {
-    $f = bootApEnvV02();
-    $auth = makeApSessionV02($f['env']);
+    $f = bootOrgPagesEnv();
+    $auth = makeOrgPagesSession($f['env']);
 
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $auth['cookie'])
@@ -171,8 +171,8 @@ it('GET /organization without an id renders the page with null id (defaults to a
 });
 
 it('GET /organization/{id}/{tab} rejects an unknown tab', function (): void {
-    $f = bootApEnvV02();
-    $auth = makeApSessionV02($f['env']);
+    $f = bootOrgPagesEnv();
+    $auth = makeOrgPagesSession($f['env']);
 
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $auth['cookie'])
@@ -187,7 +187,7 @@ it('GET /organization/{id}/{tab} rejects an unknown tab', function (): void {
 });
 
 it('GET /organization redirects anon to sign-in', function (): void {
-    bootApEnvV02();
+    bootOrgPagesEnv();
 
     $r = $this->withHeaders(['Host' => 'acme.authn.local'])
         ->get('https://acme.authn.local/organization');

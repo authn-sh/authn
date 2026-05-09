@@ -109,14 +109,19 @@ class EmailTemplate extends Model
             'body_html' => "<!doctype html><html><body><p>Hi {{user.first_name}},</p><p>The primary email on your account was changed. If this wasn't you, contact {{app.support_email}}.</p></body></html>",
         ],
         self::SLUG_MAGIC_LINK_SIGN_IN => [
-            'subject' => 'Sign in to {{app.name}}',
-            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>Click the link below to sign in. It expires {{expires_at_human}}.</mj-text><mj-button href="{{action_url}}">Sign in</mj-button></mj-column></mj-section></mj-body></mjml>',
-            'body_html' => '<!doctype html><html><body><p>Click the link below to sign in. It expires {{expires_at_human}}.</p><p><a href="{{action_url}}">Sign in</a></p></body></html>',
+            'subject' => 'Your sign-in link for {{app.name}}',
+            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>Hi {{user.first_name}},</mj-text><mj-text>Click the button below to sign in to {{app.name}}.</mj-text><mj-button href="{{action_url}}">Sign in to {{app.name}}</mj-button><mj-text>This link expires {{expires_at_human}}. If you didn\'t request it, you can ignore this email.</mj-text></mj-column></mj-section></mj-body></mjml>',
+            'body_html' => '<!doctype html><html><body><p>Hi {{user.first_name}},</p><p>Click the button below to sign in to {{app.name}}.</p><p><a href="{{action_url}}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Sign in to {{app.name}}</a></p><p>This link expires {{expires_at_human}}. If you didn\'t request it, you can ignore this email.</p></body></html>',
         ],
         self::SLUG_MAGIC_LINK_SIGN_UP => [
             'subject' => 'Finish creating your {{app.name}} account',
-            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>Click the link below to finish creating your account. It expires {{expires_at_human}}.</mj-text><mj-button href="{{action_url}}">Continue</mj-button></mj-column></mj-section></mj-body></mjml>',
-            'body_html' => '<!doctype html><html><body><p>Click the link below to finish creating your account. It expires {{expires_at_human}}.</p><p><a href="{{action_url}}">Continue</a></p></body></html>',
+            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>Welcome to {{app.name}}.</mj-text><mj-text>Click the button below to finish creating your account.</mj-text><mj-button href="{{action_url}}">Continue to {{app.name}}</mj-button><mj-text>This link expires {{expires_at_human}}. If you didn\'t request it, you can ignore this email.</mj-text></mj-column></mj-section></mj-body></mjml>',
+            'body_html' => '<!doctype html><html><body><p>Welcome to {{app.name}}.</p><p>Click the button below to finish creating your account.</p><p><a href="{{action_url}}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Continue to {{app.name}}</a></p><p>This link expires {{expires_at_human}}. If you didn\'t request it, you can ignore this email.</p></body></html>',
+        ],
+        self::SLUG_ORGANIZATION_INVITATION => [
+            'subject' => "You've been invited to join {{organization.name}}",
+            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>{{inviter.name}} ({{inviter.email}}) has invited you to join <strong>{{organization.name}}</strong> on {{app.name}}.</mj-text><mj-text>You\'ll be added with the <strong>{{role.name}}</strong> role.</mj-text><mj-button href="{{action_url}}">Accept invitation</mj-button><mj-text>This invitation expires {{expires_at_human}}.</mj-text></mj-column></mj-section></mj-body></mjml>',
+            'body_html' => '<!doctype html><html><body><p>{{inviter.name}} ({{inviter.email}}) has invited you to join <strong>{{organization.name}}</strong> on {{app.name}}.</p><p>You\'ll be added with the <strong>{{role.name}}</strong> role.</p><p><a href="{{action_url}}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Accept invitation</a></p><p>This invitation expires {{expires_at_human}}.</p></body></html>',
         ],
     ];
 

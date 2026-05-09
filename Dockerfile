@@ -4,14 +4,15 @@
 #
 # Stages:
 #
-#   php-deps    composer install --no-dev (production vendor/ only)
-#   node-build  npm ci + vite build (Account Portal + Dashboard bundles)
-#   runtime     PHP-FPM + nginx + supervisord + horizon worker; this is the
-#               default `production` target the docker-compose baseline
-#               points at and the one CI publishes.
-#   dev         extends runtime with composer dev deps + node_modules + a
-#               composer-driven foreground command. The override compose
-#               selects this target.
+#   php-deps     composer install --no-dev (production vendor/ only)
+#   php-deps-dev composer install (full deps; vendor/ for the dev stage)
+#   node-deps    npm ci (cached node_modules)
+#   node-build   inherits node-deps; runs vite build for prod assets
+#   runtime      PHP-FPM + nginx + supervisord + horizon worker; this is
+#                the default `production` target the docker-compose baseline
+#                points at and the one CI publishes.
+#   dev          extends runtime; pulls vendor + node_modules from the
+#                cached deps stages. The override compose selects this.
 #
 # Image goal: < 350 MB compressed.
 
@@ -46,17 +47,39 @@ COPY . .
 RUN composer dump-autoload --optimize --no-dev --classmap-authoritative
 
 # ---------------------------------------------------------------------------
-# Stage: node-build
+# Stage: node-deps
 # ---------------------------------------------------------------------------
-FROM node:20-alpine AS node-build
+FROM node:20-alpine AS node-deps
 
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
+# ---------------------------------------------------------------------------
+# Stage: node-build
+# ---------------------------------------------------------------------------
+FROM node-deps AS node-build
+
 COPY resources/ resources/
 COPY vite.config.js tsconfig.json ./
 RUN npm run build
+
+# ---------------------------------------------------------------------------
+# Stage: php-deps-dev
+# ---------------------------------------------------------------------------
+FROM composer:2 AS php-deps-dev
+
+WORKDIR /app
+ENV COMPOSER_ALLOW_SUPERUSER=1 \
+    COMPOSER_NO_INTERACTION=1 \
+    COMPOSER_MEMORY_LIMIT=-1
+
+COPY composer.json composer.lock ./
+RUN composer install \
+        --no-scripts \
+        --no-autoloader \
+        --prefer-dist \
+        --ignore-platform-reqs
 
 # ---------------------------------------------------------------------------
 # Stage: runtime (production target)
@@ -149,17 +172,13 @@ USER root
 ENV APP_ENV=local \
     APP_DEBUG=true
 
-RUN apk add --no-cache git \
-    && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN apk add --no-cache git
 
 COPY --from=php-deps /usr/bin/composer /usr/local/bin/composer
+COPY --from=php-deps-dev /app/vendor ./vendor
+COPY --from=node-deps /app/node_modules ./node_modules
 
-# Dev image keeps composer dev deps + node_modules for in-container
-# tests / pint runs. The CMD is intentionally inherited from `runtime`
-# (supervisord → nginx + php-fpm) so `make dev` exercises the same
-# routing and FPM pool the released image uses; queue:work / schedule:work
-# / vite / mailpit live in their own compose services.
-RUN composer install --prefer-dist --no-interaction \
-    && npm ci --no-audit --no-fund
+RUN composer dump-autoload --optimize \
+    && chown -R www-data:www-data vendor node_modules
 
 USER www-data

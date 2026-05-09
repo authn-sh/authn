@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Mail;
 
 use App\Models\EmailAddress;
-use App\Models\EmailTemplate;
 use App\Models\Environment;
 use App\Models\Project;
 use App\Models\User;
@@ -26,17 +25,8 @@ final class MailTestSupport
             'user_settings' => $userSettings,
             'appearance' => ['application_name' => 'Acme'],
         ]);
-        // Seed the active templates the same way bootstrap does.
-        foreach (EmailTemplate::DEFAULT_TEMPLATES as $slug => $payload) {
-            EmailTemplate::query()->withoutGlobalScopes()->create([
-                'environment_id' => $env->id,
-                'slug' => $slug,
-                'subject' => $payload['subject'],
-                'body_markup' => $payload['body_markup'],
-                'body_html' => $payload['body_html'],
-            ]);
-        }
 
+        // EnvironmentObserver already seeded the active templates; nothing to do.
         return $env;
     }
 
