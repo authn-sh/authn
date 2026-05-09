@@ -55,6 +55,10 @@ final class SchemaValidator
     {
         self::load();
         if (self::$bundles === []) {
+            if (getenv('OPENAPI_BUNDLES_REQUIRED') === '1' || ($_ENV['OPENAPI_BUNDLES_REQUIRED'] ?? null) === '1') {
+                Assert::fail('OpenAPI bundles not found but OPENAPI_BUNDLES_REQUIRED=1. Run `npm run bundle` in the sibling openapi/ repo.');
+            }
+
             return;
         }
 
@@ -266,13 +270,14 @@ final class SchemaValidator
         }
         if (property_exists($schema, '$ref')) {
             $ref = $schema->{'$ref'};
-            if (is_string($ref) && str_starts_with($ref, '#/')) {
-                return substr($ref, 2);
+            if (is_string($ref)) {
+                $hash = strpos($ref, '#/');
+                if ($hash !== false) {
+                    return substr($ref, $hash + 2);
+                }
             }
         }
 
-        // Inline schemas are rare in our spec; surfacing them would need a
-        // synthetic registration. Return null so we skip rather than block.
         return null;
     }
 
