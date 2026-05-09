@@ -9,6 +9,7 @@ use App\Models\Session;
 use App\Models\SessionActivity;
 use App\Models\SignInAttempt;
 use App\Models\SignUpAttempt;
+use App\Models\User;
 
 /**
  * The Client snapshot returned to the SDK. Mirrors PLAN §8.2.
@@ -81,6 +82,8 @@ final class ClientResource
             ->latest('id')
             ->first();
 
+        $user = User::query()->withoutGlobalScopes()->where('id', $session->user_id)->first();
+
         return [
             'object' => 'session',
             'id' => $session->id,
@@ -92,6 +95,7 @@ final class ClientResource
             'abandon_at' => ($session->abandon_at ?? $session->expire_at)->getTimestampMs(),
             'last_active_organization_id' => $session->last_active_organization_id,
             'latest_activity' => self::activityShape($latestActivity),
+            'user' => $user !== null ? UserResource::from($user) : null,
             'created_at' => $session->created_at?->getTimestampMs(),
             'updated_at' => $session->updated_at?->getTimestampMs(),
         ];
