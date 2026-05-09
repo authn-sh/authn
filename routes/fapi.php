@@ -6,8 +6,11 @@ use App\Http\Controllers\AccountPortal\AccountPortalController;
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\MeController;
+use App\Http\Controllers\Fapi\MeOrganizationController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
+use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
 use App\Http\Controllers\Fapi\OrganizationMembershipController as FapiOrganizationMembershipController;
+use App\Http\Controllers\Fapi\OrganizationMembershipRequestController as FapiOrganizationMembershipRequestController;
 use App\Http\Controllers\Fapi\PingController;
 use App\Http\Controllers\Fapi\SessionsController;
 use App\Http\Controllers\Fapi\SessionTokenController;
@@ -129,6 +132,38 @@ Route::prefix('v1')->group(function (): void {
         Route::delete('/organizations/{organization_id}/memberships/{user_id}', [FapiOrganizationMembershipController::class, 'destroy'])
             ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
             ->name('fapi.organizations.memberships.destroy');
+
+        // Per-org admin invitation surface (AU-7).
+        Route::get('/organizations/{organization_id}/invitations', [FapiOrganizationInvitationController::class, 'index'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:read')
+            ->name('fapi.organizations.invitations.index');
+        Route::post('/organizations/{organization_id}/invitations', [FapiOrganizationInvitationController::class, 'store'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->name('fapi.organizations.invitations.store');
+        Route::post('/organizations/{organization_id}/invitations/bulk', [FapiOrganizationInvitationController::class, 'bulkStore'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->name('fapi.organizations.invitations.bulk');
+        Route::post('/organizations/{organization_id}/invitations/{invitation_id}/revoke', [FapiOrganizationInvitationController::class, 'revoke'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->name('fapi.organizations.invitations.revoke');
+
+        // Per-org membership-request approve/reject (AU-7).
+        Route::get('/organizations/{organization_id}/membership_requests', [FapiOrganizationMembershipRequestController::class, 'index'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:read')
+            ->name('fapi.organizations.membership_requests.index');
+        Route::post('/organizations/{organization_id}/membership_requests/{request_id}/accept', [FapiOrganizationMembershipRequestController::class, 'accept'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->name('fapi.organizations.membership_requests.accept');
+        Route::post('/organizations/{organization_id}/membership_requests/{request_id}/reject', [FapiOrganizationMembershipRequestController::class, 'reject'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->name('fapi.organizations.membership_requests.reject');
+
+        // /v1/me org-related collections + active-org switching (AU-7).
+        Route::get('/me/organization_memberships', [MeOrganizationController::class, 'listMemberships'])->name('fapi.me.organization_memberships');
+        Route::get('/me/organization_invitations', [MeOrganizationController::class, 'listInvitations'])->name('fapi.me.organization_invitations');
+        Route::post('/me/organization_invitations/{invitation_id}/accept', [MeOrganizationController::class, 'acceptInvitation'])->name('fapi.me.organization_invitations.accept');
+        Route::get('/me/organization_membership_requests', [MeOrganizationController::class, 'listMembershipRequests'])->name('fapi.me.organization_membership_requests');
+        Route::put('/me/active_organization', [MeOrganizationController::class, 'setActiveOrganization'])->name('fapi.me.active_organization');
     });
 });
 
