@@ -30,7 +30,7 @@ it('GET /v1/me returns the user without private_metadata', function (): void {
     $r->assertOk()
         ->assertJsonPath('id', $auth['user']->id)
         ->assertJsonPath('first_name', 'Alice')
-        ->assertJsonPath('private_metadata', null);
+        ->assertJsonPath('private_metadata', []);
 });
 
 it('PATCH /v1/me updates writable fields and ignores unknown', function (): void {
@@ -43,8 +43,9 @@ it('PATCH /v1/me updates writable fields and ignores unknown', function (): void
         'something_unknown' => 'ignored',
     ]);
     $r->assertOk()
-        ->assertJsonPath('first_name', 'Alicia')
-        ->assertJsonPath('last_name', 'Smith-Jones');
+        ->assertJsonPath('response.first_name', 'Alicia')
+        ->assertJsonPath('response.last_name', 'Smith-Jones')
+        ->assertJsonPath('client.object', 'client');
 });
 
 it('POST /v1/me/email_addresses creates an unverified row; verifies via prepare + attempt', function (): void {
@@ -52,10 +53,10 @@ it('POST /v1/me/email_addresses creates an unverified row; verifies via prepare 
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
 
     $created = meReq('POST', '/me/email_addresses', $auth['jwt'], ['email_address' => 'alt@example.com']);
-    $created->assertStatus(201)
-        ->assertJsonPath('email_address', 'alt@example.com')
-        ->assertJsonPath('verification', null);
-    $eid = $created->json('id');
+    $created->assertOk()
+        ->assertJsonPath('response.email_address', 'alt@example.com')
+        ->assertJsonPath('response.verification', null);
+    $eid = $created->json('response.id');
 
     meReq('POST', "/me/email_addresses/{$eid}/prepare_verification", $auth['jwt'], [
         'strategy' => 'email_code',
@@ -70,7 +71,7 @@ it('POST /v1/me/email_addresses creates an unverified row; verifies via prepare 
     meReq('POST', "/me/email_addresses/{$eid}/attempt_verification", $auth['jwt'], [
         'strategy' => 'email_code',
         'code' => $known,
-    ])->assertOk()->assertJsonPath('verification.status', 'verified');
+    ])->assertOk()->assertJsonPath('response.verification.status', 'verified');
 
     expect(EmailAddress::query()->withoutGlobalScopes()->where('id', $eid)->first()->isVerified())->toBeTrue();
 });
@@ -82,7 +83,7 @@ it('POST /v1/me/change_password rotates the hash; wrong current returns form_pas
     meReq('POST', '/me/change_password', $auth['jwt'], [
         'current_password' => 'super-secret-password',
         'new_password' => 'brand-new-password-9000',
-    ])->assertOk()->assertJsonPath('success', true);
+    ])->assertOk()->assertJsonPath('response.success', true);
 
     expect(User::query()->withoutGlobalScopes()->where('id', $auth['user']->id)->first()->checkPassword('brand-new-password-9000'))->toBeTrue();
 

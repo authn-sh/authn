@@ -126,7 +126,9 @@ it('DELETE /v1/client ends every active session and clears the cookie', function
         ->withHeader('Host', 'acme.authn.local')
         ->deleteJson('https://acme.authn.local/v1/client');
 
-    $response->assertOk()->assertJson(['deleted' => true, 'client' => null]);
+    $response->assertOk()
+        ->assertJsonPath('response.deleted', true)
+        ->assertJsonPath('client', null);
     expect(Session::query()->withoutGlobalScopes()->where('client_id', $client->id)->first()->status)->toBe('ended');
 
     $cleared = collect($response->headers->getCookies())

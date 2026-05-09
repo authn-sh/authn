@@ -134,19 +134,23 @@ final class WebhookEndpointsController
 
     private function shape(WebhookEndpoint $row, bool $includeSecret): array
     {
-        return [
+        $shape = [
             'object' => 'webhook_endpoint',
             'id' => $row->id,
             'url' => $row->url,
             'enabled' => (bool) $row->enabled,
             'enabled_event_types' => is_array($row->enabled_event_types) ? $row->enabled_event_types : [],
-            'signing_secret' => $includeSecret ? $row->displaySecret() : null,
             'signing_secret_prefix' => $row->secretPrefix(),
             'rotation_window_expires_at' => $row->prior_signing_secret_expires_at?->getTimestampMs(),
             'disabled_at' => $row->disabled_at?->getTimestampMs(),
             'created_at' => $row->created_at?->getTimestampMs(),
             'updated_at' => $row->updated_at?->getTimestampMs(),
         ];
+        if ($includeSecret) {
+            $shape['signing_secret'] = $row->displaySecret();
+        }
+
+        return $shape;
     }
 
     private function error(): JsonResponse

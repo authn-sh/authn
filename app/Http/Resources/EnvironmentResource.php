@@ -22,9 +22,13 @@ final class EnvironmentResource
     public static function from(Environment $environment): array
     {
         $appearance = is_array($environment->appearance) ? $environment->appearance : [];
+        $sessions = is_array($appearance['sessions'] ?? null) ? $appearance['sessions'] : [];
         $localization = is_array($environment->localization) ? $environment->localization : [];
 
         return [
+            'object' => 'environment',
+            'id' => $environment->id,
+
             'auth_config' => [
                 'identifier_requirements' => [
                     'email_address' => 'required',
@@ -40,6 +44,7 @@ final class EnvironmentResource
                 'application_name' => $appearance['application_name'] ?? config('app.name'),
                 'branded' => (bool) ($appearance['branded'] ?? false),
                 'support_email' => $appearance['support_email'] ?? null,
+                'brand_color' => $appearance['brand_color'] ?? null,
                 'logo_url' => $appearance['logo_url'] ?? null,
                 'favicon_url' => $appearance['favicon_url'] ?? null,
             ],
@@ -109,6 +114,16 @@ final class EnvironmentResource
 
             // v0.4 lights this up with preset + custom OIDC/OAuth2 providers.
             'oauth_providers' => [],
+
+            'paths' => $appearance['paths'] ?? [],
+
+            'sessions' => [
+                'session_token_lifetime_seconds' => $sessions['lifetime_seconds'] ?? 60,
+                'multi_session' => (bool) ($sessions['multi_session'] ?? true),
+            ],
+
+            'created_at' => $environment->created_at?->getTimestampMs(),
+            'updated_at' => $environment->updated_at?->getTimestampMs(),
         ];
     }
 }

@@ -52,7 +52,7 @@ it('returns the canonical environment shape', function (): void {
     $response->assertOk();
     $response->assertJsonPath('object', 'environment');
     $response->assertJsonPath('auth_config.first_factors', ['password', 'email_code', 'reset_password_email_code', 'ticket']);
-    $response->assertJsonPath('auth_config.identifiers', ['email_address']);
+    $response->assertJsonPath('auth_config.identifier_requirements.email_address', 'required');
     $response->assertJsonPath('user_settings.attributes.email_address.required', true);
     $response->assertJsonPath('user_settings.attributes.password.required', true);
     $response->assertJsonPath('organization_settings.enabled', false);

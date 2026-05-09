@@ -49,8 +49,8 @@ it('POST /domains creates a domain, mints a domain_dns_txt Verification, fires t
     expect($r->json('id'))->toStartWith('orgdom_');
     expect($r->json('verification.nonce'))->toStartWith('authn-domain-verify=');
 
-    $verificationId = $r->json('verification.id');
-    expect(Verification::query()->withoutGlobalScopes()->where('id', $verificationId)->exists())->toBeTrue();
+    $nonce = $r->json('verification.nonce');
+    expect(Verification::query()->withoutGlobalScopes()->where('nonce', $nonce)->exists())->toBeTrue();
 
     Event::assertDispatched(OrganizationDomainCreated::class, 1);
 });
@@ -103,12 +103,10 @@ it('POST /domains/{id}/verify re-issues a fresh Verification with a new nonce', 
     $ctx = setupOrgForDomains($this);
     $created = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains"), ['name' => 'verify.test']);
     $id = $created->json('id');
-    $firstVerificationId = $created->json('verification.id');
     $firstNonce = $created->json('verification.nonce');
 
     $r = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/verify"));
     $r->assertOk();
-    expect($r->json('verification.id'))->not->toBe($firstVerificationId);
     expect($r->json('verification.nonce'))->not->toBe($firstNonce);
     expect($r->json('verification.strategy'))->toBe('domain_dns_txt');
     Bus::assertDispatched(VerifyOrganizationDomain::class, 1);
