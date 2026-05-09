@@ -117,6 +117,22 @@ jobs:
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
 
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build dev image (cached)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: dev
+          load: true
+          tags: |
+            authn-app:latest
+            authn-worker:latest
+            authn-scheduler:latest
+          cache-from: type=gha,scope=dusk
+          cache-to: type=gha,mode=max,scope=dusk
+
       - name: Boot stack
         run: docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.dusk.yml up -d
 

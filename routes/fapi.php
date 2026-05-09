@@ -204,6 +204,15 @@ Route::withoutMiddleware([EnforceFapiOrigin::class])
             ->name('account_portal.verify');
         Route::post('/sign-out', [AccountPortalController::class, 'signOut'])
             ->name('account_portal.sign_out');
+
+        // v0.2 org-facing pages (AU-12).
+        Route::get('/organization-list', [AccountPortalController::class, 'organizationList'])
+            ->name('account_portal.organization_list');
+        Route::get('/create-organization', [AccountPortalController::class, 'createOrganization'])
+            ->name('account_portal.create_organization');
+        Route::get('/organization/{id?}/{tab?}', [AccountPortalController::class, 'organizationProfile'])
+            ->where('tab', 'general|members|invitations|requests|domains')
+            ->name('account_portal.organization_profile');
     });
 
 Route::prefix('account')->group(function (): void {

@@ -139,9 +139,6 @@ final class EmailPipeline
 
     private function isTestRecipient(string $email): bool
     {
-        // Clerk-style test affordance (PLAN §9.11). The full identifier
-        // detection (incl. phone + alt suffixes) lights up in AU-18; this is
-        // the v0.1 cut.
         return str_contains($email, '+authn_test');
     }
 

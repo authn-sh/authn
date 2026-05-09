@@ -23,10 +23,10 @@ SERVICE     ?= app
 .PHONY: up down dev logs sh shell test dusk pint scale build ps restart help
 
 up:
-	$(DC_PROD) up -d --build
+	$(DC_PROD) up -d
 
 dev:
-	$(DC_DEV) up -d --build
+	$(DC_DEV) up -d
 
 down:
 ifeq ($(V),1)
