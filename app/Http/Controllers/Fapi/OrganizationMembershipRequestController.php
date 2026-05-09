@@ -22,9 +22,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * FAPI per-org admin surface for membership requests (PLAN §4.4 / OA-3 / AU-7).
  *
- *   GET    /v1/organizations/{organization_id}/membership_requests
- *   POST   /v1/organizations/{organization_id}/membership_requests/{request_id}/accept
- *   POST   /v1/organizations/{organization_id}/membership_requests/{request_id}/reject
+ *   GET    /v1/organizations/{organization_id}/membership-requests
+ *   POST   /v1/organizations/{organization_id}/membership-requests/{request_id}/accept
+ *   POST   /v1/organizations/{organization_id}/membership-requests/{request_id}/reject
  */
 final class OrganizationMembershipRequestController
 {

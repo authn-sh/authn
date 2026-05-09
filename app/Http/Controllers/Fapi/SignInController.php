@@ -31,13 +31,13 @@ use Symfony\Component\HttpFoundation\Cookie;
  * FAPI sign-in state-machine controller.
  *
  * Endpoints:
- *   POST   /v1/client/sign_ins
- *   GET    /v1/client/sign_ins/{id}
- *   POST   /v1/client/sign_ins/{id}/prepare_first_factor
- *   POST   /v1/client/sign_ins/{id}/attempt_first_factor
- *   POST   /v1/client/sign_ins/{id}/prepare_second_factor   (404 in v0.1)
- *   POST   /v1/client/sign_ins/{id}/attempt_second_factor   (404 in v0.1)
- *   POST   /v1/client/sign_ins/{id}/reset_password
+ *   POST   /v1/client/sign-ins
+ *   GET    /v1/client/sign-ins/{id}
+ *   POST   /v1/client/sign-ins/{id}/prepare-first-factor
+ *   POST   /v1/client/sign-ins/{id}/attempt-first-factor
+ *   POST   /v1/client/sign-ins/{id}/prepare-second-factor   (404 in v0.1)
+ *   POST   /v1/client/sign-ins/{id}/attempt-second-factor   (404 in v0.1)
+ *   POST   /v1/client/sign-ins/{id}/reset-password
  *
  * v0.1 strategies: password, email_code, reset_password_email_code, ticket.
  * Captcha trio is captured but not enforced (AU-18). MFA, OAuth, SAML,

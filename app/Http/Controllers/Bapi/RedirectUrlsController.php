@@ -10,10 +10,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- *   GET    /v1/redirect_urls
- *   POST   /v1/redirect_urls
- *   GET    /v1/redirect_urls/{id}
- *   DELETE /v1/redirect_urls/{id}
+ *   GET    /v1/redirect-urls
+ *   POST   /v1/redirect-urls
+ *   GET    /v1/redirect-urls/{id}
+ *   DELETE /v1/redirect-urls/{id}
  */
 final class RedirectUrlsController
 {

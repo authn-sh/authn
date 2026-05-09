@@ -49,17 +49,17 @@ function makeOrgWithMembership(Environment $env, User $user, string $roleKey, st
     return $org->fresh();
 }
 
-it('GET /v1/me/organization_memberships lists the caller memberships', function (): void {
+it('GET /v1/me/organization-memberships lists the caller memberships', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     makeOrgWithMembership($f['env'], $auth['user'], 'org:admin', 'a');
     makeOrgWithMembership($f['env'], $auth['user'], 'org:member', 'b');
 
-    $r = meOrgReq('GET', '/me/organization_memberships', $auth['jwt']);
+    $r = meOrgReq('GET', '/me/organization-memberships', $auth['jwt']);
     $r->assertOk()->assertJsonPath('total_count', 2);
 });
 
-it('GET /v1/me/organization_invitations lists pending invitations addressed to the caller', function (): void {
+it('GET /v1/me/organization-invitations lists pending invitations addressed to the caller', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = Organization::create(['environment_id' => $f['env']->id, 'name' => 'A', 'slug' => 'a']);
@@ -72,11 +72,11 @@ it('GET /v1/me/organization_invitations lists pending invitations addressed to t
         'status' => OrganizationInvitation::STATUS_PENDING,
     ]);
 
-    $r = meOrgReq('GET', '/me/organization_invitations', $auth['jwt']);
+    $r = meOrgReq('GET', '/me/organization-invitations', $auth['jwt']);
     $r->assertOk()->assertJsonPath('total_count', 1)->assertJsonPath('data.0.email_address', 'alice@example.com');
 });
 
-it('POST /v1/me/organization_invitations/{id}/accept creates a membership and fires events', function (): void {
+it('POST /v1/me/organization-invitations/{id}/accept creates a membership and fires events', function (): void {
     Event::fake([OrganizationInvitationAccepted::class, OrganizationMembershipCreated::class]);
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
@@ -91,7 +91,7 @@ it('POST /v1/me/organization_invitations/{id}/accept creates a membership and fi
     ]);
     Organization::query()->withoutGlobalScopes()->where('id', $org->id)->increment('pending_invitations_count');
 
-    $r = meOrgReq('POST', "/me/organization_invitations/{$invitation->id}/accept", $auth['jwt']);
+    $r = meOrgReq('POST', "/me/organization-invitations/{$invitation->id}/accept", $auth['jwt']);
     $r->assertOk()->assertJsonPath('response.object', 'organization_membership');
     expect(OrganizationMembership::query()->where('organization_id', $org->id)->where('user_id', $auth['user']->id)->exists())->toBeTrue();
     expect($invitation->fresh()->status)->toBe('accepted');
@@ -113,7 +113,7 @@ it('POST /accept on an already-accepted invitation 409s', function (): void {
         'status' => OrganizationInvitation::STATUS_ACCEPTED,
     ]);
 
-    meOrgReq('POST', "/me/organization_invitations/{$invitation->id}/accept", $auth['jwt'])
+    meOrgReq('POST', "/me/organization-invitations/{$invitation->id}/accept", $auth['jwt'])
         ->assertStatus(409)
         ->assertJsonPath('errors.0.code', 'organization_invitation_already_accepted');
 });
@@ -131,11 +131,11 @@ it('POST /accept on an invitation for someone else 404s', function (): void {
         'status' => OrganizationInvitation::STATUS_PENDING,
     ]);
 
-    meOrgReq('POST', "/me/organization_invitations/{$invitation->id}/accept", $auth['jwt'])
+    meOrgReq('POST', "/me/organization-invitations/{$invitation->id}/accept", $auth['jwt'])
         ->assertStatus(404);
 });
 
-it('GET /v1/me/organization_membership_requests lists my requests', function (): void {
+it('GET /v1/me/organization-membership-requests lists my requests', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = Organization::create(['environment_id' => $f['env']->id, 'name' => 'A', 'slug' => 'a']);
@@ -146,40 +146,40 @@ it('GET /v1/me/organization_membership_requests lists my requests', function ():
         'status' => 'pending',
     ]);
 
-    meOrgReq('GET', '/me/organization_membership_requests', $auth['jwt'])
+    meOrgReq('GET', '/me/organization-membership-requests', $auth['jwt'])
         ->assertOk()->assertJsonPath('total_count', 1);
 });
 
-it('PUT /v1/me/active_organization updates Session.last_active_organization_id', function (): void {
+it('PUT /v1/me/active-organization updates Session.last_active_organization_id', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = makeOrgWithMembership($f['env'], $auth['user'], 'org:member');
 
-    $r = meOrgReq('PUT', '/me/active_organization', $auth['jwt'], ['organization_id' => $org->id]);
+    $r = meOrgReq('PUT', '/me/active-organization', $auth['jwt'], ['organization_id' => $org->id]);
     $r->assertOk()->assertJsonPath('response.organization_id', $org->id);
 
     $session = Session::query()->withoutGlobalScopes()->where('id', $auth['session']->id)->firstOrFail();
     expect($session->last_active_organization_id)->toBe($org->id);
 });
 
-it('PUT /v1/me/active_organization with null clears the active org', function (): void {
+it('PUT /v1/me/active-organization with null clears the active org', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = makeOrgWithMembership($f['env'], $auth['user'], 'org:admin');
     Session::query()->withoutGlobalScopes()->where('id', $auth['session']->id)->update(['last_active_organization_id' => $org->id]);
 
-    $r = meOrgReq('PUT', '/me/active_organization', $auth['jwt'], ['organization_id' => null]);
+    $r = meOrgReq('PUT', '/me/active-organization', $auth['jwt'], ['organization_id' => null]);
     $r->assertOk()->assertJsonPath('response.organization_id', null);
 });
 
-it('PUT /v1/me/active_organization 404s for an org the user is not in', function (): void {
+it('PUT /v1/me/active-organization 404s for an org the user is not in', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $other = new User(['environment_id' => $f['env']->id, 'username' => 'other']);
     $other->save();
     $org = makeOrgWithMembership($f['env'], $other, 'org:admin');
 
-    meOrgReq('PUT', '/me/active_organization', $auth['jwt'], ['organization_id' => $org->id])
+    meOrgReq('PUT', '/me/active-organization', $auth['jwt'], ['organization_id' => $org->id])
         ->assertStatus(404);
 });
 
@@ -242,7 +242,7 @@ it('POST /v1/organizations/{id}/invitations/{id}/revoke flips status', function 
     Event::assertDispatched(OrganizationInvitationRevoked::class, 1);
 });
 
-it('POST /v1/organizations/{id}/membership_requests/{rid}/accept creates a membership', function (): void {
+it('POST /v1/organizations/{id}/membership-requests/{rid}/accept creates a membership', function (): void {
     Event::fake([OrganizationMembershipRequestApproved::class, OrganizationMembershipCreated::class]);
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
@@ -257,7 +257,7 @@ it('POST /v1/organizations/{id}/membership_requests/{rid}/accept creates a membe
         'status' => 'pending',
     ]);
 
-    $r = meOrgReq('POST', "/organizations/{$org->id}/membership_requests/{$req->id}/accept", $auth['jwt']);
+    $r = meOrgReq('POST', "/organizations/{$org->id}/membership-requests/{$req->id}/accept", $auth['jwt']);
     $r->assertOk()->assertJsonPath('response.status', 'accepted');
     expect(OrganizationMembership::query()->where('organization_id', $org->id)->where('user_id', $applicant->id)->exists())->toBeTrue();
 
@@ -265,7 +265,7 @@ it('POST /v1/organizations/{id}/membership_requests/{rid}/accept creates a membe
     Event::assertDispatched(OrganizationMembershipCreated::class, 1);
 });
 
-it('POST /v1/organizations/{id}/membership_requests/{rid}/reject flips status', function (): void {
+it('POST /v1/organizations/{id}/membership-requests/{rid}/reject flips status', function (): void {
     Event::fake([OrganizationMembershipRequestRejected::class]);
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
@@ -280,7 +280,7 @@ it('POST /v1/organizations/{id}/membership_requests/{rid}/reject flips status', 
         'status' => 'pending',
     ]);
 
-    $r = meOrgReq('POST', "/organizations/{$org->id}/membership_requests/{$req->id}/reject", $auth['jwt']);
+    $r = meOrgReq('POST', "/organizations/{$org->id}/membership-requests/{$req->id}/reject", $auth['jwt']);
     $r->assertOk()->assertJsonPath('response.status', 'revoked');
     Event::assertDispatched(OrganizationMembershipRequestRejected::class, 1);
 });

@@ -48,10 +48,10 @@ Route::post('/users/{id}/ban', [UsersController::class, 'ban'])->middleware(Rate
 Route::post('/users/{id}/unban', [UsersController::class, 'unban'])->middleware(RateLimit::class.':users.action,60,60')->name('bapi.users.unban');
 Route::post('/users/{id}/lock', [UsersController::class, 'lock'])->middleware(RateLimit::class.':users.action,60,60')->name('bapi.users.lock');
 Route::post('/users/{id}/unlock', [UsersController::class, 'unlock'])->middleware(RateLimit::class.':users.action,60,60')->name('bapi.users.unlock');
-Route::post('/users/{id}/profile_image', [UsersController::class, 'uploadProfileImage'])->middleware(RateLimit::class.':users.image,30,60')->name('bapi.users.profile_image.upload');
-Route::delete('/users/{id}/profile_image', [UsersController::class, 'deleteProfileImage'])->middleware(RateLimit::class.':users.image,30,60')->name('bapi.users.profile_image.delete');
+Route::post('/users/{id}/profile-image', [UsersController::class, 'uploadProfileImage'])->middleware(RateLimit::class.':users.image,30,60')->name('bapi.users.profile_image.upload');
+Route::delete('/users/{id}/profile-image', [UsersController::class, 'deleteProfileImage'])->middleware(RateLimit::class.':users.image,30,60')->name('bapi.users.profile_image.delete');
 Route::patch('/users/{id}/metadata', [UsersController::class, 'updateMetadata'])->middleware(RateLimit::class.':users.update,60,60')->name('bapi.users.metadata');
-Route::post('/users/{id}/verify_password', [UsersController::class, 'verifyPassword'])->middleware(RateLimit::class.':users.verify,60,60')->name('bapi.users.verify_password');
+Route::post('/users/{id}/verify-password', [UsersController::class, 'verifyPassword'])->middleware(RateLimit::class.':users.verify,60,60')->name('bapi.users.verify_password');
 
 // Sessions
 Route::get('/sessions', [SessionsController::class, 'index'])->middleware(RateLimit::class.':sessions.list,300,60')->name('bapi.sessions.index');
@@ -67,19 +67,19 @@ Route::post('/invitations/bulk', [InvitationsController::class, 'bulk'])->middle
 Route::post('/invitations/{id}/revoke', [InvitationsController::class, 'revoke'])->middleware(RateLimit::class.':invitations.action,60,60')->name('bapi.invitations.revoke');
 
 // Allowlist / Blocklist
-Route::get('/allowlist_identifiers', [AllowlistIdentifiersController::class, 'index'])->middleware(RateLimit::class.':lists.list,300,60');
-Route::post('/allowlist_identifiers', [AllowlistIdentifiersController::class, 'store'])->middleware(RateLimit::class.':lists.create,60,60');
-Route::delete('/allowlist_identifiers/{id}', [AllowlistIdentifiersController::class, 'destroy'])->middleware(RateLimit::class.':lists.destroy,60,60');
+Route::get('/allowlist-identifiers', [AllowlistIdentifiersController::class, 'index'])->middleware(RateLimit::class.':lists.list,300,60');
+Route::post('/allowlist-identifiers', [AllowlistIdentifiersController::class, 'store'])->middleware(RateLimit::class.':lists.create,60,60');
+Route::delete('/allowlist-identifiers/{id}', [AllowlistIdentifiersController::class, 'destroy'])->middleware(RateLimit::class.':lists.destroy,60,60');
 
-Route::get('/blocklist_identifiers', [BlocklistIdentifiersController::class, 'index'])->middleware(RateLimit::class.':lists.list,300,60');
-Route::post('/blocklist_identifiers', [BlocklistIdentifiersController::class, 'store'])->middleware(RateLimit::class.':lists.create,60,60');
-Route::delete('/blocklist_identifiers/{id}', [BlocklistIdentifiersController::class, 'destroy'])->middleware(RateLimit::class.':lists.destroy,60,60');
+Route::get('/blocklist-identifiers', [BlocklistIdentifiersController::class, 'index'])->middleware(RateLimit::class.':lists.list,300,60');
+Route::post('/blocklist-identifiers', [BlocklistIdentifiersController::class, 'store'])->middleware(RateLimit::class.':lists.create,60,60');
+Route::delete('/blocklist-identifiers/{id}', [BlocklistIdentifiersController::class, 'destroy'])->middleware(RateLimit::class.':lists.destroy,60,60');
 
 // Redirect URLs
-Route::get('/redirect_urls', [RedirectUrlsController::class, 'index'])->middleware(RateLimit::class.':redirect_urls.list,300,60');
-Route::post('/redirect_urls', [RedirectUrlsController::class, 'store'])->middleware(RateLimit::class.':redirect_urls.create,60,60');
-Route::get('/redirect_urls/{id}', [RedirectUrlsController::class, 'show'])->middleware(RateLimit::class.':redirect_urls.read,300,60');
-Route::delete('/redirect_urls/{id}', [RedirectUrlsController::class, 'destroy'])->middleware(RateLimit::class.':redirect_urls.destroy,60,60');
+Route::get('/redirect-urls', [RedirectUrlsController::class, 'index'])->middleware(RateLimit::class.':redirect_urls.list,300,60');
+Route::post('/redirect-urls', [RedirectUrlsController::class, 'store'])->middleware(RateLimit::class.':redirect_urls.create,60,60');
+Route::get('/redirect-urls/{id}', [RedirectUrlsController::class, 'show'])->middleware(RateLimit::class.':redirect_urls.read,300,60');
+Route::delete('/redirect-urls/{id}', [RedirectUrlsController::class, 'destroy'])->middleware(RateLimit::class.':redirect_urls.destroy,60,60');
 
 // Webhooks
 Route::get('/webhooks/endpoints', [WebhookEndpointsController::class, 'index'])->middleware(RateLimit::class.':webhooks.list,300,60');
@@ -87,7 +87,7 @@ Route::post('/webhooks/endpoints', [WebhookEndpointsController::class, 'store'])
 Route::get('/webhooks/endpoints/{id}', [WebhookEndpointsController::class, 'show'])->middleware(RateLimit::class.':webhooks.read,300,60');
 Route::patch('/webhooks/endpoints/{id}', [WebhookEndpointsController::class, 'update'])->middleware(RateLimit::class.':webhooks.update,60,60');
 Route::delete('/webhooks/endpoints/{id}', [WebhookEndpointsController::class, 'destroy'])->middleware(RateLimit::class.':webhooks.destroy,30,60');
-Route::post('/webhooks/endpoints/{id}/rotate_secret', [WebhookEndpointsController::class, 'rotateSecret'])->middleware(RateLimit::class.':webhooks.rotate,10,60');
+Route::post('/webhooks/endpoints/{id}/rotate-secret', [WebhookEndpointsController::class, 'rotateSecret'])->middleware(RateLimit::class.':webhooks.rotate,10,60');
 
 Route::get('/webhooks/deliveries', [WebhookDeliveriesController::class, 'index'])->middleware(RateLimit::class.':webhooks.list,300,60');
 Route::get('/webhooks/deliveries/{id}', [WebhookDeliveriesController::class, 'show'])->middleware(RateLimit::class.':webhooks.read,300,60');
@@ -131,4 +131,4 @@ Route::get('/permissions', [PermissionController::class, 'index'])->middleware(R
 Route::get('/instance', [InstanceController::class, 'show'])->middleware(RateLimit::class.':instance.read,300,60');
 Route::patch('/instance', [InstanceController::class, 'update'])->middleware(RateLimit::class.':instance.update,30,60');
 Route::patch('/instance/restrictions', [InstanceController::class, 'updateRestrictions'])->middleware(RateLimit::class.':instance.update,30,60');
-Route::patch('/instance/organization_settings', [InstanceController::class, 'updateOrganizationSettings'])->middleware(RateLimit::class.':instance.update,30,60');
+Route::patch('/instance/organization-settings', [InstanceController::class, 'updateOrganizationSettings'])->middleware(RateLimit::class.':instance.update,30,60');

@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /**
  * BAPI-issued sign-up invitation. The full CRUD surface (issue, list, revoke,
  * resend) lands in AU-13; AU-10 only needs the columns here so the FAPI
- * `/v1/client/sign_ups` controller can redeem a `ticket` claim.
+ * `/v1/client/sign-ups` controller can redeem a `ticket` claim.
  *
  * @property string $id
  * @property string $environment_id

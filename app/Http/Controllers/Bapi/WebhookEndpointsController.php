@@ -17,7 +17,7 @@ use Illuminate\Http\Request;
  *   GET    /v1/webhooks/endpoints/{id}
  *   PATCH  /v1/webhooks/endpoints/{id}
  *   DELETE /v1/webhooks/endpoints/{id}
- *   POST   /v1/webhooks/endpoints/{id}/rotate_secret  (returns new secret once)
+ *   POST   /v1/webhooks/endpoints/{id}/rotate-secret  (returns new secret once)
  */
 final class WebhookEndpointsController
 {

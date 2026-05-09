@@ -10,9 +10,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- *   GET    /v1/blocklist_identifiers
- *   POST   /v1/blocklist_identifiers
- *   DELETE /v1/blocklist_identifiers/{id}
+ *   GET    /v1/blocklist-identifiers
+ *   POST   /v1/blocklist-identifiers
+ *   DELETE /v1/blocklist-identifiers/{id}
  */
 final class BlocklistIdentifiersController
 {

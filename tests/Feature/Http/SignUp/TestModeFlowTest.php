@@ -22,7 +22,7 @@ it('sign-up against +authn_test in dev uses fixed code 424242, no driver call', 
     $create = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'alice+authn_test@example.com',
             'password' => 'super-secret-password',
         ]);
@@ -32,7 +32,7 @@ it('sign-up against +authn_test in dev uses fixed code 424242, no driver call', 
     $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ups/{$sid}/prepare_verification", ['strategy' => 'email_code'])
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/prepare-verification", ['strategy' => 'email_code'])
         ->assertOk();
 
     // The minted code is the fixed 424242 (still hashed in storage).
@@ -44,7 +44,7 @@ it('sign-up against +authn_test in dev uses fixed code 424242, no driver call', 
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ups/{$sid}/attempt_verification", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/attempt-verification", [
             'strategy' => 'email_code',
             'code' => '424242',
         ]);
@@ -63,7 +63,7 @@ it('sign-up against +authn_test in production returns test_identifier_forbidden'
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'eve+authn_test@example.com',
             'password' => 'super-secret-password',
         ]);

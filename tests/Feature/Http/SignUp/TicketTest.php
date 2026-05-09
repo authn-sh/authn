@@ -28,7 +28,7 @@ it('redeems an invitation ticket and completes the sign-up in one call', functio
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'ticket' => $ticket,
             'password' => 'super-secret-password',
         ]);
@@ -70,7 +70,7 @@ it('rejects a replayed ticket with ticket_invalid', function (): void {
     $first = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'ticket' => $ticket,
             'password' => 'super-secret-password',
         ]);
@@ -81,7 +81,7 @@ it('rejects a replayed ticket with ticket_invalid', function (): void {
     $second = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs2['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'ticket' => $ticket,
             'password' => 'super-secret-password',
         ]);

@@ -14,11 +14,11 @@ it('runs create → prepare → attempt → complete with email + password', fun
     $bs = SignUpTestSupport::clientWithCookie($f['env']);
     $cookie = $bs['cookie'];
 
-    // 1. POST /sign_ups with email + password — both required + email verify_at_sign_up.
+    // 1. POST /sign-ups with email + password — both required + email verify_at_sign_up.
     $create = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'newbie@example.com',
             'password' => 'super-secret-password',
         ]);
@@ -29,11 +29,11 @@ it('runs create → prepare → attempt → complete with email + password', fun
         ->assertJsonPath('response.unverified_fields', ['email_address']);
     $sid = $create->json('response.id');
 
-    // 2. POST /prepare_verification strategy=email_code.
+    // 2. POST /prepare-verification strategy=email_code.
     $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ups/{$sid}/prepare_verification", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/prepare-verification", [
             'strategy' => 'email_code',
         ])
         ->assertOk();
@@ -44,11 +44,11 @@ it('runs create → prepare → attempt → complete with email + password', fun
     $known = '424242';
     $codeRow->forceFill(['code_hash' => hash('sha256', $known)])->save();
 
-    // 4. POST /attempt_verification → complete.
+    // 4. POST /attempt-verification → complete.
     $attempt = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign_ups/{$sid}/attempt_verification", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/attempt-verification", [
             'strategy' => 'email_code',
             'code' => $known,
         ]);
@@ -86,7 +86,7 @@ it('returns missing_fields when first_name is required and not provided', functi
     $create = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'newbie@example.com',
             'password' => 'super-secret-password',
         ]);

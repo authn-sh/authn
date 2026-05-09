@@ -21,7 +21,7 @@ it('rejects fields the env has disabled with form_param_unknown', function (): v
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'a@example.com',
             'password' => 'super-secret-password',
             'username' => 'shouldbeignored',
@@ -43,7 +43,7 @@ it('only allows allowlisted emails when signup_mode = restricted', function (): 
     $bad = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'someone@outside.com',
             'password' => 'super-secret-password',
         ]);
@@ -53,7 +53,7 @@ it('only allows allowlisted emails when signup_mode = restricted', function (): 
     $good = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'someone@team.com',
             'password' => 'super-secret-password',
         ]);
@@ -72,7 +72,7 @@ it('rejects blocklisted emails', function (): void {
     $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'banned@example.com',
             'password' => 'super-secret-password',
         ])
@@ -99,7 +99,7 @@ it('detects subaddress collisions when block_email_subaddresses is on', function
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'foo+anything@example.com',
             'password' => 'super-secret-password',
         ]);
@@ -123,7 +123,7 @@ it('treats gmail dot variants as the same identifier', function (): void {
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ups', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ups', [
             'email_address' => 'f.o.o@gmail.com',
             'password' => 'super-secret-password',
         ]);

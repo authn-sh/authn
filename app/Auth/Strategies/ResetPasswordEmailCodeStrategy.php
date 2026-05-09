@@ -18,7 +18,7 @@ use App\Services\Verification\VerificationManager;
  * but routed through the `reset_password_code` template (AU-14 wires
  * the template). On successful attempt the SignInController flips
  * `attempt->status` to `needs_new_password`; the SDK then calls
- * `POST /v1/client/sign_ins/{id}/reset_password`.
+ * `POST /v1/client/sign-ins/{id}/reset-password`.
  */
 final class ResetPasswordEmailCodeStrategy implements Strategy
 {

@@ -91,7 +91,7 @@ final class MagicLinkIssuer
             'redirect_url' => $redirectUrl,
         ], fn ($v): bool => $v !== null && $v !== ''));
 
-        return rtrim($base, '/').'/v1/client/magic_link/redeem?'.$query;
+        return rtrim($base, '/').'/v1/client/magic-link/redeem?'.$query;
     }
 
     private function mintJti(): string

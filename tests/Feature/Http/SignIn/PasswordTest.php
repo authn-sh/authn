@@ -11,7 +11,7 @@ it('completes a sign-in when identifier + strategy=password + password are suppl
 
     $response = $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'identifier' => 'alice@example.com',
             'strategy' => 'password',
             'password' => 'super-secret-password',
@@ -32,7 +32,7 @@ it('returns form_password_incorrect on a wrong password', function (): void {
 
     $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'identifier' => 'alice@example.com',
             'strategy' => 'password',
             'password' => 'wrong-password',
@@ -46,7 +46,7 @@ it('returns form_password_incorrect for an unknown identifier (no user-existence
 
     $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'identifier' => 'ghost@example.com',
             'strategy' => 'password',
             'password' => 'whatever',
@@ -62,7 +62,7 @@ it('refuses sign-in for a banned user', function (): void {
 
     $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'identifier' => 'alice@example.com',
             'strategy' => 'password',
             'password' => 'super-secret-password',
@@ -81,7 +81,7 @@ it('refuses sign-in for a locked user with a future lockout_expires_at', functio
 
     $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'identifier' => 'alice@example.com',
             'strategy' => 'password',
             'password' => 'super-secret-password',
@@ -96,7 +96,7 @@ it('returns supported_first_factors on identifier-only create', function (): voi
 
     $response = $this->withCredentials()
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson('https://acme.authn.local/v1/client/sign_ins', [
+        ->postJson('https://acme.authn.local/v1/client/sign-ins', [
             'identifier' => 'alice@example.com',
         ]);
 

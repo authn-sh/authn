@@ -132,11 +132,11 @@ it('verify_password returns the right boolean', function (): void {
     $userId = $created->json('id');
 
     $this->withHeaders(BapiTestSupport::headers($f['token']))
-        ->postJson(BapiTestSupport::url("/users/{$userId}/verify_password"), ['password' => 'right-password-here'])
+        ->postJson(BapiTestSupport::url("/users/{$userId}/verify-password"), ['password' => 'right-password-here'])
         ->assertOk()->assertJsonPath('verified', true);
 
     $this->withHeaders(BapiTestSupport::headers($f['token']))
-        ->postJson(BapiTestSupport::url("/users/{$userId}/verify_password"), ['password' => 'nope'])
+        ->postJson(BapiTestSupport::url("/users/{$userId}/verify-password"), ['password' => 'nope'])
         ->assertOk()->assertJsonPath('verified', false);
 });
 

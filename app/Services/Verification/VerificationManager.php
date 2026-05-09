@@ -16,7 +16,7 @@ use InvalidArgumentException;
  * Orchestrates Verification + VerificationCode lifecycle. Used by:
  *   - AU-9 sign-in flow (start a new email_code, attempt to verify it)
  *   - AU-10 sign-up flow (start an email verification on the staged email)
- *   - AU-12 /v1/me/email_addresses/{id}/prepare_verification etc.
+ *   - AU-12 /v1/me/email-addresses/{id}/prepare-verification etc.
  *   - AU-19's reaper for the `expired` transition.
  */
 final class VerificationManager

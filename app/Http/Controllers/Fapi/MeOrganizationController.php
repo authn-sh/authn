@@ -27,11 +27,11 @@ use Illuminate\Support\Facades\DB;
  * `/v1/me` org-related collections (PLAN §4.4 / OA-3 / AU-7). All endpoints
  * are scoped to the authenticated user.
  *
- *   GET    /v1/me/organization_memberships
- *   GET    /v1/me/organization_invitations
- *   POST   /v1/me/organization_invitations/{invitation_id}/accept
- *   GET    /v1/me/organization_membership_requests
- *   PUT    /v1/me/active_organization
+ *   GET    /v1/me/organization-memberships
+ *   GET    /v1/me/organization-invitations
+ *   POST   /v1/me/organization-invitations/{invitation_id}/accept
+ *   GET    /v1/me/organization-membership-requests
+ *   PUT    /v1/me/active-organization
  */
 final class MeOrganizationController
 {
