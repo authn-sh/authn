@@ -53,14 +53,12 @@ return new class extends Migration
             $table->string('environment_id', 64);
             $table->string('organization_id', 64);
             $table->string('user_id', 64);
-            $table->string('role', 64);
             $table->timestamps();
 
             $table->foreign('environment_id')->references('id')->on('environments')->cascadeOnDelete();
             $table->foreign('organization_id')->references('id')->on('organizations')->cascadeOnDelete();
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->unique(['organization_id', 'user_id']);
-            $table->index(['environment_id', 'role']);
         });
 
         // Now that users exists, wire the FK from projects.owner_organization_id → organizations.id

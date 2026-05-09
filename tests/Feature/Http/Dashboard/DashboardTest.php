@@ -9,6 +9,7 @@ use App\Models\Environment;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Session;
 use App\Models\User;
 use App\Models\WebhookEndpoint;
@@ -94,11 +95,15 @@ function operatorWithMembership(Environment $env): array
         'environment_id' => $env->id, 'user_id' => $user->id,
         'email_address' => 'op@example.com', 'verified_at' => now(), 'is_primary' => true,
     ]);
+    $adminRole = Role::withoutGlobalScopes()
+        ->where('environment_id', $env->id)
+        ->where('key', 'org:admin')
+        ->firstOrFail();
     OrganizationMembership::create([
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $user->id,
-        'role' => OrganizationMembership::ROLE_WORKSPACE_OWNER,
+        'role_id' => $adminRole->id,
     ]);
     $client = Client::create(['environment_id' => $env->id]);
     $session = Session::create([
