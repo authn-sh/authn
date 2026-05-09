@@ -42,7 +42,7 @@ use Illuminate\Support\Facades\Bus;
 
 uses(RefreshDatabase::class);
 
-function v02BootEnv(): array
+function bootOrgEventsEnv(): array
 {
     $project = Project::create(['name' => 'P', 'slug' => 'p-events']);
     $env = Environment::create([
@@ -57,7 +57,7 @@ function v02BootEnv(): array
     return ['env' => $env];
 }
 
-function v02MakeEndpoint(Environment $env, array $types = ['*']): WebhookEndpoint
+function makeOrgEventsEndpoint(Environment $env, array $types = ['*']): WebhookEndpoint
 {
     return WebhookEndpoint::query()->withoutGlobalScopes()->create([
         'environment_id' => $env->id,
@@ -68,37 +68,37 @@ function v02MakeEndpoint(Environment $env, array $types = ['*']): WebhookEndpoin
     ]);
 }
 
-function v02MakeOrg(Environment $env, string $slug = 'acme'): Organization
+function makeOrgEventsOrg(Environment $env, string $slug = 'acme'): Organization
 {
     return Organization::create(['environment_id' => $env->id, 'name' => 'Acme', 'slug' => $slug]);
 }
 
-function v02LastEvent(string $type): ?WebhookEvent
+function latestOrgWebhookEvent(string $type): ?WebhookEvent
 {
     return WebhookEvent::query()->where('type', $type)->latest('id')->first();
 }
 
 it('emits organization.created/.updated/.deleted', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    v02MakeEndpoint($f['env']);
-    $org = v02MakeOrg($f['env']);
+    $f = bootOrgEventsEnv();
+    makeOrgEventsEndpoint($f['env']);
+    $org = makeOrgEventsOrg($f['env']);
 
     OrganizationCreated::dispatch($org);
-    expect(v02LastEvent('organization.created')?->data['id'])->toBe($org->id);
+    expect(latestOrgWebhookEvent('organization.created')?->data['id'])->toBe($org->id);
 
     OrganizationUpdated::dispatch($org);
-    expect(v02LastEvent('organization.updated'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organization.updated'))->not->toBeNull();
 
     OrganizationDeleted::dispatch($org);
-    expect(v02LastEvent('organization.deleted'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organization.deleted'))->not->toBeNull();
 });
 
 it('emits organizationMembership.created/.updated/.deleted with public_user_data', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    v02MakeEndpoint($f['env']);
-    $org = v02MakeOrg($f['env']);
+    $f = bootOrgEventsEnv();
+    makeOrgEventsEndpoint($f['env']);
+    $org = makeOrgEventsOrg($f['env']);
     $user = new User(['environment_id' => $f['env']->id, 'username' => 'm']);
     $user->save();
     $admin = Role::query()->withoutGlobalScopes()->where('environment_id', $f['env']->id)->where('key', 'org:admin')->firstOrFail();
@@ -110,22 +110,22 @@ it('emits organizationMembership.created/.updated/.deleted with public_user_data
     ]);
 
     OrganizationMembershipCreated::dispatch($m);
-    $event = v02LastEvent('organizationMembership.created');
+    $event = latestOrgWebhookEvent('organizationMembership.created');
     expect($event)->not->toBeNull();
     expect($event->data['public_user_data']['user_id'])->toBe($user->id);
 
     OrganizationMembershipUpdated::dispatch($m);
-    expect(v02LastEvent('organizationMembership.updated'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationMembership.updated'))->not->toBeNull();
 
     OrganizationMembershipDeleted::dispatch($m);
-    expect(v02LastEvent('organizationMembership.deleted'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationMembership.deleted'))->not->toBeNull();
 });
 
 it('emits organizationInvitation.created with url, plus accepted/revoked', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    v02MakeEndpoint($f['env']);
-    $org = v02MakeOrg($f['env']);
+    $f = bootOrgEventsEnv();
+    makeOrgEventsEndpoint($f['env']);
+    $org = makeOrgEventsOrg($f['env']);
     $role = Role::query()->withoutGlobalScopes()->where('environment_id', $f['env']->id)->where('key', 'org:member')->firstOrFail();
     $inv = OrganizationInvitation::create([
         'environment_id' => $f['env']->id,
@@ -136,22 +136,22 @@ it('emits organizationInvitation.created with url, plus accepted/revoked', funct
     ]);
 
     OrganizationInvitationCreated::dispatch($inv, 'https://app.example.com/sign-up?__authn_ticket=fixture');
-    $event = v02LastEvent('organizationInvitation.created');
+    $event = latestOrgWebhookEvent('organizationInvitation.created');
     expect($event)->not->toBeNull();
     expect($event->data['url'])->toBe('https://app.example.com/sign-up?__authn_ticket=fixture');
 
     OrganizationInvitationAccepted::dispatch($inv);
-    expect(v02LastEvent('organizationInvitation.accepted'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationInvitation.accepted'))->not->toBeNull();
 
     OrganizationInvitationRevoked::dispatch($inv);
-    expect(v02LastEvent('organizationInvitation.revoked'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationInvitation.revoked'))->not->toBeNull();
 });
 
 it('emits organizationDomain.created/updated/deleted/verified', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    v02MakeEndpoint($f['env']);
-    $org = v02MakeOrg($f['env']);
+    $f = bootOrgEventsEnv();
+    makeOrgEventsEndpoint($f['env']);
+    $org = makeOrgEventsOrg($f['env']);
     $domain = OrganizationDomain::create([
         'environment_id' => $f['env']->id,
         'organization_id' => $org->id,
@@ -159,20 +159,20 @@ it('emits organizationDomain.created/updated/deleted/verified', function (): voi
     ]);
 
     OrganizationDomainCreated::dispatch($domain);
-    expect(v02LastEvent('organizationDomain.created'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationDomain.created'))->not->toBeNull();
     OrganizationDomainUpdated::dispatch($domain);
-    expect(v02LastEvent('organizationDomain.updated'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationDomain.updated'))->not->toBeNull();
     OrganizationDomainVerified::dispatch($domain);
-    expect(v02LastEvent('organizationDomain.verified'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationDomain.verified'))->not->toBeNull();
     OrganizationDomainDeleted::dispatch($domain);
-    expect(v02LastEvent('organizationDomain.deleted'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationDomain.deleted'))->not->toBeNull();
 });
 
 it('emits organizationMembershipRequest.created/accepted/rejected', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    v02MakeEndpoint($f['env']);
-    $org = v02MakeOrg($f['env']);
+    $f = bootOrgEventsEnv();
+    makeOrgEventsEndpoint($f['env']);
+    $org = makeOrgEventsOrg($f['env']);
     $user = new User(['environment_id' => $f['env']->id, 'username' => 'r']);
     $user->save();
     $req = OrganizationMembershipRequest::create([
@@ -183,25 +183,25 @@ it('emits organizationMembershipRequest.created/accepted/rejected', function ():
     ]);
 
     OrganizationMembershipRequestCreated::dispatch($req);
-    expect(v02LastEvent('organizationMembershipRequest.created'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationMembershipRequest.created'))->not->toBeNull();
     OrganizationMembershipRequestApproved::dispatch($req);
-    expect(v02LastEvent('organizationMembershipRequest.accepted'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationMembershipRequest.accepted'))->not->toBeNull();
     OrganizationMembershipRequestRejected::dispatch($req);
-    expect(v02LastEvent('organizationMembershipRequest.rejected'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('organizationMembershipRequest.rejected'))->not->toBeNull();
 });
 
 it('emits role.created/updated/deleted; RolePermissionsChanged maps to role.updated', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    v02MakeEndpoint($f['env']);
+    $f = bootOrgEventsEnv();
+    makeOrgEventsEndpoint($f['env']);
 
     $role = Role::create(['environment_id' => $f['env']->id, 'key' => 'org:custom', 'name' => 'C']);
 
     RoleCreated::dispatch($role);
-    expect(v02LastEvent('role.created'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('role.created'))->not->toBeNull();
 
     RoleUpdated::dispatch($role);
-    expect(v02LastEvent('role.updated'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('role.updated'))->not->toBeNull();
 
     $perm = Permission::query()->withoutGlobalScopes()->where('environment_id', $f['env']->id)->where('key', 'org:sys_profile:read')->firstOrFail();
     $role->permissions()->attach($perm->id);
@@ -210,14 +210,14 @@ it('emits role.created/updated/deleted; RolePermissionsChanged maps to role.upda
     expect(WebhookEvent::query()->where('type', 'role.updated')->count())->toBeGreaterThanOrEqual(2);
 
     RoleDeleted::dispatch($role);
-    expect(v02LastEvent('role.deleted'))->not->toBeNull();
+    expect(latestOrgWebhookEvent('role.deleted'))->not->toBeNull();
 });
 
 it('matches `organization.*` glob pattern on enabled_event_types', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    $endpoint = v02MakeEndpoint($f['env'], types: ['organization.*']);
-    $org = v02MakeOrg($f['env']);
+    $f = bootOrgEventsEnv();
+    $endpoint = makeOrgEventsEndpoint($f['env'], types: ['organization.*']);
+    $org = makeOrgEventsOrg($f['env']);
 
     OrganizationCreated::dispatch($org);
     OrganizationUpdated::dispatch($org);
@@ -227,9 +227,9 @@ it('matches `organization.*` glob pattern on enabled_event_types', function (): 
 
 it('filters by literal exact match', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    $endpoint = v02MakeEndpoint($f['env'], types: ['organization.created']);
-    $org = v02MakeOrg($f['env']);
+    $f = bootOrgEventsEnv();
+    $endpoint = makeOrgEventsEndpoint($f['env'], types: ['organization.created']);
+    $org = makeOrgEventsOrg($f['env']);
 
     OrganizationCreated::dispatch($org);
     OrganizationUpdated::dispatch($org);
@@ -241,9 +241,9 @@ it('filters by literal exact match', function (): void {
 
 it('does NOT match unrelated prefix when listed event has different namespace', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);
-    $f = v02BootEnv();
-    $endpoint = v02MakeEndpoint($f['env'], types: ['role.*']);
-    $org = v02MakeOrg($f['env']);
+    $f = bootOrgEventsEnv();
+    $endpoint = makeOrgEventsEndpoint($f['env'], types: ['role.*']);
+    $org = makeOrgEventsOrg($f['env']);
 
     OrganizationCreated::dispatch($org);
     expect(WebhookDelivery::query()->where('webhook_endpoint_id', $endpoint->id)->count())->toBe(0);

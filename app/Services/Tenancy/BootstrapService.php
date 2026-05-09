@@ -6,7 +6,6 @@ namespace App\Services\Tenancy;
 
 use App\Models\ApiKey;
 use App\Models\EmailAddress;
-use App\Models\EmailTemplate;
 use App\Models\Environment;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
@@ -149,7 +148,6 @@ final class BootstrapService
             ]);
 
             $this->signingKeyGenerator->generate($environment, SigningKey::STATUS_ACTIVE);
-            $this->seedEmailTemplates($environment);
 
             $secretPlain = $this->keyGenerator->secretKey($environment);
             $publishablePlain = $this->keyGenerator->publishableKey($environment);
@@ -189,24 +187,5 @@ final class BootstrapService
         }
 
         return Str::limit($slug, 60, '');
-    }
-
-    /**
-     * Plant the v0.1 active template set for a freshly-minted env. Each row
-     * carries both the MJML source (operator-editable in the dashboard) and
-     * a precompiled HTML cache so the renderer doesn't need the mjml CLI on
-     * the install host.
-     */
-    private function seedEmailTemplates(Environment $environment): void
-    {
-        foreach (EmailTemplate::DEFAULT_TEMPLATES as $slug => $payload) {
-            EmailTemplate::query()->withoutGlobalScopes()->create([
-                'environment_id' => $environment->id,
-                'slug' => $slug,
-                'subject' => $payload['subject'],
-                'body_markup' => $payload['body_markup'],
-                'body_html' => $payload['body_html'],
-            ]);
-        }
     }
 }

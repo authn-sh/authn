@@ -27,7 +27,14 @@ final class SmtpDriver implements Driver
 
     public function send(Envelope $envelope): Receipt
     {
-        Mail::mailer('smtp')->html($envelope->html, function (Message $message) use ($envelope): void {
+        // Hard-coding `smtp` makes Laravel's `Mail::fake()` and the
+        // `MAIL_MAILER=array` test override invisible to this driver. Pin
+        // to the SMTP mailer in production (real config) but defer to the
+        // app's default in tests, where `MAIL_MAILER=array` neutralises it.
+        $mailerName = (string) config('mail.default');
+        $mailer = $mailerName === 'array' ? Mail::mailer() : Mail::mailer('smtp');
+
+        $mailer->html($envelope->html, function (Message $message) use ($envelope): void {
             $message
                 ->from($envelope->fromEmail, $envelope->fromName)
                 ->to($envelope->toEmail, $envelope->toName)

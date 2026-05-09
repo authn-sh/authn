@@ -23,6 +23,7 @@ use App\Events\Organizations\RoleDeleted;
 use App\Events\Organizations\RolePermissionsChanged;
 use App\Events\Organizations\RoleUpdated;
 use App\Listeners\Organizations\OrganizationWebhookListener;
+use App\Listeners\Organizations\SendOrganizationInvitationEmailListener;
 use App\Models\Environment;
 use App\Models\Organization;
 use App\Models\User;
@@ -85,5 +86,13 @@ class AppServiceProvider extends ServiceProvider
         foreach ($eventMap as $event => $method) {
             Event::listen($event, "{$listener}@{$method}");
         }
+
+        // AU-14: dispatch the org-invitation email when an invitation is
+        // minted. Separate listener from the webhook one so they retry
+        // independently on failure.
+        Event::listen(
+            OrganizationInvitationCreated::class,
+            SendOrganizationInvitationEmailListener::class,
+        );
     }
 }
