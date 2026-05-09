@@ -23,7 +23,6 @@ final class EmailAddressResource
             'id' => $email->id,
             'email_address' => $email->email_address,
             'verification' => $verification === null ? null : [
-                'object' => 'verification',
                 'status' => $verification->status,
                 'strategy' => $verification->strategy,
                 'attempts' => $verification->attempts,

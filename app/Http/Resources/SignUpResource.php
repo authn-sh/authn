@@ -44,6 +44,7 @@ final class SignUpResource
             'phone_number' => $attempt->phone_number,
             'first_name' => $attempt->first_name,
             'last_name' => $attempt->last_name,
+            'password_enabled' => $attempt->password_hash !== null,
             'unsafe_metadata' => is_array($attempt->unsafe_metadata) ? $attempt->unsafe_metadata : [],
             'public_metadata' => is_array($attempt->public_metadata) ? $attempt->public_metadata : [],
             'created_session_id' => $attempt->created_session_id,
@@ -72,7 +73,6 @@ final class SignUpResource
         }
 
         return [
-            'object' => 'verification',
             'status' => $verification->status,
             'strategy' => $verification->strategy,
             'attempts' => $verification->attempts,

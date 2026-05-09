@@ -51,14 +51,9 @@ final class UserResource
             'created_at' => $user->created_at?->getTimestampMs(),
             'updated_at' => $user->updated_at?->getTimestampMs(),
         ];
-        if ($includePrivate) {
-            $shape['private_metadata'] = is_array($user->private_metadata) ? $user->private_metadata : [];
-        } else {
-            // The FAPI never surfaces private_metadata; the BAPI does. The
-            // spec marks it required, so always include the key — null when
-            // hidden.
-            $shape['private_metadata'] = null;
-        }
+        $shape['private_metadata'] = $includePrivate && is_array($user->private_metadata)
+            ? $user->private_metadata
+            : [];
 
         return $shape;
     }

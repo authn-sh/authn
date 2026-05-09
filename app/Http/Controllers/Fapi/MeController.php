@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Fapi;
 
 use App\Auth\ErrorCodes;
+use App\Http\Resources\ClientResource;
 use App\Http\Resources\EmailAddressResource;
 use App\Http\Resources\UserResource;
 use App\Jobs\Mail\SendPasswordChangedNotification;
 use App\Jobs\Mail\SendVerificationEmail;
+use App\Models\Client;
 use App\Models\EmailAddress;
 use App\Models\Environment;
 use App\Models\Session;
@@ -46,7 +48,8 @@ final class MeController
     {
         $user = app(User::class);
 
-        return $this->envelope($user);
+        return response()->json(UserResource::from($user))
+            ->header('Cache-Control', 'no-store');
     }
 
     public function update(Request $request): JsonResponse
@@ -73,7 +76,7 @@ final class MeController
         }
         $user->save();
 
-        return $this->envelope($user->fresh());
+        return $this->clientEnvelope(UserResource::from($user->fresh()));
     }
 
     public function destroy(): JsonResponse
@@ -153,8 +156,7 @@ final class MeController
             'is_primary' => false,
         ]);
 
-        return response()->json(EmailAddressResource::from($email->fresh()), 201)
-            ->header('Cache-Control', 'no-store');
+        return $this->clientEnvelope(EmailAddressResource::from($email->fresh()));
     }
 
     public function showEmail(Request $request): JsonResponse
@@ -196,7 +198,7 @@ final class MeController
                 ->update(['primary_email_address_id' => $email->id]);
         }
 
-        return response()->json(EmailAddressResource::from($email->fresh()))->header('Cache-Control', 'no-store');
+        return $this->clientEnvelope(EmailAddressResource::from($email->fresh()));
     }
 
     public function deleteEmail(Request $request): JsonResponse
@@ -245,7 +247,7 @@ final class MeController
             $email->id,
         );
 
-        return response()->json(EmailAddressResource::from($email->fresh()))->header('Cache-Control', 'no-store');
+        return $this->clientEnvelope(EmailAddressResource::from($email->fresh()));
     }
 
     public function attemptEmailVerification(Request $request): JsonResponse
@@ -289,7 +291,7 @@ final class MeController
 
         $email->forceFill(['verified_at' => now()])->save();
 
-        return response()->json(EmailAddressResource::from($email->fresh()))->header('Cache-Control', 'no-store');
+        return $this->clientEnvelope(EmailAddressResource::from($email->fresh()));
     }
 
     /* -------------------- sessions -------------------- */
@@ -345,8 +347,7 @@ final class MeController
                 ->each(fn (Session $other) => $this->lifecycle->revoke($other));
         }
 
-        return response()->json(['object' => 'change_password', 'success' => true])
-            ->header('Cache-Control', 'no-store');
+        return $this->clientEnvelope(['object' => 'change_password', 'success' => true]);
     }
 
     /* -------------------- helpers -------------------- */
@@ -376,10 +377,14 @@ final class MeController
             ->each(fn (Session $s) => $this->lifecycle->end($s));
     }
 
-    private function envelope(User $user): JsonResponse
+    private function clientEnvelope(mixed $body, int $status = 200): JsonResponse
     {
-        return response()->json(UserResource::from($user, includePrivate: false))
-            ->header('Cache-Control', 'no-store');
+        $client = app()->bound(Client::class) ? app(Client::class) : null;
+
+        return response()->json([
+            'response' => $body,
+            'client' => ClientResource::from($client?->fresh()),
+        ], $status)->header('Cache-Control', 'no-store');
     }
 
     /**

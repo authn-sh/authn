@@ -77,11 +77,16 @@ final class SchemaValidator
         $method = strtolower($request->getMethod());
         $rawPath = '/'.ltrim($route->uri(), '/');
         $key = self::operationKey($method, $rawPath);
-        if (! isset(self::$operationBundle[$key])) {
+
+        $preferred = self::preferredBundle($request);
+        if ($preferred !== null && isset(self::$bundles[$preferred])
+            && self::operationExists(self::$bundles[$preferred]['spec'], $method, $rawPath)) {
+            $bundleName = $preferred;
+        } elseif (isset(self::$operationBundle[$key])) {
+            $bundleName = self::$operationBundle[$key];
+        } else {
             return;
         }
-
-        $bundleName = self::$operationBundle[$key];
         $bundle = self::$bundles[$bundleName];
 
         $status = (string) $response->getStatusCode();
@@ -181,6 +186,22 @@ final class SchemaValidator
                 }
             }
         }
+    }
+
+    private static function preferredBundle(Request $request): ?string
+    {
+        $host = (string) $request->getHost();
+        $bapiHost = (string) config('authn.bapi_host');
+        if ($bapiHost !== '' && $host === $bapiHost) {
+            return 'bapi.bundled.json';
+        }
+
+        return 'fapi.bundled.json';
+    }
+
+    private static function operationExists(stdClass $spec, string $method, string $rawPath): bool
+    {
+        return self::lookupOperation($spec, $method, $rawPath) !== null;
     }
 
     private static function operationKey(string $method, string $path): string
