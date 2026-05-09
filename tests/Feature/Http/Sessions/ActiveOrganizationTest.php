@@ -8,11 +8,9 @@ use App\Models\Role;
 use App\Models\Session;
 use App\Models\User;
 use App\Services\Client\ClientResolver;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Me\MeTestSupport;
 
-uses(RefreshDatabase::class);
 
 function activeOrgFapiReq(string $method, string $path, string $jwt, array $body = []): TestResponse
 {

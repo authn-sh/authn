@@ -7,10 +7,8 @@ use App\Models\BlocklistIdentifier;
 use App\Models\EmailAddress;
 use App\Models\Environment;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('rejects fields the env has disabled with form_param_unknown', function (): void {
     $f = SignUpTestSupport::bootEnv([

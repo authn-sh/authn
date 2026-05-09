@@ -10,9 +10,7 @@ use App\Models\SigningKey;
 use App\Models\User;
 use App\Services\Tenancy\BootstrapService;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
 
 function bootstrapWith(array $overrides = []): array
 {

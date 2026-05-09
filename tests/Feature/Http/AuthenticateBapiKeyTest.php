@@ -5,12 +5,10 @@ declare(strict_types=1);
 use App\Models\ApiKey;
 use App\Models\Environment;
 use App\Services\Tenancy\BootstrapService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
-uses(RefreshDatabase::class);
 
 function reloadBapiRoutes(): void
 {

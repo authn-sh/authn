@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 use App\Models\Environment;
 use App\Models\Project;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-uses(RefreshDatabase::class);
 
 function reloadFapiRoutesForEnvTest(): void
 {

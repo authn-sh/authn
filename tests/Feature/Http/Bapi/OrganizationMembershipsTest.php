@@ -10,12 +10,10 @@ use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 use Tests\TestCase;
 
-uses(RefreshDatabase::class);
 
 /**
  * @return array{env: Environment, token: string, headers: array, org_id: string, admin: User, member: User, other: User}

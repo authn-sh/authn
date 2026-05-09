@@ -9,10 +9,8 @@ use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
 use App\Models\WebhookEvent;
 use App\Webhooks\Emitter;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 
-uses(RefreshDatabase::class);
 
 function makeEnvForWebhooks(): Environment
 {

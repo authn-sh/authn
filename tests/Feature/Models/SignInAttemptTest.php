@@ -6,9 +6,7 @@ use App\Models\Client;
 use App\Models\Environment;
 use App\Models\Project;
 use App\Models\SignInAttempt;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
 
 function siaFixture(): array
 {

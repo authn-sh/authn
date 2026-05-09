@@ -3,10 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Session;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('completes a sign-in when identifier + strategy=password + password are supplied in one call', function (): void {
     $f = SignInTestSupport::bootEnv();

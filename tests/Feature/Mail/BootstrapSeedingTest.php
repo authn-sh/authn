@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 use App\Models\EmailTemplate;
 use App\Services\Tenancy\BootstrapService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
 
 it('authn:bootstrap seeds the v0.1 active template set on a fresh env', function (): void {
     $service = app(BootstrapService::class);

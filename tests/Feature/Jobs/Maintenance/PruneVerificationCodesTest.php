@@ -9,9 +9,7 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
 
 it('deletes consumed and stale-past-24h verification codes; keeps recent unconsumed', function (): void {
     $project = Project::create(['name' => 'PVC', 'slug' => 'pvc']);

@@ -7,10 +7,8 @@ use App\Models\Environment;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
-uses(RefreshDatabase::class);
 
 function makeEnvFixture(string $slug = 'env-a'): Environment
 {

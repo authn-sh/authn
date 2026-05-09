@@ -6,10 +6,8 @@ use App\Models\Invitation;
 use App\Models\Session;
 use App\Models\User;
 use App\Services\Tickets\TicketIssuer;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('redeems an invitation ticket and completes the sign-up in one call', function (): void {
     $f = SignUpTestSupport::bootEnv();

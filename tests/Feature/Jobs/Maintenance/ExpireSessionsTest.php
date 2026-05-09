@@ -10,9 +10,7 @@ use App\Models\Session;
 use App\Models\User;
 use App\Models\WebhookEvent;
 use App\Webhooks\Emitter;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
 
 it('expires live sessions whose expire_at has passed and emits session.ended w/ reason=expired', function (): void {
     $project = Project::create(['name' => 'PSes', 'slug' => 'pses']);

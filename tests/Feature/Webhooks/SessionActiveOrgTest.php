@@ -12,11 +12,9 @@ use App\Models\User;
 use App\Models\WebhookEndpoint;
 use App\Models\WebhookEvent;
 use App\Services\Sessions\SessionLifecycle;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('session.created carries the active organization block when the session has one', function (): void {
     Bus::fake([DispatchWebhookDelivery::class]);

@@ -7,11 +7,9 @@ use App\Models\Session;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Me\MeTestSupport;
 
-uses(RefreshDatabase::class);
 
 function meReq(string $method, string $path, string $jwt, array $body = [], string $origin = 'https://app.example.com'): TestResponse
 {

@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 use App\Jobs\Mail\SendVerificationEmail;
 use App\Models\EmailTemplate;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Tests\Feature\Mail\MailTestSupport;
 
-uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     Cache::flush();

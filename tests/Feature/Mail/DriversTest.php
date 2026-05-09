@@ -8,12 +8,10 @@ use App\Mail\Drivers\ResendDriver;
 use App\Mail\Drivers\SesDriver;
 use App\Mail\Drivers\SmtpDriver;
 use App\Mail\Envelope;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Tests\Feature\Mail\MailTestSupport;
 
-uses(RefreshDatabase::class);
 
 function envelope(string $to = 'alice@example.com'): Envelope
 {

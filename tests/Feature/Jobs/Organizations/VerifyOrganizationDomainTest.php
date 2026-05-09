@@ -10,11 +10,9 @@ use App\Models\OrganizationDomain;
 use App\Models\Project;
 use App\Models\Verification;
 use App\Services\Domains\DnsTxtResolver;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 
-uses(RefreshDatabase::class);
 
 class FakeDnsTxtResolver extends DnsTxtResolver
 {

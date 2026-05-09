@@ -8,11 +8,9 @@ use App\Events\Organizations\OrganizationUpdated;
 use App\Models\Environment;
 use App\Models\Organization;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-uses(RefreshDatabase::class);
 
 function makeUser(Environment $env, string $username): User
 {

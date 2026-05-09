@@ -3,10 +3,8 @@
 declare(strict_types=1);
 
 use App\Models\Environment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('reads + patches the env-level instance settings', function (): void {
     $f = BapiTestSupport::bootEnv();

@@ -3,10 +3,8 @@
 declare(strict_types=1);
 
 use App\Services\Tickets\TicketIssuer;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('redeems a sign_in_token ticket and lands on complete', function (): void {
     $f = SignInTestSupport::bootEnv();

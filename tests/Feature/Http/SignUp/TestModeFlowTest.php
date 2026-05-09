@@ -8,13 +8,11 @@ use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
 use App\Models\WebhookEvent;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('sign-up against +authn_test in dev uses fixed code 424242, no driver call', function (): void {
     Bus::fake();

@@ -7,10 +7,8 @@ use App\Models\EmailAddress;
 use App\Models\Session;
 use App\Models\User;
 use App\Services\Sessions\SessionLifecycle;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('multi_session=false evicts the prior session when a fresh one is minted', function (): void {
     $f = SessionsTestSupport::bootEnv([

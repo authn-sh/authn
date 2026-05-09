@@ -9,13 +9,11 @@ use App\Jobs\Organizations\VerifyOrganizationDomain;
 use App\Models\Environment;
 use App\Models\OrganizationDomain;
 use App\Models\Verification;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 use Tests\TestCase;
 
-uses(RefreshDatabase::class);
 
 /**
  * @return array{env: Environment, headers: array, org_id: string}

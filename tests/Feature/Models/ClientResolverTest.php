@@ -6,9 +6,7 @@ use App\Models\Client;
 use App\Models\Environment;
 use App\Models\Project;
 use App\Services\Client\ClientResolver;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
 
 function clientEnv(string $slug = 'env'): Environment
 {

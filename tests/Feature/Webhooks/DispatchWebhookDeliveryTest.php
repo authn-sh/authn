@@ -9,11 +9,9 @@ use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
 use App\Models\WebhookEvent;
 use App\Webhooks\Signer;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 
-uses(RefreshDatabase::class);
 
 function bootWebhookFixture(): array
 {

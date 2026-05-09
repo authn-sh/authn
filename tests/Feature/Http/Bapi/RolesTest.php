@@ -10,11 +10,9 @@ use App\Models\Environment;
 use App\Models\OrganizationMembership;
 use App\Models\Role;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('GET /v1/roles lists system roles seeded by AU-2', function (): void {
     $f = BapiTestSupport::bootEnv();

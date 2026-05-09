@@ -15,11 +15,9 @@ use App\Models\User;
 use App\Models\WebhookEndpoint;
 use App\Services\Keys\SigningKeyGenerator;
 use App\Services\Sessions\SessionTokenIssuer;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-uses(RefreshDatabase::class);
 
 function reloadDashboardRoutes(): void
 {

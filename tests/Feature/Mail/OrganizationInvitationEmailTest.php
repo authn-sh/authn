@@ -12,10 +12,8 @@ use App\Models\OrganizationInvitation;
 use App\Models\Project;
 use App\Models\Role;
 use App\Services\Keys\SigningKeyGenerator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 
-uses(RefreshDatabase::class);
 
 function bootOrgEmailEnv(): array
 {

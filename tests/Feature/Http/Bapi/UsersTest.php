@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 use App\Models\EmailAddress;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('lists, creates, reads, updates, deletes a user', function (): void {
     $f = BapiTestSupport::bootEnv();

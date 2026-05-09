@@ -8,9 +8,7 @@ use App\Models\Environment;
 use App\Models\Project;
 use App\Models\SignInAttempt;
 use App\Models\SignUpAttempt;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
 
 function maintenanceEnv(): Environment
 {

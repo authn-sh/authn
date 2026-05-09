@@ -12,12 +12,10 @@ use App\Models\Verification;
 use App\Models\VerificationCode;
 use App\Services\Client\ClientResolver;
 use App\Services\MagicLink\MagicLinkIssuer;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
 
-uses(RefreshDatabase::class);
 
 function fapiReq(string $method, string $path, array $body = [], array $headers = []): TestResponse
 {

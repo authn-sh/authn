@@ -6,9 +6,7 @@ use App\Models\Environment;
 use App\Models\Project;
 use App\Models\SigningKey;
 use App\Services\Keys\SigningKeyGenerator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-uses(RefreshDatabase::class);
 
 function makeProductionEnvironment(): Environment
 {

@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 use App\Models\Verification;
 use App\Models\VerificationCode;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
 
-uses(RefreshDatabase::class);
 
 it('runs the prepare → attempt → complete email-code path end-to-end', function (): void {
     $f = SignInTestSupport::bootEnv();

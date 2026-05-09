@@ -6,11 +6,9 @@ use App\Models\ApiKey;
 use App\Models\Environment;
 use App\Models\Project;
 use App\Services\Tenancy\BootstrapService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
-uses(RefreshDatabase::class);
 
 /**
  * Reload the route stack against the current routing-mode config. Pest

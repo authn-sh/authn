@@ -7,12 +7,10 @@ use App\Events\Organizations\OrganizationInvitationRevoked;
 use App\Models\Environment;
 use App\Models\Organization;
 use App\Models\OrganizationInvitation;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 use Tests\TestCase;
 
-uses(RefreshDatabase::class);
 
 /**
  * @return array{env: Environment, headers: array, org_id: string}
