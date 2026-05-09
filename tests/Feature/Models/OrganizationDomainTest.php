@@ -98,13 +98,17 @@ it('creates a Role + Permission and links them through role_permission', functio
     expect($perm->roles->pluck('key')->all())->toBe(['org:admin']);
 });
 
-it('enforces unique role and permission keys per environment', function (): void {
+it('enforces unique role keys per environment', function (): void {
     $env = makeOrgEnv();
 
     Role::create(['environment_id' => $env->id, 'key' => 'org:admin', 'name' => 'A']);
     expect(fn () => Role::create([
         'environment_id' => $env->id, 'key' => 'org:admin', 'name' => 'B',
     ]))->toThrow(QueryException::class);
+});
+
+it('enforces unique permission keys per environment', function (): void {
+    $env = makeOrgEnv();
 
     Permission::create(['environment_id' => $env->id, 'key' => 'org:x:read', 'name' => 'X']);
     expect(fn () => Permission::create([
