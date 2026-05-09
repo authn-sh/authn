@@ -5,10 +5,12 @@ declare(strict_types=1);
 use App\Events\Organizations\OrganizationDomainCreated;
 use App\Events\Organizations\OrganizationDomainDeleted;
 use App\Events\Organizations\OrganizationDomainUpdated;
+use App\Jobs\Organizations\VerifyOrganizationDomain;
 use App\Models\Environment;
 use App\Models\OrganizationDomain;
 use App\Models\Verification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 use Tests\TestCase;
@@ -100,6 +102,7 @@ it('PATCH /domains/{id} updates enrollment_mode and fires the event', function (
 });
 
 it('POST /domains/{id}/verify re-issues a fresh Verification with a new nonce', function (): void {
+    Bus::fake([VerifyOrganizationDomain::class]);
     $ctx = setupOrgForDomains($this);
     $created = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains"), ['name' => 'verify.test']);
     $id = $created->json('id');
@@ -111,6 +114,7 @@ it('POST /domains/{id}/verify re-issues a fresh Verification with a new nonce', 
     expect($r->json('verification.id'))->not->toBe($firstVerificationId);
     expect($r->json('verification.nonce'))->not->toBe($firstNonce);
     expect($r->json('verification.strategy'))->toBe('domain_dns_txt');
+    Bus::assertDispatched(VerifyOrganizationDomain::class, 1);
 });
 
 it('DELETE /domains/{id} removes the row and fires the event', function (): void {

@@ -24,6 +24,7 @@ use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
 use App\Services\Client\ClientResolver;
+use App\Services\Domains\DomainEnroller;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Verification\VerificationManager;
@@ -407,6 +408,11 @@ final class SignUpController
                     'redeemed_by_user_id' => $user->id,
                 ], $env);
             }
+
+            // AU-9: domain enrollment automation. Match the freshly-verified
+            // primary email against verified OrganizationDomain rows and
+            // create the right invitation / membership-request rows.
+            app(DomainEnroller::class)->enroll($env, $email->fresh());
 
             return $this->envelope($client, $attempt->fresh(), 200, $session, $attachClientCookie);
         });

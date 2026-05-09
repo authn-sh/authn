@@ -3,6 +3,7 @@
 use App\Jobs\Maintenance\ExpireSessions;
 use App\Jobs\Maintenance\PruneVerificationCodes;
 use App\Jobs\Maintenance\ReapAbandonedAttempts;
+use App\Jobs\Maintenance\RecheckVerifiedDomains;
 use App\Jobs\Maintenance\RotateSigningKey;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -36,4 +37,8 @@ Schedule::job(PruneVerificationCodes::class)
 
 Schedule::job(RotateSigningKey::class)
     ->everyFiveMinutes()
+    ->withoutOverlapping();
+
+Schedule::job(RecheckVerifiedDomains::class)
+    ->daily()
     ->withoutOverlapping();
