@@ -14,7 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $environment_id
  * @property string $organization_id
  * @property string $user_id
- * @property string $role
+ * @property ?string $role legacy v0.1 string slug; replaced by role_id in v0.2 (AU-2 backfills + drops)
+ * @property ?string $role_id
+ * @property array $public_metadata
+ * @property array $private_metadata
  */
 class OrganizationMembership extends Model
 {
@@ -50,7 +53,22 @@ class OrganizationMembership extends Model
         'organization_id',
         'user_id',
         'role',
+        'role_id',
+        'public_metadata',
+        'private_metadata',
     ];
+
+    protected $hidden = [
+        'private_metadata',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'public_metadata' => 'array',
+            'private_metadata' => 'array',
+        ];
+    }
 
     public function organization(): BelongsTo
     {
@@ -60,5 +78,25 @@ class OrganizationMembership extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function roleRef(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    /**
+     * Permission keys granted by this membership's role. Returns an empty
+     * list when the membership predates the v0.2 role table (legacy `role`
+     * string only); AU-2's backfill populates `role_id` for those rows.
+     */
+    public function permissionKeys(): array
+    {
+        $role = $this->roleRef;
+        if ($role === null) {
+            return [];
+        }
+
+        return $role->permissions->pluck('key')->all();
     }
 }
