@@ -16,10 +16,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\Domains\DomainEnroller;
 use App\Services\Keys\SigningKeyGenerator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
-
-uses(RefreshDatabase::class);
 
 function makeEnrollerEnv(string $slug = 'enroller'): array
 {

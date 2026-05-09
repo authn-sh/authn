@@ -10,10 +10,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\Tenancy\RoleSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
-
-uses(RefreshDatabase::class);
 
 function makeSeederEnv(string $slug = 'env-seed'): Environment
 {

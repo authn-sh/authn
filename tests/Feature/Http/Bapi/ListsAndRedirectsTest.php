@@ -2,10 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('CRUDs allowlist identifiers', function (): void {
     $f = BapiTestSupport::bootEnv();

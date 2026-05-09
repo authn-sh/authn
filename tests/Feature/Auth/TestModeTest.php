@@ -8,10 +8,7 @@ use App\Auth\TestMode\Policy;
 use App\Models\Environment;
 use App\Models\Project;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-
-uses(RefreshDatabase::class);
 
 it('Detector matches +authn_test emails (case-insensitive)', function (): void {
     expect(Detector::isTestEmail('alice+authn_test@example.com'))->toBeTrue();

@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 use App\Models\ApiKey;
 use App\Models\Project;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-uses(RefreshDatabase::class);
 
 // `.env` on developer machines often pre-sets these to a real operator,
 // which would shadow the `--email` / `--password` options and make the

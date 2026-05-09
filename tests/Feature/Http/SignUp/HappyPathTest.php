@@ -7,10 +7,7 @@ use App\Models\Session;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('runs create → prepare → attempt → complete with email + password', function (): void {
     $f = SignUpTestSupport::bootEnv();

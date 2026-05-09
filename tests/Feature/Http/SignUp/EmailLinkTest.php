@@ -7,11 +7,8 @@ use App\Models\Client;
 use App\Models\SignUpAttempt;
 use App\Models\Verification;
 use App\Services\Client\ClientResolver;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('prepare_verification email_link issues a magic link, dispatches the email job', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);

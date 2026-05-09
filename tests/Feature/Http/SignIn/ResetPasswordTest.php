@@ -6,11 +6,8 @@ use App\Models\Session;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('runs the reset_password_email_code → reset_password → complete path end-to-end', function (): void {
     Bus::fake();

@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 use App\Mail\Renderer;
 use App\Models\EmailTemplate;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Mail\MailTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('substitutes every standard variable', function (): void {
     $env = MailTestSupport::bootEnv();

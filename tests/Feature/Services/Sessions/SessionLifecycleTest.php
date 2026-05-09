@@ -9,11 +9,8 @@ use App\Models\Session;
 use App\Models\SessionActivity;
 use App\Models\User;
 use App\Services\Sessions\SessionLifecycle;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-
-uses(RefreshDatabase::class);
 
 function lifecycleFixture(?string $suffix = null): array
 {

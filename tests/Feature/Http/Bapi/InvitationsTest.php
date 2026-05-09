@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 use App\Jobs\Mail\SendInvitationEmail;
 use App\Models\Invitation;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('creates an invitation, dispatches the email job, exposes the ticket url, and revokes', function (): void {
     Bus::fake();

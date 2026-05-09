@@ -8,13 +8,10 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\Session;
 use App\Services\Sessions\SessionTokenIssuer;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Lcobucci\JWT\Configuration;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Tests\Feature\Http\Me\MeTestSupport;
-
-uses(RefreshDatabase::class);
 
 function decodeJwtClaims(string $jwt): array
 {

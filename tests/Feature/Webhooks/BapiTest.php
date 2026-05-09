@@ -5,10 +5,7 @@ declare(strict_types=1);
 use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
 use App\Models\WebhookEvent;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('POST /v1/webhooks/endpoints returns the signing_secret once', function (): void {
     $f = BapiTestSupport::bootEnv();

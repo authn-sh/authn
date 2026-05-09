@@ -9,11 +9,8 @@ use App\Models\Session;
 use App\Models\User;
 use App\Services\Client\ClientResolver;
 use App\Services\Keys\SigningKeyGenerator;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
-
-uses(RefreshDatabase::class);
 
 function reloadFapiRoutesForCors(): void
 {

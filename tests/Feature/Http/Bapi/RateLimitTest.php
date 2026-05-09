@@ -2,10 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('emits X-RateLimit-* headers on every BAPI response', function (): void {
     $f = BapiTestSupport::bootEnv();

@@ -8,9 +8,6 @@ use App\Models\Project;
 use App\Models\Session;
 use App\Models\SessionActivity;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-uses(RefreshDatabase::class);
 
 function sessionFixture(): array
 {

@@ -8,10 +8,7 @@ use App\Models\Project;
 use App\Models\SigningKey;
 use App\Services\Keys\SigningKeyGenerator;
 use App\Webhooks\Emitter;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-
-uses(RefreshDatabase::class);
 
 it('walks the active → pending → promote → retiring → expired state machine', function (): void {
     $project = Project::create(['name' => 'PRot', 'slug' => 'prot']);

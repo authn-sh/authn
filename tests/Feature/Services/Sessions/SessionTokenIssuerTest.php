@@ -10,10 +10,7 @@ use App\Models\User;
 use App\Services\Keys\SigningKeyGenerator;
 use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Sessions\SessionTokenVerifier;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
-
-uses(RefreshDatabase::class);
 
 function tokenFixture(): array
 {

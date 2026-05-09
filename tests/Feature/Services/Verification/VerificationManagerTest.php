@@ -8,9 +8,6 @@ use App\Models\Project;
 use App\Models\User;
 use App\Models\Verification;
 use App\Services\Verification\VerificationManager;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-uses(RefreshDatabase::class);
 
 function vmFixture(): array
 {

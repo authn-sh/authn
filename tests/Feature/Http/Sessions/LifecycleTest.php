@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 use App\Models\Session;
 use App\Models\SessionActivity;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\Feature\Http\Sessions\SessionsTestSupport;
-
-uses(RefreshDatabase::class);
 
 it('touch updates last_active_at and writes one SessionActivity per debounce window', function (): void {
     $f = SessionsTestSupport::bootEnv();

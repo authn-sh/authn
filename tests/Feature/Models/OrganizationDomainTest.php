@@ -13,9 +13,6 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\QueryException;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-
-uses(RefreshDatabase::class);
 
 function makeOrgEnv(string $slug = 'env-org'): Environment
 {
