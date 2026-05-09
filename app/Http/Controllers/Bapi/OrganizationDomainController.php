@@ -10,6 +10,7 @@ use App\Events\Organizations\OrganizationDomainUpdated;
 use App\Http\Requests\Bapi\Organizations\CreateDomainRequest;
 use App\Http\Requests\Bapi\Organizations\UpdateDomainRequest;
 use App\Http\Resources\OrganizationDomainResource;
+use App\Jobs\Organizations\VerifyOrganizationDomain;
 use App\Models\Environment;
 use App\Models\Organization;
 use App\Models\OrganizationDomain;
@@ -159,6 +160,7 @@ final class OrganizationDomainController
         }
 
         $verification = $this->issueDnsTxtVerification($env, $domain);
+        VerifyOrganizationDomain::dispatch($domain->id);
 
         return response()->json(OrganizationDomainResource::from($domain->fresh(), $verification));
     }
