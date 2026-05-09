@@ -6,6 +6,8 @@ use App\Http\Controllers\Bapi\AllowlistIdentifiersController;
 use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
 use App\Http\Controllers\Bapi\InstanceController;
 use App\Http\Controllers\Bapi\InvitationsController;
+use App\Http\Controllers\Bapi\OrganizationController;
+use App\Http\Controllers\Bapi\OrganizationMembershipController;
 use App\Http\Controllers\Bapi\PingController;
 use App\Http\Controllers\Bapi\RedirectUrlsController;
 use App\Http\Controllers\Bapi\SessionsController;
@@ -86,6 +88,18 @@ Route::post('/webhooks/endpoints/{id}/rotate_secret', [WebhookEndpointsControlle
 Route::get('/webhooks/deliveries', [WebhookDeliveriesController::class, 'index'])->middleware(RateLimit::class.':webhooks.list,300,60');
 Route::get('/webhooks/deliveries/{id}', [WebhookDeliveriesController::class, 'show'])->middleware(RateLimit::class.':webhooks.read,300,60');
 Route::post('/webhooks/deliveries/{id}/replay', [WebhookDeliveriesController::class, 'replay'])->middleware(RateLimit::class.':webhooks.replay,30,60');
+
+// Organizations
+Route::get('/organizations', [OrganizationController::class, 'index'])->middleware(RateLimit::class.':orgs.list,300,60')->name('bapi.organizations.index');
+Route::post('/organizations', [OrganizationController::class, 'store'])->middleware(RateLimit::class.':orgs.create,30,60')->name('bapi.organizations.store');
+Route::get('/organizations/{organization_id}', [OrganizationController::class, 'show'])->middleware(RateLimit::class.':orgs.read,300,60')->name('bapi.organizations.show');
+Route::patch('/organizations/{organization_id}', [OrganizationController::class, 'update'])->middleware(RateLimit::class.':orgs.update,60,60')->name('bapi.organizations.update');
+Route::delete('/organizations/{organization_id}', [OrganizationController::class, 'destroy'])->middleware(RateLimit::class.':orgs.destroy,30,60')->name('bapi.organizations.destroy');
+
+Route::get('/organizations/{organization_id}/memberships', [OrganizationMembershipController::class, 'index'])->middleware(RateLimit::class.':orgs.members.list,300,60')->name('bapi.organizations.memberships.index');
+Route::post('/organizations/{organization_id}/memberships', [OrganizationMembershipController::class, 'store'])->middleware(RateLimit::class.':orgs.members.create,60,60')->name('bapi.organizations.memberships.store');
+Route::patch('/organizations/{organization_id}/memberships/{user_id}', [OrganizationMembershipController::class, 'update'])->middleware(RateLimit::class.':orgs.members.update,60,60')->name('bapi.organizations.memberships.update');
+Route::delete('/organizations/{organization_id}/memberships/{user_id}', [OrganizationMembershipController::class, 'destroy'])->middleware(RateLimit::class.':orgs.members.destroy,60,60')->name('bapi.organizations.memberships.destroy');
 
 // Instance settings
 Route::get('/instance', [InstanceController::class, 'show'])->middleware(RateLimit::class.':instance.read,300,60');
