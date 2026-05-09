@@ -83,10 +83,17 @@ jobs:
       - name: Pint (style)
         run: vendor/bin/pint --test
 
+      - name: Bundle OpenAPI specs (sibling repo)
+        run: |
+          git clone --depth 1 https://github.com/authn-sh/openapi.git ../openapi
+          (cd ../openapi && npm ci --no-audit --no-fund && npm run bundle)
+
       - name: Migrate against PostgreSQL
         run: php artisan migrate --force
 
       - name: Pest (in-memory SQLite per phpunit.xml)
+        env:
+          OPENAPI_BUNDLES_REQUIRED: "1"
         run: php artisan test --parallel
 
   dusk:
