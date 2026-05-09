@@ -146,7 +146,73 @@ class User extends Model implements AuthenticatableContract
     public function organizationMemberships(): BelongsToMany
     {
         return $this->belongsToMany(Organization::class, 'organization_memberships')
-            ->withPivot(['id', 'role', 'created_at', 'updated_at']);
+            ->withPivot(['id', 'role', 'role_id', 'created_at', 'updated_at']);
+    }
+
+    public function memberships(): HasMany
+    {
+        return $this->hasMany(OrganizationMembership::class);
+    }
+
+    /**
+     * Per-request memo for `hasOrgPermission()` lookups. Keyed by
+     * `<org_id>:<perm_key>`. Cleared when the model goes out of scope.
+     *
+     * @var array<string, bool>
+     */
+    private array $orgPermissionCache = [];
+
+    /**
+     * Whether this user holds `$key` inside `$org` via their membership's
+     * role's permission set. `false` when `$org` is null (callers must scope
+     * explicitly) or the user has no membership in that org.
+     */
+    public function hasOrgPermission(string $key, ?Organization $org): bool
+    {
+        if ($org === null) {
+            return false;
+        }
+
+        $cacheKey = $org->id.':'.$key;
+        if (array_key_exists($cacheKey, $this->orgPermissionCache)) {
+            return $this->orgPermissionCache[$cacheKey];
+        }
+
+        $membership = $this->memberships()
+            ->where('organization_id', $org->id)
+            ->whereNotNull('role_id')
+            ->with('roleRef.permissions')
+            ->first();
+
+        $allowed = $membership !== null
+            && $membership->roleRef !== null
+            && $membership->roleRef->permissions->contains('key', $key);
+
+        return $this->orgPermissionCache[$cacheKey] = $allowed;
+    }
+
+    /**
+     * Whether this user holds the role with key `$key` in `$org`.
+     */
+    public function hasOrgRole(string $key, ?Organization $org): bool
+    {
+        if ($org === null) {
+            return false;
+        }
+
+        return $this->memberships()
+            ->where('organization_id', $org->id)
+            ->whereHas('roleRef', fn ($q) => $q->where('key', $key))
+            ->exists();
+    }
+
+    /**
+     * Drop the per-request permission memo. Useful in tests when a role's
+     * permission set is mutated mid-test.
+     */
+    public function flushOrgPermissionCache(): void
+    {
+        $this->orgPermissionCache = [];
     }
 
     /**

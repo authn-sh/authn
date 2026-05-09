@@ -11,6 +11,7 @@ use App\Models\Environment;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\SigningKey;
 use App\Models\User;
 use App\Services\Keys\KeyGenerator;
@@ -131,11 +132,21 @@ final class BootstrapService
 
             $workspace->update(['created_by_user_id' => $operator->id]);
 
+            // EnvironmentObserver already seeded the system permissions +
+            // default roles when the env was created above. Look up the
+            // admin role to link the workspace owner membership.
+            $adminRole = Role::query()
+                ->withoutGlobalScopes()
+                ->where('environment_id', $environment->id)
+                ->where('key', RoleSeeder::ROLE_ADMIN)
+                ->firstOrFail();
+
             OrganizationMembership::create([
                 'environment_id' => $environment->id,
                 'organization_id' => $workspace->id,
                 'user_id' => $operator->id,
                 'role' => OrganizationMembership::ROLE_WORKSPACE_OWNER,
+                'role_id' => $adminRole->id,
             ]);
 
             $this->signingKeyGenerator->generate($environment, SigningKey::STATUS_ACTIVE);

@@ -78,41 +78,39 @@ it('creates a Role + Permission and links them through role_permission', functio
 
     $perm = Permission::create([
         'environment_id' => $env->id,
-        'key' => 'org:sys_profile:manage',
-        'name' => 'Manage organization profile',
-        'is_system' => true,
+        'key' => 'custom:thing:do',
+        'name' => 'Do the thing',
+        'is_system' => false,
     ]);
     $role = Role::create([
         'environment_id' => $env->id,
-        'key' => 'org:admin',
-        'name' => 'Organization admin',
-        'is_creator_eligible' => true,
-        'is_system' => true,
+        'key' => 'custom:doer',
+        'name' => 'Doer',
     ]);
 
     $role->permissions()->attach($perm->id);
 
     expect($role->id)->toStartWith('role_');
     expect($perm->id)->toStartWith('perm_');
-    expect($role->permissions->pluck('key')->all())->toBe(['org:sys_profile:manage']);
-    expect($perm->roles->pluck('key')->all())->toBe(['org:admin']);
+    expect($role->permissions->pluck('key')->all())->toBe(['custom:thing:do']);
+    expect($perm->roles->pluck('key')->all())->toBe(['custom:doer']);
 });
 
 it('enforces unique role keys per environment', function (): void {
     $env = makeOrgEnv();
 
-    Role::create(['environment_id' => $env->id, 'key' => 'org:admin', 'name' => 'A']);
+    Role::create(['environment_id' => $env->id, 'key' => 'custom:role', 'name' => 'A']);
     expect(fn () => Role::create([
-        'environment_id' => $env->id, 'key' => 'org:admin', 'name' => 'B',
+        'environment_id' => $env->id, 'key' => 'custom:role', 'name' => 'B',
     ]))->toThrow(QueryException::class);
 });
 
 it('enforces unique permission keys per environment', function (): void {
     $env = makeOrgEnv();
 
-    Permission::create(['environment_id' => $env->id, 'key' => 'org:x:read', 'name' => 'X']);
+    Permission::create(['environment_id' => $env->id, 'key' => 'custom:p:read', 'name' => 'X']);
     expect(fn () => Permission::create([
-        'environment_id' => $env->id, 'key' => 'org:x:read', 'name' => 'Y',
+        'environment_id' => $env->id, 'key' => 'custom:p:read', 'name' => 'Y',
     ]))->toThrow(QueryException::class);
 });
 
@@ -122,10 +120,10 @@ it('exposes membership.permissionKeys() through the role linkage', function (): 
     $user = makeOrgUser($env, 'alice');
 
     $perm = Permission::create([
-        'environment_id' => $env->id, 'key' => 'org:sys_memberships:read', 'name' => 'X',
+        'environment_id' => $env->id, 'key' => 'custom:thing:read', 'name' => 'X',
     ]);
     $role = Role::create([
-        'environment_id' => $env->id, 'key' => 'org:member', 'name' => 'Member',
+        'environment_id' => $env->id, 'key' => 'custom:reader', 'name' => 'Reader',
     ]);
     $role->permissions()->attach($perm->id);
 
@@ -133,12 +131,12 @@ it('exposes membership.permissionKeys() through the role linkage', function (): 
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $user->id,
-        'role' => OrganizationMembership::ROLE_MEMBER,
+        'role' => 'custom:reader',
         'role_id' => $role->id,
     ]);
 
     expect($mem->id)->toStartWith('orgmem_');
-    expect($mem->fresh()->permissionKeys())->toBe(['org:sys_memberships:read']);
+    expect($mem->fresh()->permissionKeys())->toBe(['custom:thing:read']);
 });
 
 it('legacy memberships without role_id return an empty permissionKeys list', function (): void {
@@ -160,7 +158,7 @@ it('creates an OrganizationInvitation and round-trips relations', function (): v
     $env = makeOrgEnv();
     $org = Organization::create(['environment_id' => $env->id, 'name' => 'Acme', 'slug' => 'acme']);
     $inviter = makeOrgUser($env, 'admin');
-    $role = Role::create(['environment_id' => $env->id, 'key' => 'org:member', 'name' => 'Member']);
+    $role = Role::create(['environment_id' => $env->id, 'key' => 'custom:invitee', 'name' => 'Invitee']);
 
     $inv = OrganizationInvitation::create([
         'environment_id' => $env->id,
@@ -234,11 +232,11 @@ it('cascades org-scoped rows when their Organization is deleted', function (): v
     $org = Organization::create(['environment_id' => $env->id, 'name' => 'A', 'slug' => 'a']);
     $other = Organization::create(['environment_id' => $env->id, 'name' => 'B', 'slug' => 'b']);
     $user = makeOrgUser($env, 'u');
-    $role = Role::create(['environment_id' => $env->id, 'key' => 'org:member', 'name' => 'M']);
+    $role = Role::create(['environment_id' => $env->id, 'key' => 'custom:cascade', 'name' => 'M']);
 
     OrganizationMembership::create([
         'environment_id' => $env->id, 'organization_id' => $org->id, 'user_id' => $user->id,
-        'role' => 'org:member', 'role_id' => $role->id,
+        'role' => 'custom:cascade', 'role_id' => $role->id,
     ]);
     OrganizationInvitation::create([
         'environment_id' => $env->id, 'organization_id' => $org->id,
