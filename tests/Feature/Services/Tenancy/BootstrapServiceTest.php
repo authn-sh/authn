@@ -72,7 +72,8 @@ it('provisions the _admin project, environment, workspace org, operator, signing
     expect($operator->checkPassword('super-secret-password'))->toBeTrue();
     expect($operator->checkPassword('wrong'))->toBeFalse();
 
-    expect(OrganizationMembership::where('user_id', $operator->id)->where('role', 'org:workspace_owner')->exists())->toBeTrue();
+    $ownerMembership = OrganizationMembership::where('user_id', $operator->id)->firstOrFail();
+    expect($ownerMembership->role->key)->toBe('org:admin');
 
     expect(SigningKey::where('environment_id', $result['environment']->id)->where('status', 'active')->count())->toBe(1);
 

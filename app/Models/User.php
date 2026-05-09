@@ -146,7 +146,7 @@ class User extends Model implements AuthenticatableContract
     public function organizationMemberships(): BelongsToMany
     {
         return $this->belongsToMany(Organization::class, 'organization_memberships')
-            ->withPivot(['id', 'role', 'role_id', 'created_at', 'updated_at']);
+            ->withPivot(['id', 'role_id', 'created_at', 'updated_at']);
     }
 
     public function memberships(): HasMany
@@ -180,13 +180,12 @@ class User extends Model implements AuthenticatableContract
 
         $membership = $this->memberships()
             ->where('organization_id', $org->id)
-            ->whereNotNull('role_id')
-            ->with('roleRef.permissions')
+            ->with('role.permissions')
             ->first();
 
         $allowed = $membership !== null
-            && $membership->roleRef !== null
-            && $membership->roleRef->permissions->contains('key', $key);
+            && $membership->role !== null
+            && $membership->role->permissions->contains('key', $key);
 
         return $this->orgPermissionCache[$cacheKey] = $allowed;
     }
@@ -202,7 +201,7 @@ class User extends Model implements AuthenticatableContract
 
         return $this->memberships()
             ->where('organization_id', $org->id)
-            ->whereHas('roleRef', fn ($q) => $q->where('key', $key))
+            ->whereHas('role', fn ($q) => $q->where('key', $key))
             ->exists();
     }
 

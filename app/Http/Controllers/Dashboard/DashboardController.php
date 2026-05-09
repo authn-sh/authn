@@ -400,7 +400,7 @@ final class DashboardController
         return Inertia::render('Dashboard/WorkspaceSettings', [
             'membership' => [
                 'organization_id' => $workspace->organization_id,
-                'role' => $workspace->role,
+                'role' => $workspace->role?->key,
             ],
         ]);
     }

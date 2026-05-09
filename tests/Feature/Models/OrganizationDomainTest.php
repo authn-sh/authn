@@ -131,27 +131,11 @@ it('exposes membership.permissionKeys() through the role linkage', function (): 
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $user->id,
-        'role' => 'custom:reader',
         'role_id' => $role->id,
     ]);
 
     expect($mem->id)->toStartWith('orgmem_');
     expect($mem->fresh()->permissionKeys())->toBe(['custom:thing:read']);
-});
-
-it('legacy memberships without role_id return an empty permissionKeys list', function (): void {
-    $env = makeOrgEnv();
-    $org = Organization::create(['environment_id' => $env->id, 'name' => 'Acme', 'slug' => 'acme']);
-    $user = makeOrgUser($env, 'a');
-
-    $mem = OrganizationMembership::create([
-        'environment_id' => $env->id,
-        'organization_id' => $org->id,
-        'user_id' => $user->id,
-        'role' => OrganizationMembership::ROLE_WORKSPACE_OWNER,
-    ]);
-
-    expect($mem->permissionKeys())->toBe([]);
 });
 
 it('creates an OrganizationInvitation and round-trips relations', function (): void {
@@ -236,7 +220,7 @@ it('cascades org-scoped rows when their Organization is deleted', function (): v
 
     OrganizationMembership::create([
         'environment_id' => $env->id, 'organization_id' => $org->id, 'user_id' => $user->id,
-        'role' => 'custom:cascade', 'role_id' => $role->id,
+        'role_id' => $role->id,
     ]);
     OrganizationInvitation::create([
         'environment_id' => $env->id, 'organization_id' => $org->id,

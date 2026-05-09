@@ -57,7 +57,7 @@ final class HandleDashboardInertia
             ] : null,
             'workspace' => $workspace instanceof OrganizationMembership ? [
                 'id' => $workspace->organization_id,
-                'role' => $workspace->role,
+                'role' => $workspace->role?->key,
             ] : null,
             'sign_in_url' => $adminEnv !== null ? Url::fapi($adminEnv, '/sign-in') : null,
             'admin_environment' => $adminEnv !== null ? [

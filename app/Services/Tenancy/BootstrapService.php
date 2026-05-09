@@ -145,7 +145,6 @@ final class BootstrapService
                 'environment_id' => $environment->id,
                 'organization_id' => $workspace->id,
                 'user_id' => $operator->id,
-                'role' => OrganizationMembership::ROLE_WORKSPACE_OWNER,
                 'role_id' => $adminRole->id,
             ]);
 

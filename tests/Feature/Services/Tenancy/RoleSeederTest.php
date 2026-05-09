@@ -112,7 +112,6 @@ it('User::hasOrgPermission returns true through membership → role → permissi
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $user->id,
-        'role' => 'org:admin',
         'role_id' => $admin->id,
     ]);
 
@@ -131,7 +130,6 @@ it('User::hasOrgPermission returns false when the role does not carry the key', 
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $user->id,
-        'role' => 'org:member',
         'role_id' => $member->id,
     ]);
 
@@ -153,7 +151,6 @@ it('User::hasOrgPermission returns false when the user is not a member of the or
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $userA->id,
-        'role' => 'org:admin',
         'role_id' => $admin->id,
     ]);
 
@@ -171,7 +168,6 @@ it('User::hasOrgRole returns true on exact role-key match', function (): void {
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $user->id,
-        'role' => 'org:admin',
         'role_id' => $admin->id,
     ]);
 
@@ -191,7 +187,6 @@ it('reflects pivot updates after flushing the per-request cache', function (): v
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $user->id,
-        'role' => 'org:member',
         'role_id' => $member->id,
     ]);
 
@@ -219,7 +214,6 @@ it('Gate::allows dispatches through hasOrgPermission for system abilities', func
         'environment_id' => $env->id,
         'organization_id' => $org->id,
         'user_id' => $user->id,
-        'role' => 'org:admin',
         'role_id' => $admin->id,
     ]);
 
