@@ -90,8 +90,10 @@ final class ChallengeController
 
         if (! $strategy->requiresPrepare()) {
             // password / ticket — no out-of-band material to issue. Persist
-            // a Verification stub so the Challenge has a 1:1 wrapped row;
-            // the answer call will overwrite its lifecycle.
+            // a Verification stub + Challenge wrapper, then if the create
+            // call carried the credential (`{strategy: "password", password}`
+            // or `{strategy: "ticket", ticket}`), run `attempt` synchronously
+            // so the SDK can complete the sign-in in a single round trip.
             $verification = Verification::query()->withoutGlobalScopes()->create([
                 'environment_id' => $attempt->environment_id,
                 'verifiable_type' => $attempt->getMorphClass(),
@@ -103,6 +105,15 @@ final class ChallengeController
             ]);
 
             $challenge = $this->createChallenge($attempt, Challenge::PARENT_SIGN_IN, $step, $strategyName, $verification);
+
+            $hasCredential = ($strategyName === Verification::STRATEGY_PASSWORD && is_string($request->input('password')))
+                || ($strategyName === Verification::STRATEGY_TICKET && is_string($request->input('ticket')));
+            if ($hasCredential) {
+                return $this->runSignInAnswer($attempt, $challenge, $verification, [
+                    'password' => $request->input('password'),
+                    'ticket' => $request->input('ticket'),
+                ], $client);
+            }
 
             return $this->signInEnvelope($client, $attempt->fresh(), $challenge);
         }
@@ -148,14 +159,24 @@ final class ChallengeController
             return $this->errorWithSignIn(422, ErrorCodes::VERIFICATION_FAILED, 'Underlying verification missing.', $client, $attempt);
         }
 
-        $strategy = $this->strategies->resolve($challenge->strategy);
-
-        $result = $strategy->attempt($attempt, [
+        return $this->runSignInAnswer($attempt, $challenge, $verification, [
             'password' => $request->input('password'),
             'code' => $request->input('code'),
             'ticket' => $request->input('ticket'),
-            'verification' => $verification,
-        ]);
+        ], $client);
+    }
+
+    private function runSignInAnswer(
+        SignInAttempt $attempt,
+        Challenge $challenge,
+        Verification $verification,
+        array $params,
+        Client $client,
+    ): JsonResponse {
+        $strategy = $this->strategies->resolve($challenge->strategy);
+
+        $params['verification'] = $verification;
+        $result = $strategy->attempt($attempt, $params);
 
         if (! $result->success) {
             $this->reflectFailure($challenge, $result->verification ?? $verification, $result->errorCode, $result->errorMessage);

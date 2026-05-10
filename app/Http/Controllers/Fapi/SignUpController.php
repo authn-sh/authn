@@ -98,9 +98,13 @@ final class SignUpController
     {
         $sid = (string) $request->route('sid');
         $client = app(Client::class);
-        $attempt = $this->loadAttempt($sid, $client);
-        if ($attempt instanceof JsonResponse) {
-            return $attempt;
+        $attempt = SignUpAttempt::query()
+            ->withoutGlobalScopes()
+            ->where('id', $sid)
+            ->where('client_id', $client->id)
+            ->first();
+        if ($attempt === null) {
+            return $this->error(404, ErrorCodes::SIGN_UP_NOT_FOUND, 'Sign-up attempt not found on this device.', $client);
         }
 
         return $this->envelope($client, $attempt);
