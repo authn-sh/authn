@@ -10,6 +10,7 @@ use App\Http\Controllers\Fapi\MagicLinkController;
 use App\Http\Controllers\Fapi\MeBackupCodesController;
 use App\Http\Controllers\Fapi\MeController;
 use App\Http\Controllers\Fapi\MeOrganizationController;
+use App\Http\Controllers\Fapi\MePhoneNumberController;
 use App\Http\Controllers\Fapi\MeTotpController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
 use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
@@ -111,6 +112,12 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/me/email-addresses/{email_address_id}', [MeController::class, 'showEmail'])->name('fapi.me.emails.show');
         Route::patch('/me/email-addresses/{email_address_id}', [MeController::class, 'updateEmail'])->name('fapi.me.emails.update');
         Route::delete('/me/email-addresses/{email_address_id}', [MeController::class, 'deleteEmail'])->name('fapi.me.emails.destroy');
+
+        Route::get('/me/phone-numbers', [MePhoneNumberController::class, 'index'])->name('fapi.me.phones.list');
+        Route::post('/me/phone-numbers', [MePhoneNumberController::class, 'store'])->name('fapi.me.phones.create');
+        Route::get('/me/phone-numbers/{phone_number_id}', [MePhoneNumberController::class, 'show'])->name('fapi.me.phones.show');
+        Route::patch('/me/phone-numbers/{phone_number_id}', [MePhoneNumberController::class, 'update'])->name('fapi.me.phones.update');
+        Route::delete('/me/phone-numbers/{phone_number_id}', [MePhoneNumberController::class, 'destroy'])->name('fapi.me.phones.destroy');
 
         Route::post('/me/email-addresses/{email_address_id}/challenges', [ChallengeController::class, 'storeForEmailAddress'])->name('fapi.me.emails.challenges.store');
         Route::post('/me/email-addresses/{email_address_id}/challenges/{cid}/answer', [ChallengeController::class, 'answerForEmailAddress'])->name('fapi.me.emails.challenges.answer');

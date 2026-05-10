@@ -114,4 +114,10 @@ final class ErrorCodes
     public const EMAIL_NOT_VERIFIED = 'email_not_verified';
 
     public const PRIMARY_EMAIL_NOT_REMOVABLE = 'primary_email_not_removable';
+
+    public const PHONE_NOT_FOUND = 'phone_not_found';
+
+    public const PHONE_NOT_VERIFIED = 'phone_not_verified';
+
+    public const PHONE_RESERVED_FOR_SECOND_FACTOR = 'phone_reserved_for_second_factor';
 }

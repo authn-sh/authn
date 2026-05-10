@@ -19,9 +19,7 @@ final class PhoneNumberResource
             'is_primary' => (bool) $phone->is_primary,
             'reserved_for_second_factor' => (bool) $phone->reserved_for_second_factor,
             'default_second_factor' => (bool) $phone->default_second_factor,
-            'linked_to' => $phone->linked_to_external_account_id !== null
-                ? [['id' => $phone->linked_to_external_account_id, 'type' => 'external_account']]
-                : [],
+            'linked_to_external_account_id' => $phone->linked_to_external_account_id,
             'created_at' => $phone->created_at?->getTimestampMs(),
             'updated_at' => $phone->updated_at?->getTimestampMs(),
         ];
