@@ -53,7 +53,7 @@ final class SignInController
         $client = $this->resolveOrCreateClient($request, $env, $createdClient);
 
         if ($request->boolean('transfer')) {
-            return $this->error(422, ErrorCodes::TRANSFER_NOT_SUPPORTED_IN_V0_1, 'transfer flow lands in a later milestone.', $client);
+            return $this->error(422, ErrorCodes::TRANSFER_NOT_SUPPORTED, 'transfer flow is not supported.', $client);
         }
 
         $identifier = $request->input('identifier');
@@ -75,7 +75,7 @@ final class SignInController
             Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
             Verification::STRATEGY_TICKET,
         ], true)) {
-            return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategy} is not enabled in v0.1.", $client);
+            return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED, "strategy {$strategy} is not supported.", $client);
         }
 
         return DB::transaction(function () use ($request, $env, $client, $strategy, $createdClient, $isTestAttempt): JsonResponse {

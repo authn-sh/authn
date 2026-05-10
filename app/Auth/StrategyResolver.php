@@ -14,8 +14,8 @@ use App\Models\Verification;
 use InvalidArgumentException;
 
 /**
- * Maps strategy names from the wire (per PLAN §9.3) to their concrete
- * Strategy implementations. Anything not in the v0.1 whitelist throws.
+ * Maps strategy names from the wire to their concrete Strategy
+ * implementations. Anything not in the whitelist throws.
  */
 final class StrategyResolver
 {
@@ -35,7 +35,7 @@ final class StrategyResolver
             Verification::STRATEGY_EMAIL_LINK => $this->emailLink,
             Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE => $this->resetPasswordEmailCode,
             Verification::STRATEGY_TICKET => $this->ticket,
-            default => throw new InvalidArgumentException("Strategy {$name} is not enabled in v0.1."),
+            default => throw new InvalidArgumentException("Strategy {$name} is not supported."),
         };
     }
 }

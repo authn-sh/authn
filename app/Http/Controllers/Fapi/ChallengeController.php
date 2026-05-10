@@ -81,13 +81,13 @@ final class ChallengeController
             return $this->errorWithSignIn(422, ErrorCodes::FORM_PARAM_NIL, 'strategy is required.', $client, $attempt);
         }
         if (! in_array($strategyName, $this->signInSupportedStrategies($attempt), true)) {
-            return $this->errorWithSignIn(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategyName} is not supported on this sign-in.", $client, $attempt);
+            return $this->errorWithSignIn(422, ErrorCodes::STRATEGY_NOT_SUPPORTED, "strategy {$strategyName} is not supported on this sign-in.", $client, $attempt);
         }
 
         try {
             $strategy = $this->strategies->resolve($strategyName);
         } catch (InvalidArgumentException) {
-            return $this->errorWithSignIn(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategyName} is not enabled in v0.1.", $client, $attempt);
+            return $this->errorWithSignIn(422, ErrorCodes::STRATEGY_NOT_SUPPORTED, "strategy {$strategyName} is not supported.", $client, $attempt);
         }
 
         $step = $this->resolveSignInStep($attempt);
@@ -252,7 +252,7 @@ final class ChallengeController
             return $this->errorWithSignUp(422, ErrorCodes::FORM_PARAM_NIL, 'strategy is required.', $client, $attempt);
         }
         if (! in_array($strategyName, $this->signUpSupportedStrategies($attempt), true)) {
-            return $this->errorWithSignUp(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategyName} is not supported on this sign-up.", $client, $attempt);
+            return $this->errorWithSignUp(422, ErrorCodes::STRATEGY_NOT_SUPPORTED, "strategy {$strategyName} is not supported on this sign-up.", $client, $attempt);
         }
         if (! is_string($attempt->email_address) || $attempt->email_address === '') {
             return $this->errorWithSignUp(422, ErrorCodes::FORM_PARAM_NIL, 'email_address is required before issuing a challenge.', $client, $attempt);
@@ -383,7 +383,7 @@ final class ChallengeController
             return $this->bareError(422, ErrorCodes::FORM_PARAM_NIL, 'strategy is required.', null);
         }
         if (! in_array($strategyName, [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK], true)) {
-            return $this->bareError(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategyName} is not supported on email-address challenges.", null);
+            return $this->bareError(422, ErrorCodes::STRATEGY_NOT_SUPPORTED, "strategy {$strategyName} is not supported on email-address challenges.", null);
         }
 
         $challenge = $strategyName === Verification::STRATEGY_EMAIL_LINK
