@@ -7,6 +7,7 @@ namespace App\Auth;
 use App\Auth\Strategies\BackupCodeStrategy;
 use App\Auth\Strategies\EmailCodeStrategy;
 use App\Auth\Strategies\EmailLinkStrategy;
+use App\Auth\Strategies\OauthRedirectStrategy;
 use App\Auth\Strategies\PasswordStrategy;
 use App\Auth\Strategies\PhoneCodeStrategy;
 use App\Auth\Strategies\ResetPasswordEmailCodeStrategy;
@@ -31,10 +32,15 @@ final class StrategyResolver
         private readonly TotpStrategy $totp,
         private readonly BackupCodeStrategy $backupCode,
         private readonly PhoneCodeStrategy $phoneCode,
+        private readonly OauthRedirectStrategy $oauth,
     ) {}
 
     public function resolve(string $name): Strategy
     {
+        if (preg_match(Verification::OAUTH_STRATEGY_PATTERN, $name) === 1) {
+            return $this->oauth;
+        }
+
         return match ($name) {
             Verification::STRATEGY_PASSWORD => $this->password,
             Verification::STRATEGY_EMAIL_CODE => $this->emailCode,

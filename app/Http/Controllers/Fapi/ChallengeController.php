@@ -19,6 +19,7 @@ use App\Models\Client;
 use App\Models\EmailAddress;
 use App\Models\EmailTemplate;
 use App\Models\Environment;
+use App\Models\OauthProvider;
 use App\Models\PhoneNumber;
 use App\Models\Session;
 use App\Models\SignInAttempt;
@@ -127,9 +128,15 @@ final class ChallengeController
             return $this->signInEnvelope($client, $attempt->fresh(), $challenge);
         }
 
+        $providerKey = preg_match(Verification::OAUTH_STRATEGY_PATTERN, $strategyName) === 1
+            ? substr($strategyName, strlen('oauth_'))
+            : null;
         $result = $strategy->prepare($attempt, [
             'email_address_id' => $request->input('email_address_id'),
             'redirect_url' => $request->input('redirect_url'),
+            'redirect_url_complete' => $request->input('redirect_url_complete'),
+            'provider_key' => $providerKey,
+            'client' => $client,
         ]);
 
         if (! $result->success || $result->verification === null) {
@@ -794,16 +801,39 @@ final class ChallengeController
     private function signInSupportedStrategies(SignInAttempt $attempt): array
     {
         return match ($attempt->status) {
-            SignInAttempt::STATUS_NEEDS_FIRST_FACTOR => [
-                Verification::STRATEGY_PASSWORD,
-                Verification::STRATEGY_EMAIL_CODE,
-                Verification::STRATEGY_EMAIL_LINK,
-                Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
-                Verification::STRATEGY_TICKET,
-            ],
+            SignInAttempt::STATUS_NEEDS_FIRST_FACTOR => array_merge(
+                [
+                    Verification::STRATEGY_PASSWORD,
+                    Verification::STRATEGY_EMAIL_CODE,
+                    Verification::STRATEGY_EMAIL_LINK,
+                    Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
+                    Verification::STRATEGY_TICKET,
+                ],
+                $this->enabledOauthStrategies($attempt->environment_id, allowSignIn: true),
+            ),
             SignInAttempt::STATUS_NEEDS_SECOND_FACTOR => $this->signInSecondFactorStrategies($attempt),
             default => [],
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function enabledOauthStrategies(string $environmentId, bool $allowSignIn = false, bool $allowSignUp = false): array
+    {
+        $query = OauthProvider::query()->withoutGlobalScopes()
+            ->where('environment_id', $environmentId)
+            ->where('enabled', true);
+        if ($allowSignIn) {
+            $query->where('allow_sign_in', true);
+        }
+        if ($allowSignUp) {
+            $query->where('allow_sign_up', true);
+        }
+
+        return $query->pluck('provider_key')
+            ->map(fn (string $k): string => 'oauth_'.$k)
+            ->values()->all();
     }
 
     /**
