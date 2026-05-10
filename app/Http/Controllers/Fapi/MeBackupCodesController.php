@@ -18,6 +18,7 @@ use App\Models\TotpSecret;
 use App\Models\User;
 use App\Settings\MultiFactorSettings;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 
 /**
  * `POST /v1/me/backup-codes` regenerates a one-time `BackupCodeBatch`,
@@ -68,6 +69,15 @@ final class MeBackupCodesController
         $user->save();
 
         SendBackupCodesGeneratedNotification::dispatch($user->id, count($codes));
+
+        Log::info('auth.mfa.backup_codes_generated', [
+            'user_id' => $user->id,
+            'environment_id' => $user->environment_id,
+            'surface' => 'fapi',
+            'actor_type' => 'user',
+            'actor_id' => $user->id,
+            'count' => count($codes),
+        ]);
 
         return $this->clientEnvelope(BackupCodeBatchResource::from($user->fresh(), $codes));
     }

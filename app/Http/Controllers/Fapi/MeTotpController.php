@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Settings\MultiFactorSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 /**
  * `POST /v1/me/totp` (start), `POST /v1/me/totp/verify`,
@@ -105,6 +106,13 @@ final class MeTotpController
             }
             $user->save();
             SendTotpEnabledNotification::dispatch($user->id);
+            Log::info('auth.mfa.totp_enrolled', [
+                'user_id' => $user->id,
+                'environment_id' => $user->environment_id,
+                'surface' => 'fapi',
+                'actor_type' => 'user',
+                'actor_id' => $user->id,
+            ]);
         }
 
         return $this->clientEnvelope(TotpSecretResource::from($secret->fresh()));
@@ -155,6 +163,13 @@ final class MeTotpController
         if ($disabledMfa) {
             SendMfaDisabledNotification::dispatch($user->id);
         }
+        Log::info('auth.mfa.totp_removed', [
+            'user_id' => $user->id,
+            'environment_id' => $user->environment_id,
+            'surface' => 'fapi',
+            'actor_type' => 'user',
+            'actor_id' => $user->id,
+        ]);
 
         return $this->clientEnvelope($shape);
     }
