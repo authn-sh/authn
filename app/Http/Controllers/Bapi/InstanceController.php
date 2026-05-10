@@ -111,7 +111,22 @@ final class InstanceController
 
         $overrides = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
         foreach ($overrides as $name => $cfg) {
-            if (! isset($defaults[$name]) || ! is_array($cfg)) {
+            if (! isset($defaults[$name])) {
+                continue;
+            }
+            // The v0.4 phone_number tri-state ships as a scalar enum
+            // (`required`/`optional`/`off`); inflate it into the
+            // attribute-row shape the rest of the dashboard reads.
+            if ($name === 'phone_number' && is_string($cfg)) {
+                $defaults[$name]['enabled'] = $cfg !== 'off';
+                $defaults[$name]['required'] = $cfg === 'required';
+                $defaults[$name]['used_for_first_factor'] = $cfg !== 'off';
+                $defaults[$name]['verifications'] = $cfg !== 'off' ? ['phone_code'] : [];
+                $defaults[$name]['verify_at_sign_up'] = $cfg !== 'off';
+
+                continue;
+            }
+            if (! is_array($cfg)) {
                 continue;
             }
             $defaults[$name] = array_merge($defaults[$name], $cfg);
@@ -127,6 +142,7 @@ final class InstanceController
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
         $previousTestMode = $userSettings['test_mode'] ?? null;
         $previousMultiFactor = MultiFactorSettings::fromUserSettings($userSettings);
+        $previousAttributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
 
         if ($request->has('support_email')) {
             $appearance['support_email'] = $request->input('support_email');
@@ -139,6 +155,24 @@ final class InstanceController
         }
         if ($request->has('user_settings') && is_array($request->input('user_settings'))) {
             $userSettings = array_replace_recursive($userSettings, $request->input('user_settings'));
+        }
+
+        $attributesChanged = false;
+        if ($request->has('attributes')) {
+            $patch = $request->input('attributes');
+            if (! is_array($patch)) {
+                throw ValidationException::withMessages(['attributes' => 'attributes must be an object.']);
+            }
+            Validator::make($patch, [
+                'phone_number' => 'sometimes|in:required,optional,off',
+            ])->validate();
+
+            $nextAttributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
+            if (array_key_exists('phone_number', $patch)) {
+                $nextAttributes['phone_number'] = (string) $patch['phone_number'];
+            }
+            $userSettings['attributes'] = $nextAttributes;
+            $attributesChanged = $nextAttributes != $previousAttributes;
         }
 
         $multiFactorChanged = false;
@@ -157,6 +191,8 @@ final class InstanceController
                     'integer',
                     'between:'.MultiFactorSettings::MIN_BACKUP_CODE_COUNT.','.MultiFactorSettings::MAX_BACKUP_CODE_COUNT,
                 ],
+                'phone_code' => 'sometimes|array',
+                'phone_code.enabled' => 'sometimes|boolean',
             ])->validate();
 
             $next = $previousMultiFactor->withPatch($patch);
@@ -200,6 +236,24 @@ final class InstanceController
                     'environment_id' => $env->id,
                     'before' => $previousMultiFactor->toArray(),
                     'after' => $next->toArray(),
+                ],
+                $env,
+            );
+        }
+
+        if ($attributesChanged) {
+            $nextAttributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
+            Log::info('instance.config.attributes_updated', [
+                'environment_id' => $env->id,
+                'before' => $previousAttributes,
+                'after' => $nextAttributes,
+            ]);
+            app(Emitter::class)->emit(
+                'instance.config.attributes_updated',
+                [
+                    'environment_id' => $env->id,
+                    'before' => $previousAttributes,
+                    'after' => $nextAttributes,
                 ],
                 $env,
             );

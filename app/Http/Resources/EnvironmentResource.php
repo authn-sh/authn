@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Environment;
+use App\Models\OauthProvider;
 use App\Settings\MultiFactorSettings;
 
 /**
@@ -20,6 +21,29 @@ use App\Settings\MultiFactorSettings;
  */
 final class EnvironmentResource
 {
+    /**
+     * Public half of `Environment.sms`. Strips every credential field —
+     * `auth_token` / `api_secret` are write-only and never leak via the
+     * FAPI bootstrap.
+     *
+     * @param  array<string, mixed>  $userSettings
+     * @return array{driver: ?string, from_number: ?string}
+     */
+    private static function smsBootstrap(array $userSettings): array
+    {
+        $sms = is_array($userSettings['sms'] ?? null) ? $userSettings['sms'] : [];
+        $driver = $sms['driver'] ?? null;
+        if (! in_array($driver, ['twilio', 'vonage', null], true)) {
+            $driver = null;
+        }
+        $from = is_string($sms['from_number'] ?? null) ? (string) $sms['from_number'] : null;
+
+        return [
+            'driver' => $driver,
+            'from_number' => $from,
+        ];
+    }
+
     public static function from(Environment $environment): array
     {
         $appearance = is_array($environment->appearance) ? $environment->appearance : [];
@@ -28,6 +52,22 @@ final class EnvironmentResource
         $localization = is_array($environment->localization) ? $environment->localization : [];
         $multiFactor = MultiFactorSettings::fromUserSettings($userSettings);
 
+        $attributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
+        $phoneAttr = is_string($attributes['phone_number'] ?? null) ? (string) $attributes['phone_number'] : 'off';
+        $firstFactors = ['password', 'email_code', 'reset_password_email_code', 'ticket'];
+        if ($phoneAttr !== 'off') {
+            $firstFactors[] = 'phone_code';
+        }
+        $oauthRows = OauthProvider::query()
+            ->withoutGlobalScopes()
+            ->where('environment_id', $environment->id)
+            ->where('enabled', true)
+            ->orderBy('provider_key')
+            ->get();
+        foreach ($oauthRows as $row) {
+            $firstFactors[] = 'oauth_'.$row->provider_key;
+        }
+
         return [
             'object' => 'environment',
             'id' => $environment->id,
@@ -35,10 +75,10 @@ final class EnvironmentResource
             'auth_config' => [
                 'identifier_requirements' => [
                     'email_address' => 'required',
-                    'phone_number' => 'off',
+                    'phone_number' => $phoneAttr,
                     'username' => 'off',
                 ],
-                'first_factors' => ['password', 'email_code', 'reset_password_email_code', 'ticket'],
+                'first_factors' => $firstFactors,
                 'second_factors' => $multiFactor->enabledStrategies(),
                 'sign_up_modes' => ['public'],
             ],
@@ -115,8 +155,16 @@ final class EnvironmentResource
                 'supported_locales' => $localization['supported_locales'] ?? ['en-US'],
             ],
 
-            // v0.4 lights this up with preset + custom OIDC/OAuth2 providers.
-            'oauth_providers' => [],
+            'oauth_providers' => $oauthRows->map(fn (OauthProvider $p): array => [
+                'provider_key' => $p->provider_key,
+                'name' => $p->name,
+                'logo_url' => is_array($p->additional_authorization_params)
+                    ? ($p->additional_authorization_params['logo_url'] ?? null)
+                    : null,
+                'strategy' => 'oauth_'.$p->provider_key,
+            ])->all(),
+
+            'sms' => self::smsBootstrap($userSettings),
 
             'paths' => $appearance['paths'] ?? [],
 
