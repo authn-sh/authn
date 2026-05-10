@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $digits
  * @property int $period_seconds
  * @property ?\DateTimeInterface $verified_at
+ * @property ?int $last_used_step
  */
 class TotpSecret extends Model
 {
@@ -40,6 +41,7 @@ class TotpSecret extends Model
         'digits',
         'period_seconds',
         'verified_at',
+        'last_used_step',
     ];
 
     protected $hidden = [
@@ -55,6 +57,7 @@ class TotpSecret extends Model
             'digits' => 'int',
             'period_seconds' => 'int',
             'verified_at' => 'immutable_datetime',
+            'last_used_step' => 'int',
         ];
     }
 

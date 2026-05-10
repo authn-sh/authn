@@ -17,6 +17,7 @@ return new class extends Migration
             $table->unsignedSmallInteger('digits')->default(6);
             $table->unsignedSmallInteger('period_seconds')->default(30);
             $table->timestamp('verified_at')->nullable();
+            $table->unsignedBigInteger('last_used_step')->nullable();
             $table->timestamps();
 
             $table->foreign('environment_id')->references('id')->on('environments')->cascadeOnDelete();
