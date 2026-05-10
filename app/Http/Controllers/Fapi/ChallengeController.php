@@ -19,6 +19,7 @@ use App\Models\Client;
 use App\Models\EmailAddress;
 use App\Models\EmailTemplate;
 use App\Models\Environment;
+use App\Models\PhoneNumber;
 use App\Models\Session;
 use App\Models\SignInAttempt;
 use App\Models\SignUpAttempt;
@@ -839,6 +840,16 @@ final class ChallengeController
             ->exists();
         if ($hasUnspent) {
             $strategies[] = Verification::STRATEGY_BACKUP_CODE;
+        }
+
+        $hasReservedPhone = PhoneNumber::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->where('reserved_for_second_factor', true)
+            ->exists();
+        if ($hasReservedPhone) {
+            $strategies[] = Verification::STRATEGY_PHONE_CODE;
         }
 
         return $strategies;

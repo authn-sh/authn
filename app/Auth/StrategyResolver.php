@@ -8,6 +8,7 @@ use App\Auth\Strategies\BackupCodeStrategy;
 use App\Auth\Strategies\EmailCodeStrategy;
 use App\Auth\Strategies\EmailLinkStrategy;
 use App\Auth\Strategies\PasswordStrategy;
+use App\Auth\Strategies\PhoneCodeStrategy;
 use App\Auth\Strategies\ResetPasswordEmailCodeStrategy;
 use App\Auth\Strategies\Strategy;
 use App\Auth\Strategies\TicketStrategy;
@@ -29,6 +30,7 @@ final class StrategyResolver
         private readonly TicketStrategy $ticket,
         private readonly TotpStrategy $totp,
         private readonly BackupCodeStrategy $backupCode,
+        private readonly PhoneCodeStrategy $phoneCode,
     ) {}
 
     public function resolve(string $name): Strategy
@@ -41,6 +43,7 @@ final class StrategyResolver
             Verification::STRATEGY_TICKET => $this->ticket,
             Verification::STRATEGY_TOTP => $this->totp,
             Verification::STRATEGY_BACKUP_CODE => $this->backupCode,
+            Verification::STRATEGY_PHONE_CODE => $this->phoneCode,
             default => throw new InvalidArgumentException("Strategy {$name} is not supported."),
         };
     }
