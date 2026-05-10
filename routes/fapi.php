@@ -9,6 +9,7 @@ use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\MagicLinkController;
 use App\Http\Controllers\Fapi\MeBackupCodesController;
 use App\Http\Controllers\Fapi\MeController;
+use App\Http\Controllers\Fapi\MeExternalAccountController;
 use App\Http\Controllers\Fapi\MeOrganizationController;
 use App\Http\Controllers\Fapi\MePhoneNumberController;
 use App\Http\Controllers\Fapi\MeTotpController;
@@ -125,6 +126,10 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/me/phone-numbers/{phone_number_id}', [MePhoneNumberController::class, 'show'])->name('fapi.me.phones.show');
         Route::patch('/me/phone-numbers/{phone_number_id}', [MePhoneNumberController::class, 'update'])->name('fapi.me.phones.update');
         Route::delete('/me/phone-numbers/{phone_number_id}', [MePhoneNumberController::class, 'destroy'])->name('fapi.me.phones.destroy');
+
+        Route::get('/me/external-accounts', [MeExternalAccountController::class, 'index'])->name('fapi.me.external_accounts.list');
+        Route::get('/me/external-accounts/{external_account_id}', [MeExternalAccountController::class, 'show'])->name('fapi.me.external_accounts.show');
+        Route::delete('/me/external-accounts/{external_account_id}', [MeExternalAccountController::class, 'destroy'])->name('fapi.me.external_accounts.destroy');
 
         Route::post('/me/email-addresses/{email_address_id}/challenges', [ChallengeController::class, 'storeForEmailAddress'])->name('fapi.me.emails.challenges.store');
         Route::post('/me/email-addresses/{email_address_id}/challenges/{cid}/answer', [ChallengeController::class, 'answerForEmailAddress'])->name('fapi.me.emails.challenges.answer');
