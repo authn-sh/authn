@@ -11,17 +11,20 @@ use App\Auth\TestMode\Policy as TestModePolicy;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\SignInResource;
 use App\Jobs\Mail\SendPasswordChangedNotification;
+use App\Models\BackupCode;
 use App\Models\Challenge;
 use App\Models\Client;
 use App\Models\EmailAddress;
 use App\Models\Environment;
 use App\Models\Session;
 use App\Models\SignInAttempt;
+use App\Models\TotpSecret;
 use App\Models\User;
 use App\Models\Verification;
 use App\Services\Client\ClientResolver;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
+use App\Settings\MultiFactorSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -260,9 +263,46 @@ final class SignInController
             'attempts' => (int) ($result->verification?->attempts ?? 0),
         ])->save();
 
+        if ($result->user !== null && $this->shouldPivotToSecondFactor($result->attempt, $result->user)) {
+            $result->attempt->forceFill([
+                'status' => SignInAttempt::STATUS_NEEDS_SECOND_FACTOR,
+                'current_challenge_id' => null,
+            ])->save();
+
+            return $this->envelope($client, $result->attempt->fresh(), 200, null, $attachClientCookie);
+        }
+
         $session = $this->createSession($result->attempt, $result->user);
 
         return $this->envelope($client, $result->attempt->fresh(), 200, $session, $attachClientCookie);
+    }
+
+    private function shouldPivotToSecondFactor(SignInAttempt $attempt, User $user): bool
+    {
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
+        if ($env === null) {
+            return false;
+        }
+        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
+        if (! $settings->totpEnabled && ! $settings->backupCodesEnabled) {
+            return false;
+        }
+
+        $hasTotp = TotpSecret::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->exists();
+        if ($hasTotp && $settings->totpEnabled) {
+            return true;
+        }
+        $hasBackup = BackupCode::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNull('consumed_at')
+            ->exists();
+
+        return $hasBackup && $settings->backupCodesEnabled;
     }
 
     private function createSession(SignInAttempt $attempt, ?User $user): Session

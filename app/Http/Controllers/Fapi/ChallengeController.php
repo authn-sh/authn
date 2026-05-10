@@ -13,6 +13,7 @@ use App\Http\Resources\SignInResource;
 use App\Http\Resources\SignUpResource;
 use App\Jobs\Mail\SendMagicLinkEmail;
 use App\Jobs\Mail\SendVerificationEmail;
+use App\Models\BackupCode;
 use App\Models\Challenge;
 use App\Models\Client;
 use App\Models\EmailAddress;
@@ -21,6 +22,7 @@ use App\Models\Environment;
 use App\Models\Session;
 use App\Models\SignInAttempt;
 use App\Models\SignUpAttempt;
+use App\Models\TotpSecret;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
@@ -29,6 +31,7 @@ use App\Services\MagicLink\MagicLinkIssuer;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Verification\VerificationManager;
+use App\Settings\MultiFactorSettings;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -111,11 +114,13 @@ final class ChallengeController
             $challenge = $this->createChallenge($attempt, Challenge::PARENT_SIGN_IN, $step, $strategyName, $verification);
 
             $hasCredential = ($strategyName === Verification::STRATEGY_PASSWORD && is_string($request->input('password')))
-                || ($strategyName === Verification::STRATEGY_TICKET && is_string($request->input('ticket')));
+                || ($strategyName === Verification::STRATEGY_TICKET && is_string($request->input('ticket')))
+                || (in_array($strategyName, [Verification::STRATEGY_TOTP, Verification::STRATEGY_BACKUP_CODE], true) && is_string($request->input('code')));
             if ($hasCredential) {
                 return $this->runSignInAnswer($attempt, $challenge, $verification, [
                     'password' => $request->input('password'),
                     'ticket' => $request->input('ticket'),
+                    'code' => $request->input('code'),
                 ], $client);
             }
 
@@ -209,9 +214,53 @@ final class ChallengeController
             return $this->signInEnvelope($client, $attempt->fresh(), $challenge->fresh());
         }
 
+        // First-factor success on a user with enrolled MFA: pivot to
+        // needs_second_factor instead of completing. Second-factor
+        // strategies (totp, backup_code) skip this branch — their answer
+        // promotes the attempt straight to complete.
+        if ($challenge->step === Challenge::STEP_FIRST
+            && $user !== null
+            && $this->userHasEnrolledSecondFactor($user)
+            && $this->envOffersSecondFactor($attempt)
+        ) {
+            $attempt->status = SignInAttempt::STATUS_NEEDS_SECOND_FACTOR;
+            $attempt->save();
+
+            return $this->signInEnvelope($client, $attempt->fresh(), $challenge->fresh());
+        }
+
         $session = $this->createSessionForSignIn($attempt, $user);
 
         return $this->signInEnvelope($client, $attempt->fresh(), $challenge->fresh(), $session);
+    }
+
+    private function userHasEnrolledSecondFactor(User $user): bool
+    {
+        $hasTotp = TotpSecret::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->exists();
+        if ($hasTotp) {
+            return true;
+        }
+
+        return BackupCode::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNull('consumed_at')
+            ->exists();
+    }
+
+    private function envOffersSecondFactor(SignInAttempt $attempt): bool
+    {
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
+        if ($env === null) {
+            return false;
+        }
+        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
+
+        return $settings->totpEnabled || $settings->backupCodesEnabled;
     }
 
     public function showForSignIn(Request $request): JsonResponse
@@ -757,8 +806,70 @@ final class ChallengeController
                 Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
                 Verification::STRATEGY_TICKET,
             ],
+            SignInAttempt::STATUS_NEEDS_SECOND_FACTOR => $this->signInSecondFactorStrategies($attempt),
             default => [],
         };
+    }
+
+    /**
+     * Narrow second-factor strategies by per-env enable toggles AND
+     * per-user enrolment. Empty if MFA is disabled at the env level.
+     *
+     * @return list<string>
+     */
+    private function signInSecondFactorStrategies(SignInAttempt $attempt): array
+    {
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
+        if ($env === null) {
+            return [];
+        }
+        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
+
+        $user = $this->resolveUserForSignIn($attempt);
+        if ($user === null) {
+            return [];
+        }
+
+        $strategies = [];
+        if ($settings->totpEnabled) {
+            $hasTotp = TotpSecret::query()
+                ->withoutGlobalScopes()
+                ->where('user_id', $user->id)
+                ->whereNotNull('verified_at')
+                ->exists();
+            if ($hasTotp) {
+                $strategies[] = Verification::STRATEGY_TOTP;
+            }
+        }
+        if ($settings->backupCodesEnabled) {
+            $hasUnspent = BackupCode::query()
+                ->withoutGlobalScopes()
+                ->where('user_id', $user->id)
+                ->whereNull('consumed_at')
+                ->exists();
+            if ($hasUnspent) {
+                $strategies[] = Verification::STRATEGY_BACKUP_CODE;
+            }
+        }
+
+        return $strategies;
+    }
+
+    private function resolveUserForSignIn(SignInAttempt $attempt): ?User
+    {
+        if ($attempt->identifier === null) {
+            return null;
+        }
+        $email = EmailAddress::query()
+            ->withoutGlobalScopes()
+            ->where('environment_id', $attempt->environment_id)
+            ->where('email_address', strtolower((string) $attempt->identifier))
+            ->first();
+        if ($email === null) {
+            return null;
+        }
+
+        return User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
     }
 
     /**

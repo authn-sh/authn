@@ -32,6 +32,8 @@ final class ErrorCodes
     // Verification
     public const FORM_CODE_INCORRECT = 'form_code_incorrect';
 
+    public const FORM_CODE_ALREADY_USED = 'form_code_already_used';
+
     public const VERIFICATION_EXPIRED = 'verification_expired';
 
     public const VERIFICATION_FAILED = 'verification_failed';

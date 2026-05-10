@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\BackupCode;
 use App\Models\EmailAddress;
+use App\Models\Environment;
 use App\Models\SignInAttempt;
+use App\Models\TotpSecret;
 use App\Models\User;
 use App\Models\Verification;
+use App\Settings\MultiFactorSettings;
 
 /**
  * Mirrors openapi `SignIn`. Factor verification state is no longer
@@ -45,23 +49,19 @@ final class SignInResource
      */
     private static function supportedStrategies(SignInAttempt $attempt): array
     {
-        if ($attempt->status !== SignInAttempt::STATUS_NEEDS_FIRST_FACTOR) {
-            return [];
-        }
+        return match ($attempt->status) {
+            SignInAttempt::STATUS_NEEDS_FIRST_FACTOR => self::firstFactorStrategies($attempt),
+            SignInAttempt::STATUS_NEEDS_SECOND_FACTOR => self::secondFactorStrategies($attempt),
+            default => [],
+        };
+    }
 
-        if ($attempt->identifier === null) {
-            return [];
-        }
-
-        $email = EmailAddress::query()
-            ->withoutGlobalScopes()
-            ->where('environment_id', $attempt->environment_id)
-            ->where('email_address', strtolower($attempt->identifier))
-            ->first();
-        if ($email === null) {
-            return [];
-        }
-        $user = User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
+    /**
+     * @return list<string>
+     */
+    private static function firstFactorStrategies(SignInAttempt $attempt): array
+    {
+        $user = self::resolveUser($attempt);
         if ($user === null) {
             return [];
         }
@@ -75,6 +75,63 @@ final class SignInResource
         $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
 
         return $strategies;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function secondFactorStrategies(SignInAttempt $attempt): array
+    {
+        $user = self::resolveUser($attempt);
+        if ($user === null) {
+            return [];
+        }
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
+        if ($env === null) {
+            return [];
+        }
+        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
+
+        $strategies = [];
+        if ($settings->totpEnabled) {
+            $hasTotp = TotpSecret::query()
+                ->withoutGlobalScopes()
+                ->where('user_id', $user->id)
+                ->whereNotNull('verified_at')
+                ->exists();
+            if ($hasTotp) {
+                $strategies[] = Verification::STRATEGY_TOTP;
+            }
+        }
+        if ($settings->backupCodesEnabled) {
+            $hasUnspent = BackupCode::query()
+                ->withoutGlobalScopes()
+                ->where('user_id', $user->id)
+                ->whereNull('consumed_at')
+                ->exists();
+            if ($hasUnspent) {
+                $strategies[] = Verification::STRATEGY_BACKUP_CODE;
+            }
+        }
+
+        return $strategies;
+    }
+
+    private static function resolveUser(SignInAttempt $attempt): ?User
+    {
+        if ($attempt->identifier === null) {
+            return null;
+        }
+        $email = EmailAddress::query()
+            ->withoutGlobalScopes()
+            ->where('environment_id', $attempt->environment_id)
+            ->where('email_address', strtolower($attempt->identifier))
+            ->first();
+        if ($email === null) {
+            return null;
+        }
+
+        return User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
     }
 
     private static function userDataPreview(SignInAttempt $attempt): ?array

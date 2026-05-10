@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Auth;
 
+use App\Auth\Strategies\BackupCodeStrategy;
 use App\Auth\Strategies\EmailCodeStrategy;
 use App\Auth\Strategies\EmailLinkStrategy;
 use App\Auth\Strategies\PasswordStrategy;
 use App\Auth\Strategies\ResetPasswordEmailCodeStrategy;
 use App\Auth\Strategies\Strategy;
 use App\Auth\Strategies\TicketStrategy;
+use App\Auth\Strategies\TotpStrategy;
 use App\Models\Verification;
 use InvalidArgumentException;
 
@@ -25,6 +27,8 @@ final class StrategyResolver
         private readonly EmailLinkStrategy $emailLink,
         private readonly ResetPasswordEmailCodeStrategy $resetPasswordEmailCode,
         private readonly TicketStrategy $ticket,
+        private readonly TotpStrategy $totp,
+        private readonly BackupCodeStrategy $backupCode,
     ) {}
 
     public function resolve(string $name): Strategy
@@ -35,6 +39,8 @@ final class StrategyResolver
             Verification::STRATEGY_EMAIL_LINK => $this->emailLink,
             Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE => $this->resetPasswordEmailCode,
             Verification::STRATEGY_TICKET => $this->ticket,
+            Verification::STRATEGY_TOTP => $this->totp,
+            Verification::STRATEGY_BACKUP_CODE => $this->backupCode,
             default => throw new InvalidArgumentException("Strategy {$name} is not supported."),
         };
     }
