@@ -37,7 +37,7 @@ final class VerificationManager
      */
     public function start(Model $owner, string $strategy, int $ttlSeconds, ?string $purpose = null): Verification
     {
-        if (! in_array($strategy, Verification::STRATEGIES, true)) {
+        if (! Verification::isValidStrategy($strategy)) {
             throw new InvalidArgumentException("Strategy {$strategy} is not supported.");
         }
 

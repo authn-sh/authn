@@ -46,7 +46,7 @@ it('refuses unsupported strategies', function (): void {
     $f = vmFixture();
     $manager = app(VerificationManager::class);
 
-    expect(fn () => $manager->start($f['email'], 'oauth_google', 600))
+    expect(fn () => $manager->start($f['email'], 'not_a_real_strategy', 600))
         ->toThrow(InvalidArgumentException::class, 'is not supported');
 });
 
