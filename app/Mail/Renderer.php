@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Models\EmailTemplate;
 use App\Models\Environment;
+use App\Models\SmsTemplate;
 use DateTimeInterface;
 
 /**
@@ -54,6 +55,20 @@ final class Renderer
         $text = $this->htmlToText($html);
 
         return new RenderedEmail($subject, $html, $text);
+    }
+
+    /**
+     * Render an SMS template against the same variable bag the email side
+     * uses. Result is a plain string (no subject, no HTML) ready to hand
+     * to the AU-12 send job.
+     *
+     * @param  array<string, mixed>  $vars
+     */
+    public function renderSms(SmsTemplate $template, Environment $environment, array $vars): string
+    {
+        $merged = $this->mergeRecursive($this->defaults($environment), $vars);
+
+        return $this->substitute((string) $template->body, $merged);
     }
 
     /**
