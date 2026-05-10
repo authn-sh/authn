@@ -59,7 +59,7 @@ it('has no updated_at column', function (): void {
     expect($row->getAttributes())->not->toHaveKey('updated_at');
 });
 
-it('isUsed() + markUsed() track consumption', function (): void {
+it('isConsumed() + markConsumed() track consumption', function (): void {
     $env = makeEnvForBackupCode('b4');
     $user = User::create(['environment_id' => $env->id]);
 
@@ -68,11 +68,11 @@ it('isUsed() + markUsed() track consumption', function (): void {
         'user_id' => $user->id,
         'code_hash' => Hash::make('plaintext-1'),
     ]);
-    expect($row->isUsed())->toBeFalse();
+    expect($row->isConsumed())->toBeFalse();
 
-    $row->markUsed();
-    expect($row->refresh()->isUsed())->toBeTrue();
-    expect($row->used_at)->not->toBeNull();
+    $row->markConsumed();
+    expect($row->refresh()->isConsumed())->toBeTrue();
+    expect($row->consumed_at)->not->toBeNull();
 });
 
 it('scopes queries to the bound environment', function (): void {

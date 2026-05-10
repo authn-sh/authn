@@ -30,12 +30,12 @@ return new class extends Migration
             $table->string('environment_id', 64);
             $table->string('user_id', 64);
             $table->string('code_hash', 255);
-            $table->timestamp('used_at')->nullable();
+            $table->timestamp('consumed_at')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
             $table->foreign('environment_id')->references('id')->on('environments')->cascadeOnDelete();
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
-            $table->index(['environment_id', 'user_id', 'used_at']);
+            $table->index(['environment_id', 'user_id', 'consumed_at']);
         });
     }
 

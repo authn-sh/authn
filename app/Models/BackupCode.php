@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $environment_id
  * @property string $user_id
  * @property string $code_hash
- * @property ?\DateTimeInterface $used_at
+ * @property ?\DateTimeInterface $consumed_at
  * @property \DateTimeInterface $created_at
  */
 class BackupCode extends Model
@@ -34,7 +34,7 @@ class BackupCode extends Model
         'environment_id',
         'user_id',
         'code_hash',
-        'used_at',
+        'consumed_at',
     ];
 
     protected $hidden = [
@@ -44,7 +44,7 @@ class BackupCode extends Model
     protected function casts(): array
     {
         return [
-            'used_at' => 'immutable_datetime',
+            'consumed_at' => 'immutable_datetime',
         ];
     }
 
@@ -63,13 +63,13 @@ class BackupCode extends Model
         return $this->belongsTo(Environment::class);
     }
 
-    public function isUsed(): bool
+    public function isConsumed(): bool
     {
-        return $this->used_at !== null;
+        return $this->consumed_at !== null;
     }
 
-    public function markUsed(): void
+    public function markConsumed(): void
     {
-        $this->forceFill(['used_at' => now()])->save();
+        $this->forceFill(['consumed_at' => now()])->save();
     }
 }
