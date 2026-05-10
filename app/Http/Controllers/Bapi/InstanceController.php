@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Bapi;
 
 use App\Models\Environment;
+use App\Settings\MultiFactorSettings;
 use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 /**
  * BAPI instance settings surface.
@@ -86,7 +89,7 @@ final class InstanceController
             'organizations' => [
                 'enabled' => false,
             ],
-            'multi_factor' => $this->multiFactor($userSettings),
+            'multi_factor' => MultiFactorSettings::fromUserSettings($userSettings)->toArray(),
             'audit_log_retention_days' => (int) ($userSettings['audit_log_retention_days'] ?? 90),
         ]);
     }
@@ -117,33 +120,13 @@ final class InstanceController
         return $defaults;
     }
 
-    /**
-     * @param  array<string, mixed>  $userSettings
-     * @return array{totp: array{enabled: bool}, backup_codes: array{enabled: bool, default_count: int}}
-     */
-    private function multiFactor(array $userSettings): array
-    {
-        $mf = is_array($userSettings['multi_factor'] ?? null) ? $userSettings['multi_factor'] : [];
-        $totp = is_array($mf['totp'] ?? null) ? $mf['totp'] : [];
-        $backup = is_array($mf['backup_codes'] ?? null) ? $mf['backup_codes'] : [];
-
-        return [
-            'totp' => [
-                'enabled' => (bool) ($totp['enabled'] ?? true),
-            ],
-            'backup_codes' => [
-                'enabled' => (bool) ($backup['enabled'] ?? true),
-                'default_count' => (int) ($backup['default_count'] ?? 10),
-            ],
-        ];
-    }
-
     public function update(Request $request): JsonResponse
     {
         $env = app(Environment::class);
         $appearance = is_array($env->appearance) ? $env->appearance : [];
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
         $previousTestMode = $userSettings['test_mode'] ?? null;
+        $previousMultiFactor = MultiFactorSettings::fromUserSettings($userSettings);
 
         if ($request->has('support_email')) {
             $appearance['support_email'] = $request->input('support_email');
@@ -157,6 +140,30 @@ final class InstanceController
         if ($request->has('user_settings') && is_array($request->input('user_settings'))) {
             $userSettings = array_replace_recursive($userSettings, $request->input('user_settings'));
         }
+
+        $multiFactorChanged = false;
+        if ($request->has('multi_factor')) {
+            $patch = $request->input('multi_factor');
+            if (! is_array($patch)) {
+                throw ValidationException::withMessages(['multi_factor' => 'multi_factor must be an object.']);
+            }
+            Validator::make($patch, [
+                'totp' => 'sometimes|array',
+                'totp.enabled' => 'sometimes|boolean',
+                'backup_codes' => 'sometimes|array',
+                'backup_codes.enabled' => 'sometimes|boolean',
+                'backup_codes.default_count' => [
+                    'sometimes',
+                    'integer',
+                    'between:'.MultiFactorSettings::MIN_BACKUP_CODE_COUNT.','.MultiFactorSettings::MAX_BACKUP_CODE_COUNT,
+                ],
+            ])->validate();
+
+            $next = $previousMultiFactor->withPatch($patch);
+            $userSettings['multi_factor'] = $next->toArray();
+            $multiFactorChanged = $next != $previousMultiFactor;
+        }
+
         $env->forceFill([
             'appearance' => $appearance,
             'user_settings' => $userSettings,
@@ -176,6 +183,24 @@ final class InstanceController
             app(Emitter::class)->emit(
                 'system.testmode_enabled_in_production',
                 ['environment_id' => $env->id, 'severity' => 'warning'],
+                $env,
+            );
+        }
+
+        if ($multiFactorChanged) {
+            $next = MultiFactorSettings::fromUserSettings($userSettings);
+            Log::info('instance.config.multi_factor_updated', [
+                'environment_id' => $env->id,
+                'before' => $previousMultiFactor->toArray(),
+                'after' => $next->toArray(),
+            ]);
+            app(Emitter::class)->emit(
+                'instance.config.multi_factor_updated',
+                [
+                    'environment_id' => $env->id,
+                    'before' => $previousMultiFactor->toArray(),
+                    'after' => $next->toArray(),
+                ],
                 $env,
             );
         }
