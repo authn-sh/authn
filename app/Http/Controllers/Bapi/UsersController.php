@@ -26,6 +26,7 @@ use App\Support\IdempotencyMismatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use PragmaRX\Google2FA\Google2FA;
 
@@ -277,6 +278,15 @@ final class UsersController
                 'mfa_disabled_at' => now(),
             ])->save();
             SendMfaDisabledNotification::dispatch($user->id);
+        }
+
+        if ($hadTotp) {
+            Log::info('auth.mfa.totp_removed', [
+                'user_id' => $user->id,
+                'environment_id' => $user->environment_id,
+                'surface' => 'bapi',
+                'actor_type' => 'api_key',
+            ]);
         }
 
         return response()->json(UserResource::from($user->fresh(), includePrivate: true))
