@@ -6,6 +6,7 @@ namespace App\Auth\Strategies;
 
 use App\Auth\ErrorCodes;
 use App\Auth\Mfa\BackupCodesService;
+use App\Auth\Mfa\ConsumeResult;
 use App\Models\EmailAddress;
 use App\Models\SignInAttempt;
 use App\Models\User;
@@ -48,8 +49,12 @@ final class BackupCodeStrategy implements Strategy
             return StrategyResult::fail($attempt, ErrorCodes::FORM_IDENTIFIER_NOT_FOUND, 'User not found for this attempt.', 422);
         }
 
-        if (! $this->service->consume($user, $code)) {
-            return StrategyResult::fail($attempt, ErrorCodes::FORM_CODE_INCORRECT, 'Backup code is incorrect or already used.');
+        $outcome = $this->service->tryConsume($user, $code);
+        if ($outcome === ConsumeResult::AlreadyUsed) {
+            return StrategyResult::fail($attempt, ErrorCodes::FORM_CODE_ALREADY_USED, 'Backup code has already been used.');
+        }
+        if ($outcome !== ConsumeResult::Ok) {
+            return StrategyResult::fail($attempt, ErrorCodes::FORM_CODE_INCORRECT, 'Backup code is incorrect.');
         }
 
         $verification = $params['verification'] ?? null;

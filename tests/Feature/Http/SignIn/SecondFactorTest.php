@@ -130,7 +130,7 @@ it('answers the second-factor backup-code challenge inline and completes the sig
     expect(Session::query()->withoutGlobalScopes()->where('user_id', $bundle['user']->id)->where('status', 'active')->exists())->toBeTrue();
 });
 
-it('rejects a replayed backup code with form_code_incorrect on the second use', function (): void {
+it('rejects a replayed backup code with form_code_already_used on the second use', function (): void {
     $f = SignInTestSupport::bootEnv();
     $bundle = SignInTestSupport::makeUser($f['env']);
     TotpSecret::create([
@@ -157,7 +157,7 @@ it('rejects a replayed backup code with form_code_incorrect on the second use', 
     $second = signInPost($f, ['identifier' => 'alice@example.com', 'strategy' => 'password', 'password' => 'super-secret-password'], $cb2['cookie']);
     $replay = signInChallenge($second->json('response.id'), $f, ['strategy' => 'backup_code', 'code' => $codes[0]], $cb2['cookie']);
 
-    $replay->assertStatus(422)->assertJsonPath('errors.0.code', 'form_code_incorrect');
+    $replay->assertStatus(422)->assertJsonPath('errors.0.code', 'form_code_already_used');
 });
 
 it('omits second_factors when the env disables both totp and backup_codes mid-flight', function (): void {
