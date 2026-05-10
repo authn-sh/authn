@@ -138,6 +138,11 @@ class User extends Model implements AuthenticatableContract
         return $this->hasMany(EmailAddress::class);
     }
 
+    public function externalAccounts(): HasMany
+    {
+        return $this->hasMany(ExternalAccount::class);
+    }
+
     public function primaryEmailAddress(): BelongsTo
     {
         return $this->belongsTo(EmailAddress::class, 'primary_email_address_id');

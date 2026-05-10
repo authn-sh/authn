@@ -81,6 +81,8 @@ class Verification extends Model
 
     public const STRATEGY_BACKUP_CODE = 'backup_code';
 
+    public const STRATEGY_PHONE_CODE = 'phone_code';
+
     public const STRATEGIES = [
         self::STRATEGY_PASSWORD,
         self::STRATEGY_EMAIL_CODE,
@@ -90,7 +92,15 @@ class Verification extends Model
         self::STRATEGY_DOMAIN_DNS_TXT,
         self::STRATEGY_TOTP,
         self::STRATEGY_BACKUP_CODE,
+        self::STRATEGY_PHONE_CODE,
     ];
+
+    /**
+     * Regex for the v0.4 `oauth_<provider_key>` strategy family. One match
+     * per registered `OauthProvider` row; per-env enabled-providers narrowing
+     * lives on `StrategyResolver`.
+     */
+    public const OAUTH_STRATEGY_PATTERN = '/^oauth_[a-z][a-z0-9_]*$/';
 
     protected string $idPrefix = 'ver_';
 
@@ -150,5 +160,28 @@ class Verification extends Model
     public function isExpired(): bool
     {
         return $this->expire_at->isPast();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function strategies(): array
+    {
+        return self::STRATEGIES;
+    }
+
+    /**
+     * Whether `$strategy` is one this codebase recognises. Accepts the
+     * fixed enum plus any `oauth_<provider_key>` matching the registered
+     * pattern. Per-environment "is this provider actually enabled?" narrowing
+     * lives on StrategyResolver — this is the syntactic gate.
+     */
+    public static function isValidStrategy(string $strategy): bool
+    {
+        if (in_array($strategy, self::STRATEGIES, true)) {
+            return true;
+        }
+
+        return preg_match(self::OAUTH_STRATEGY_PATTERN, $strategy) === 1;
     }
 }
