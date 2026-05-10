@@ -67,25 +67,37 @@ final class BackupCodesService
      */
     public function consume(User $user, string $plaintext): bool
     {
+        return $this->tryConsume($user, $plaintext) === ConsumeResult::Ok;
+    }
+
+    /**
+     * Try to consume `$plaintext`. Distinguishes a never-issued code
+     * (`NotFound`) from a code that the user previously redeemed
+     * (`AlreadyUsed`) so the caller can surface distinct error codes.
+     */
+    public function tryConsume(User $user, string $plaintext): ConsumeResult
+    {
         $plaintext = strtolower(trim($plaintext));
         if (! preg_match('/^[a-z0-9]{4}-[a-z0-9]{4}$/', $plaintext)) {
-            return false;
+            return ConsumeResult::NotFound;
         }
 
         $rows = BackupCode::query()
             ->where('user_id', $user->id)
-            ->whereNull('consumed_at')
             ->get();
 
         foreach ($rows as $row) {
             if (Hash::check($plaintext, $row->code_hash)) {
+                if ($row->consumed_at !== null) {
+                    return ConsumeResult::AlreadyUsed;
+                }
                 $row->markConsumed();
 
-                return true;
+                return ConsumeResult::Ok;
             }
         }
 
-        return false;
+        return ConsumeResult::NotFound;
     }
 
     /**
