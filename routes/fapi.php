@@ -12,6 +12,7 @@ use App\Http\Controllers\Fapi\MeController;
 use App\Http\Controllers\Fapi\MeOrganizationController;
 use App\Http\Controllers\Fapi\MePhoneNumberController;
 use App\Http\Controllers\Fapi\MeTotpController;
+use App\Http\Controllers\Fapi\OauthCallbackController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
 use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
 use App\Http\Controllers\Fapi\OrganizationMembershipController as FapiOrganizationMembershipController;
@@ -70,6 +71,12 @@ Route::prefix('v1')->group(function (): void {
         // Magic-link click handler (AU-10). Top-level browser navigation
         // from the email — no Origin header, no Client cookie required.
         Route::get('/client/magic-link/redeem', [MagicLinkController::class, 'redeem'])->name('fapi.magic_link.redeem');
+
+        // OAuth callback — IdP top-level redirect back from the authorize
+        // dance. No Origin / Client cookie required (redirect lands on a
+        // fresh navigation context); state token in the query string is
+        // the integrity check.
+        Route::get('/oauth-callback/{provider_key}', OauthCallbackController::class)->name('fapi.oauth_callback');
     });
 
     // Sign-in: POST creates the attempt (and, if needed, the Client). The
