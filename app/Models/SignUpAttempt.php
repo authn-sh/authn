@@ -9,6 +9,7 @@ use App\Database\Scopes\EnvironmentScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use InvalidArgumentException;
 
@@ -34,9 +35,9 @@ use InvalidArgumentException;
  * @property ?string $password_hash
  * @property array $unsafe_metadata
  * @property array $public_metadata
- * @property array $verifications
  * @property array $missing_fields
  * @property array $unverified_fields
+ * @property ?string $current_challenge_id
  * @property ?string $created_session_id
  * @property ?string $created_user_id
  * @property \DateTimeInterface $abandon_at
@@ -96,9 +97,9 @@ class SignUpAttempt extends Model
         'password_hash',
         'unsafe_metadata',
         'public_metadata',
-        'verifications',
         'missing_fields',
         'unverified_fields',
+        'current_challenge_id',
         'created_session_id',
         'created_user_id',
         'abandon_at',
@@ -121,7 +122,6 @@ class SignUpAttempt extends Model
             'was_test' => 'boolean',
             'unsafe_metadata' => 'array',
             'public_metadata' => 'array',
-            'verifications' => 'array',
             'missing_fields' => 'array',
             'unverified_fields' => 'array',
         ];
@@ -140,7 +140,7 @@ class SignUpAttempt extends Model
             }
             // SQLite (test) and Postgres differ in how they surface jsonb
             // defaults — pin the model layer so consumers always see arrays.
-            foreach (['unsafe_metadata', 'public_metadata', 'verifications', 'missing_fields', 'unverified_fields'] as $col) {
+            foreach (['unsafe_metadata', 'public_metadata', 'missing_fields', 'unverified_fields'] as $col) {
                 if ($attempt->getAttribute($col) === null) {
                     $attempt->setAttribute($col, []);
                 }
@@ -187,6 +187,17 @@ class SignUpAttempt extends Model
     public function verifications(): MorphMany
     {
         return $this->morphMany(Verification::class, 'verifiable');
+    }
+
+    public function currentChallenge(): BelongsTo
+    {
+        return $this->belongsTo(Challenge::class, 'current_challenge_id');
+    }
+
+    public function challenges(): HasMany
+    {
+        return $this->hasMany(Challenge::class, 'parent_id')
+            ->where('parent_type', Challenge::PARENT_SIGN_UP);
     }
 
     public function isComplete(): bool

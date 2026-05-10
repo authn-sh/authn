@@ -9,6 +9,7 @@ use App\Database\Scopes\EnvironmentScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use InvalidArgumentException;
 
@@ -32,8 +33,7 @@ use InvalidArgumentException;
  * @property string $client_id
  * @property string $status
  * @property ?string $identifier
- * @property ?string $first_factor_verification_id
- * @property ?string $second_factor_verification_id
+ * @property ?string $current_challenge_id
  * @property ?string $created_session_id
  * @property \DateTimeInterface $abandon_at
  * @property ?string $transfer_token
@@ -114,8 +114,7 @@ class SignInAttempt extends Model
         'client_id',
         'status',
         'identifier',
-        'first_factor_verification_id',
-        'second_factor_verification_id',
+        'current_challenge_id',
         'created_session_id',
         'abandon_at',
         'transfer_token',
@@ -177,14 +176,15 @@ class SignInAttempt extends Model
         return $this->belongsTo(Client::class);
     }
 
-    public function firstFactorVerification(): BelongsTo
+    public function currentChallenge(): BelongsTo
     {
-        return $this->belongsTo(Verification::class, 'first_factor_verification_id');
+        return $this->belongsTo(Challenge::class, 'current_challenge_id');
     }
 
-    public function secondFactorVerification(): BelongsTo
+    public function challenges(): HasMany
     {
-        return $this->belongsTo(Verification::class, 'second_factor_verification_id');
+        return $this->hasMany(Challenge::class, 'parent_id')
+            ->where('parent_type', Challenge::PARENT_SIGN_IN);
     }
 
     public function createdSession(): BelongsTo

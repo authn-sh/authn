@@ -13,24 +13,19 @@ use App\Auth\SignUp\TicketRedeemer;
 use App\Auth\TestMode\Policy as TestModePolicy;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\SignUpResource;
-use App\Jobs\Mail\SendMagicLinkEmail;
-use App\Jobs\Mail\SendVerificationEmail;
+use App\Models\Challenge;
 use App\Models\Client;
 use App\Models\EmailAddress;
-use App\Models\EmailTemplate;
 use App\Models\Environment;
 use App\Models\Invitation;
 use App\Models\Session;
 use App\Models\SignUpAttempt;
 use App\Models\User;
 use App\Models\Verification;
-use App\Models\VerificationCode;
 use App\Services\Client\ClientResolver;
 use App\Services\Domains\DomainEnroller;
-use App\Services\MagicLink\MagicLinkIssuer;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
-use App\Services\Verification\VerificationManager;
 use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,28 +34,26 @@ use Illuminate\Support\Facades\Hash;
 use Symfony\Component\HttpFoundation\Cookie;
 
 /**
- * FAPI sign-up state-machine controller.
+ * FAPI sign-up state-machine controller. The factor verification surface
+ * (formerly prepare-/attempt-verification) is now served by
+ * ChallengeController under `/sign-ups/{sid}/challenges`.
  *
  * Endpoints (PLAN §3.3 / §9.4):
  *   POST   /v1/client/sign-ups
  *   GET    /v1/client/sign-ups/{id}
  *   PATCH  /v1/client/sign-ups/{id}
- *   POST   /v1/client/sign-ups/{id}/prepare-verification
- *   POST   /v1/client/sign-ups/{id}/attempt-verification
  *
- * v0.1 strategies for verification: email_code (and ticket at create-time).
- * email_link, OAuth transfer, organization-creation, phone are all v0.2+.
+ * v0.2 verification strategies: email_code, email_link (challenge resource).
+ * Ticket flows still ride POST /sign-ups at create time. OAuth transfer,
+ * phone, and organization-creation strategies land in later milestones.
  */
 final class SignUpController
 {
-    private const EMAIL_VERIFICATION_TTL = 600;
-
     public function __construct(
         private readonly StageRequirements $stage,
         private readonly IdentifierRestrictions $restrictions,
         private readonly IdentifierNormalizer $normalizer,
         private readonly TicketRedeemer $ticketRedeemer,
-        private readonly VerificationManager $verifications,
     ) {}
 
     public function store(Request $request): JsonResponse
@@ -141,145 +134,6 @@ final class SignUpController
         return $this->envelope($client, $attempt->fresh());
     }
 
-    public function prepareVerification(Request $request): JsonResponse
-    {
-        $sid = (string) $request->route('sid');
-        $client = app(Client::class);
-        $attempt = $this->loadAttempt($sid, $client);
-        if ($attempt instanceof JsonResponse) {
-            return $attempt;
-        }
-
-        $strategy = (string) $request->input('strategy', '');
-        if ($strategy === '') {
-            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'strategy is required.', $client, $attempt);
-        }
-        if (! in_array($strategy, [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK], true)) {
-            return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategy} is not enabled in v0.1.", $client, $attempt);
-        }
-
-        if (! is_string($attempt->email_address) || $attempt->email_address === '') {
-            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'email_address is required before preparing email verification.', $client, $attempt);
-        }
-
-        if ($strategy === Verification::STRATEGY_EMAIL_LINK) {
-            return $this->prepareEmailLink($client, $attempt, $request);
-        }
-
-        // For sign-up the email isn't yet on an EmailAddress row — start the
-        // Verification on the SignUpAttempt itself so the morph is consistent
-        // (the staged email lives on the attempt).
-        $verification = $this->verifications->start($attempt, Verification::STRATEGY_EMAIL_CODE, self::EMAIL_VERIFICATION_TTL);
-        $code = $this->verifications->mintNumericCode($verification, VerificationCode::PURPOSE_EMAIL_CODE, self::EMAIL_VERIFICATION_TTL);
-
-        SendVerificationEmail::dispatch(
-            $attempt->environment_id,
-            $attempt->email_address,
-            $code,
-            VerificationCode::PURPOSE_EMAIL_CODE,
-            $verification->id,
-        );
-
-        $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];
-        $verifications['email_address'] = $verification->id;
-        $attempt->verifications = $verifications;
-        $attempt->save();
-
-        return $this->envelope($client, $attempt->fresh());
-    }
-
-    private function prepareEmailLink(Client $client, SignUpAttempt $attempt, Request $request): JsonResponse
-    {
-        $verification = $this->verifications->start(
-            $attempt,
-            Verification::STRATEGY_EMAIL_LINK,
-            MagicLinkIssuer::TTL_SECONDS,
-        );
-        $redirectUrl = $request->input('redirect_url');
-        $minted = app(MagicLinkIssuer::class)->issue(
-            $verification,
-            is_string($redirectUrl) && $redirectUrl !== '' ? $redirectUrl : null,
-        );
-
-        SendMagicLinkEmail::dispatch(
-            $attempt->environment_id,
-            (string) $attempt->email_address,
-            $minted['url'],
-            EmailTemplate::SLUG_MAGIC_LINK_SIGN_UP,
-            $verification->id,
-        );
-
-        $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];
-        $verifications['email_address'] = $verification->id;
-        $attempt->verifications = $verifications;
-        $attempt->save();
-
-        return $this->envelope($client, $attempt->fresh());
-    }
-
-    public function attemptVerification(Request $request): JsonResponse
-    {
-        $sid = (string) $request->route('sid');
-        $client = app(Client::class);
-        $attempt = $this->loadAttempt($sid, $client);
-        if ($attempt instanceof JsonResponse) {
-            return $attempt;
-        }
-
-        $strategy = (string) $request->input('strategy', '');
-        if (! in_array($strategy, [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK], true)) {
-            return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategy} is not enabled in v0.1.", $client, $attempt);
-        }
-
-        $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];
-        $vid = $verifications['email_address'] ?? null;
-        if (! is_string($vid)) {
-            return $this->error(422, ErrorCodes::NO_VERIFICATION_IN_PROGRESS, 'No email verification has been prepared.', $client, $attempt);
-        }
-        $verification = Verification::query()->withoutGlobalScopes()->where('id', $vid)->first();
-        if ($verification === null) {
-            return $this->error(422, ErrorCodes::NO_VERIFICATION_IN_PROGRESS, 'No email verification has been prepared.', $client, $attempt);
-        }
-
-        if ($strategy === Verification::STRATEGY_EMAIL_LINK) {
-            // Polling shape: the click flips Verification.status out-of-band.
-            if ($verification->status === Verification::STATUS_UNVERIFIED) {
-                return $this->error(422, ErrorCodes::VERIFICATION_FAILED, 'Magic link not yet redeemed.', $client, $attempt);
-            }
-            if ($verification->status === Verification::STATUS_EXPIRED) {
-                return $this->error(422, ErrorCodes::VERIFICATION_EXPIRED, 'Magic link expired.', $client, $attempt);
-            }
-            if ($verification->status !== Verification::STATUS_VERIFIED) {
-                return $this->error(422, ErrorCodes::VERIFICATION_FAILED, "Magic link verification is in status {$verification->status}.", $client, $attempt);
-            }
-
-            $env = app(Environment::class);
-
-            return $this->finalizeIfReady($env, $client, $attempt, ['email_address' => true]);
-        }
-
-        $code = $request->input('code');
-        if (! is_string($code) || $code === '') {
-            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'code is required.', $client, $attempt);
-        }
-
-        $ok = $this->verifications->attempt($verification, $code);
-        if (! $ok) {
-            $fresh = $verification->fresh();
-            $errCode = $fresh->status === Verification::STATUS_FAILED
-                ? ErrorCodes::VERIFICATION_FAILED
-                : ($fresh->status === Verification::STATUS_EXPIRED
-                    ? ErrorCodes::VERIFICATION_EXPIRED
-                    : ErrorCodes::FORM_CODE_INCORRECT);
-
-            return $this->error(422, $errCode, 'Incorrect code.', $client, $attempt);
-        }
-
-        $env = app(Environment::class);
-
-        return $this->finalizeIfReady($env, $client, $attempt, ['email_address' => true]);
-    }
-
     /* -------------------- create branches -------------------- */
 
     private function createInteractive(Request $request, Environment $env, Client $client, bool $createdClient): JsonResponse
@@ -352,9 +206,6 @@ final class SignUpController
 
         $attempt = SignUpAttempt::create(['environment_id' => $env->id, 'client_id' => $client->id]);
         $this->stageOnto($attempt, $supplied, $eval);
-        $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];
-        $verifications['email_address'] = '__ticket__';
-        $attempt->verifications = $verifications;
         if (! empty($result['metadata'])) {
             $attempt->public_metadata = array_merge(is_array($attempt->public_metadata) ? $attempt->public_metadata : [], $result['metadata']);
         }
@@ -505,18 +356,13 @@ final class SignUpController
 
     private function verifiedFlags(SignUpAttempt $attempt): array
     {
-        $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];
         $flags = [];
-        if (isset($verifications['email_address'])) {
-            $vid = $verifications['email_address'];
-            if ($vid === '__ticket__') {
-                $flags['email_address'] = true;
-            } elseif (is_string($vid)) {
-                $verification = Verification::query()->withoutGlobalScopes()->where('id', $vid)->first();
-                if ($verification !== null && $verification->status === Verification::STATUS_VERIFIED) {
-                    $flags['email_address'] = true;
-                }
-            }
+        $emailVerified = $attempt->challenges()
+            ->where('status', Challenge::STATUS_VERIFIED)
+            ->whereIn('strategy', [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK])
+            ->exists();
+        if ($emailVerified) {
+            $flags['email_address'] = true;
         }
 
         return $flags;

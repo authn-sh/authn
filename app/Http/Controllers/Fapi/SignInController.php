@@ -11,6 +11,7 @@ use App\Auth\TestMode\Policy as TestModePolicy;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\SignInResource;
 use App\Jobs\Mail\SendPasswordChangedNotification;
+use App\Models\Challenge;
 use App\Models\Client;
 use App\Models\EmailAddress;
 use App\Models\Environment;
@@ -24,24 +25,22 @@ use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\Cookie;
 
 /**
- * FAPI sign-in state-machine controller.
+ * FAPI sign-in state-machine controller. The factor verification surface
+ * (formerly prepare-/attempt-first-factor and reset-password) is now
+ * served by ChallengeController under `/sign-ins/{sid}/challenges`.
  *
  * Endpoints:
  *   POST   /v1/client/sign-ins
  *   GET    /v1/client/sign-ins/{id}
- *   POST   /v1/client/sign-ins/{id}/prepare-first-factor
- *   POST   /v1/client/sign-ins/{id}/attempt-first-factor
- *   POST   /v1/client/sign-ins/{id}/prepare-second-factor   (404 in v0.1)
- *   POST   /v1/client/sign-ins/{id}/attempt-second-factor   (404 in v0.1)
- *   POST   /v1/client/sign-ins/{id}/reset-password
+ *   PATCH  /v1/client/sign-ins/{id}              (set new password during reset)
  *
- * v0.1 strategies: password, email_code, reset_password_email_code, ticket.
- * Captcha trio is captured but not enforced (AU-18). MFA, OAuth, SAML,
- * passkey strategies are out of scope for v0.1.
+ * The store path keeps a one-shot inline-strategy shortcut for
+ * `password` and `ticket` so the SDK can complete a sign-in in one
+ * round-trip; under the hood it issues a single Challenge + answer
+ * synchronously and exposes `current_challenge_id` on the SignIn shape.
  */
 final class SignInController
 {
@@ -57,8 +56,6 @@ final class SignInController
             return $this->error(422, ErrorCodes::TRANSFER_NOT_SUPPORTED_IN_V0_1, 'transfer flow lands in a later milestone.', $client);
         }
 
-        // Test-mode gate: in `production` envs (default test_mode=rejected),
-        // a reserved test identifier returns 422 without creating any state.
         $identifier = $request->input('identifier');
         $policy = TestModePolicy::resolve($env, is_string($identifier) ? $identifier : null);
         if ($policy === TestModePolicy::STATUS_REJECTED) {
@@ -82,7 +79,6 @@ final class SignInController
         }
 
         return DB::transaction(function () use ($request, $env, $client, $strategy, $createdClient, $isTestAttempt): JsonResponse {
-            // Idempotency: if the Client already has a non-terminal attempt, return it.
             $existing = $client->current_sign_in_attempt_id !== null
                 ? SignInAttempt::query()->withoutGlobalScopes()->where('id', $client->current_sign_in_attempt_id)->first()
                 : null;
@@ -102,11 +98,8 @@ final class SignInController
 
             $client->forceFill(['current_sign_in_attempt_id' => $attempt->id])->saveQuietly();
 
-            // Inline-strategy short-circuits: when the create call carries a
-            // strategy + the credential, run it immediately so the SDK gets
-            // the terminal status in one round trip.
             if ($strategy === Verification::STRATEGY_TICKET) {
-                return $this->runStrategy($attempt, $strategy, ['ticket' => $request->input('ticket')], $client, terminalAdvance: true, attachClientCookie: $createdClient);
+                return $this->runOneShot($attempt, $strategy, ['ticket' => $request->input('ticket')], $client, $createdClient);
             }
 
             if ($strategy === Verification::STRATEGY_PASSWORD && is_string($request->input('password'))) {
@@ -116,7 +109,7 @@ final class SignInController
                 $attempt->status = SignInAttempt::STATUS_NEEDS_FIRST_FACTOR;
                 $attempt->save();
 
-                return $this->runStrategy($attempt, $strategy, ['password' => $request->input('password')], $client, terminalAdvance: true, attachClientCookie: $createdClient);
+                return $this->runOneShot($attempt, $strategy, ['password' => $request->input('password')], $client, $createdClient);
             }
 
             if (is_string($attempt->identifier)) {
@@ -144,7 +137,13 @@ final class SignInController
         return $this->envelope($client, $attempt);
     }
 
-    public function prepareFirstFactor(Request $request): JsonResponse
+    /**
+     * PATCH /v1/client/sign-ins/{sid}
+     * Currently the only supported field is `password`, used to set the
+     * new password during the reset_password_email_code flow once the
+     * SignIn has reached `needs_new_password`.
+     */
+    public function patch(Request $request): JsonResponse
     {
         $sid = (string) $request->route('sid');
         $client = app(Client::class);
@@ -153,77 +152,8 @@ final class SignInController
             return $attempt;
         }
 
-        $strategyName = (string) $request->input('strategy', '');
-        if ($strategyName === '') {
-            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'strategy is required.', $client);
-        }
-
-        try {
-            $strategy = $this->strategies->resolve($strategyName);
-        } catch (InvalidArgumentException) {
-            return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategyName} is not enabled in v0.1.", $client);
-        }
-
-        if (! $strategy->requiresPrepare()) {
-            return $this->error(422, ErrorCodes::PREPARE_NOT_REQUIRED, "{$strategyName} does not need a prepare step.", $client);
-        }
-
-        $result = $strategy->prepare($attempt, [
-            'email_address_id' => $request->input('email_address_id'),
-            'redirect_url' => $request->input('redirect_url'),
-        ]);
-
-        if (! $result->success) {
-            return $this->error($result->httpStatus, $result->errorCode ?? ErrorCodes::VERIFICATION_FAILED, $result->errorMessage ?? '', $client, $result->attempt);
-        }
-
-        return $this->envelope($client, $result->attempt->fresh());
-    }
-
-    public function attemptFirstFactor(Request $request): JsonResponse
-    {
-        $sid = (string) $request->route('sid');
-        $client = app(Client::class);
-        $attempt = $this->loadAttempt($sid, $client);
-        if ($attempt instanceof JsonResponse) {
-            return $attempt;
-        }
-
-        $strategyName = (string) $request->input('strategy', '');
-        if ($strategyName === '') {
-            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'strategy is required.', $client);
-        }
-
-        try {
-            $strategy = $this->strategies->resolve($strategyName);
-        } catch (InvalidArgumentException) {
-            return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategyName} is not enabled in v0.1.", $client);
-        }
-
-        return $this->runStrategy($attempt, $strategyName, [
-            'password' => $request->input('password'),
-            'code' => $request->input('code'),
-            'ticket' => $request->input('ticket'),
-        ], $client, terminalAdvance: true);
-    }
-
-    public function prepareSecondFactor(Request $request): JsonResponse
-    {
-        return $this->error(404, ErrorCodes::MFA_NOT_ENABLED_IN_V0_1, 'Two-step verification lands in v0.3.');
-    }
-
-    public function attemptSecondFactor(Request $request): JsonResponse
-    {
-        return $this->error(404, ErrorCodes::MFA_NOT_ENABLED_IN_V0_1, 'Two-step verification lands in v0.3.');
-    }
-
-    public function resetPassword(Request $request): JsonResponse
-    {
-        $sid = (string) $request->route('sid');
-        $client = app(Client::class);
-        $attempt = $this->loadAttempt($sid, $client);
-        if ($attempt instanceof JsonResponse) {
-            return $attempt;
+        if (! $request->has('password')) {
+            return $this->envelope($client, $attempt);
         }
 
         if ($attempt->status !== SignInAttempt::STATUS_NEEDS_NEW_PASSWORD) {
@@ -238,14 +168,28 @@ final class SignInController
             return $this->error(422, ErrorCodes::FORM_PASSWORD_VALIDATION_FAILED, 'Password must be at least 8 characters.', $client, $attempt);
         }
 
-        $verification = Verification::query()->withoutGlobalScopes()->where('id', (string) $attempt->first_factor_verification_id)->first();
-        $email = $verification ? EmailAddress::query()->withoutGlobalScopes()->where('id', $verification->verifiable_id)->first() : null;
-        $user = $email ? User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first() : null;
+        // Resolve the user via the verified reset-password challenge.
+        $challenge = Challenge::query()
+            ->withoutGlobalScopes()
+            ->where('parent_type', Challenge::PARENT_SIGN_IN)
+            ->where('parent_id', $attempt->id)
+            ->where('strategy', Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE)
+            ->where('status', Challenge::STATUS_VERIFIED)
+            ->latest('id')
+            ->first();
+        $verification = $challenge !== null
+            ? Verification::query()->withoutGlobalScopes()->where('id', $challenge->verification_id)->first()
+            : null;
+        $email = $verification !== null
+            ? EmailAddress::query()->withoutGlobalScopes()->where('id', $verification->verifiable_id)->first()
+            : null;
+        $user = $email !== null
+            ? User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first()
+            : null;
         if ($user === null) {
             return $this->error(422, ErrorCodes::FORM_IDENTIFIER_NOT_FOUND, 'User not found.', $client, $attempt);
         }
 
-        // (HIBP breach check is a stub for v0.1; AU-18 wires the real call.)
         $user->setPassword($password);
         $user->save();
 
@@ -264,44 +208,68 @@ final class SignInController
 
     /* -------------------- helpers -------------------- */
 
-    private function runStrategy(
+    private function runOneShot(
         SignInAttempt $attempt,
         string $strategyName,
         array $params,
         Client $client,
-        bool $terminalAdvance,
-        bool $attachClientCookie = false,
+        bool $attachClientCookie,
     ): JsonResponse {
         $strategy = $this->strategies->resolve($strategyName);
+
+        // Issue a Verification stub so the Challenge has a wrapped row even
+        // for one-shot strategies (password / ticket).
+        $verification = Verification::query()->withoutGlobalScopes()->create([
+            'environment_id' => $attempt->environment_id,
+            'verifiable_type' => $attempt->getMorphClass(),
+            'verifiable_id' => $attempt->id,
+            'strategy' => $strategyName,
+            'status' => Verification::STATUS_UNVERIFIED,
+            'attempts' => 0,
+            'expire_at' => now()->addMinutes(10),
+        ]);
+
+        $challenge = Challenge::query()->withoutGlobalScopes()->create([
+            'environment_id' => $attempt->environment_id,
+            'parent_type' => Challenge::PARENT_SIGN_IN,
+            'parent_id' => $attempt->id,
+            'step' => Challenge::STEP_FIRST,
+            'strategy' => $strategyName,
+            'status' => Challenge::STATUS_PENDING,
+            'verification_id' => $verification->id,
+            'attempts' => 0,
+            'expire_at' => $verification->expire_at,
+        ]);
+        $attempt->forceFill(['current_challenge_id' => $challenge->id])->save();
+
+        $params['verification'] = $verification;
         $result = $strategy->attempt($attempt, $params);
 
         if (! $result->success) {
+            $challenge->forceFill([
+                'status' => Challenge::STATUS_FAILED,
+                'error_code' => $result->errorCode,
+                'error_message' => $result->errorMessage,
+            ])->save();
+
             return $this->error($result->httpStatus, $result->errorCode ?? ErrorCodes::VERIFICATION_FAILED, $result->errorMessage ?? '', $client, $result->attempt);
         }
 
-        $attempt = $result->attempt;
-        $user = $result->user;
+        $challenge->forceFill([
+            'status' => Challenge::STATUS_VERIFIED,
+            'attempts' => (int) ($result->verification?->attempts ?? 0),
+        ])->save();
 
-        if (! $terminalAdvance) {
-            return $this->envelope($client, $attempt->fresh(), 200, null, $attachClientCookie);
-        }
+        $session = $this->createSession($result->attempt, $result->user);
 
-        // Reset-password strategy: hand-off to the new-password endpoint.
-        if ($strategyName === Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE) {
-            $attempt->status = SignInAttempt::STATUS_NEEDS_NEW_PASSWORD;
-            $attempt->save();
-
-            return $this->envelope($client, $attempt->fresh(), 200, null, $attachClientCookie);
-        }
-
-        // Otherwise create a Session and complete.
-        $session = $this->createSession($attempt, $user);
-
-        return $this->envelope($client, $attempt->fresh(), 200, $session, $attachClientCookie);
+        return $this->envelope($client, $result->attempt->fresh(), 200, $session, $attachClientCookie);
     }
 
-    private function createSession(SignInAttempt $attempt, User $user): Session
+    private function createSession(SignInAttempt $attempt, ?User $user): Session
     {
+        if ($user === null) {
+            throw new \InvalidArgumentException('createSession requires a user.');
+        }
         $session = Session::create([
             'environment_id' => $attempt->environment_id,
             'client_id' => $attempt->client_id,
@@ -315,18 +283,13 @@ final class SignInController
             'status' => SignInAttempt::STATUS_COMPLETE,
         ])->save();
 
-        // Bump the Client's last_active_session_id.
         Client::query()
             ->withoutGlobalScopes()
             ->where('id', $attempt->client_id)
             ->update(['last_active_session_id' => $session->id, 'last_active_at' => now()]);
 
-        // Stamp the user as recently signed in.
         $user->forceFill(['last_sign_in_at' => now(), 'last_active_at' => now()])->saveQuietly();
 
-        // Apply the env's multi-session policy: in single-session mode, evict
-        // every other live session on this client; in multi-session mode,
-        // enforce the per-client cap by evicting LRU sessions.
         $client = Client::query()->withoutGlobalScopes()->where('id', $attempt->client_id)->first();
         if ($client !== null) {
             app(SessionLifecycle::class)
@@ -405,12 +368,6 @@ final class SignInController
      * operator's session without the SDK having to inject Authorization
      * headers. Tenants doing pure cross-origin Bearer-only auth can safely
      * ignore the cookie — they read the JWT from the response body.
-     *
-     * The cookie JWT outlives the in-memory access token (default 60s)
-     * because the browser only re-attaches it on top-level navigations,
-     * not on every API call where the SDK can refresh from /tokens. A
-     * 24h ceiling is short enough that a stolen cookie expires within a
-     * day and long enough that operators don't get bounced mid-shift.
      */
     private const SESSION_COOKIE_TTL_SECONDS = 86400;
 

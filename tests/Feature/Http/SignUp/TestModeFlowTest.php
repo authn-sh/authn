@@ -29,11 +29,12 @@ it('sign-up against +authn_test in dev uses fixed code 424242, no driver call', 
     $create->assertOk()->assertJsonPath('response.status', 'missing_requirements');
     $sid = $create->json('response.id');
 
-    $this->withCredentials()
+    $issue = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/prepare-verification", ['strategy' => 'email_code'])
-        ->assertOk();
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/challenges", ['strategy' => 'email_code']);
+    $issue->assertOk();
+    $cid = $issue->json('response.id');
 
     // The minted code is the fixed 424242 (still hashed in storage).
     $verification = Verification::query()->withoutGlobalScopes()->latest('id')->first();
@@ -44,14 +45,14 @@ it('sign-up against +authn_test in dev uses fixed code 424242, no driver call', 
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/attempt-verification", [
-            'strategy' => 'email_code',
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/challenges/{$cid}/answer", [
             'code' => '424242',
         ]);
-    $r->assertOk()->assertJsonPath('response.status', 'complete');
+    $r->assertOk()->assertJsonPath('response.status', 'verified');
 
-    $userId = $r->json('response.created_user_id');
-    expect($userId)->toStartWith('user_');
+    $signUp = \App\Models\SignUpAttempt::query()->withoutGlobalScopes()->where('id', $sid)->firstOrFail();
+    expect($signUp->status)->toBe('complete');
+    expect($signUp->created_user_id)->toStartWith('user_');
 });
 
 it('sign-up against +authn_test in production returns test_identifier_forbidden', function (): void {

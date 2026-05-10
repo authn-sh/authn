@@ -32,7 +32,6 @@ it('defaults status to missing_requirements on create', function (): void {
     expect($a->status)->toBe('missing_requirements');
     expect($a->missing_fields)->toBe([]);
     expect($a->unverified_fields)->toBe([]);
-    expect($a->verifications)->toBe([]);
 });
 
 it('allows missing_requirements → complete and missing_requirements → transferable', function (): void {
@@ -87,14 +86,12 @@ it('persists jsonb columns as arrays', function (): void {
         'environment_id' => $f['env']->id,
         'client_id' => $f['client']->id,
         'unsafe_metadata' => ['plan' => 'pro'],
-        'verifications' => ['email_address' => 'ver_xyz'],
         'missing_fields' => ['username'],
         'unverified_fields' => ['email_address'],
     ]);
 
     $a = $a->fresh();
     expect($a->unsafe_metadata)->toBe(['plan' => 'pro']);
-    expect($a->verifications)->toBe(['email_address' => 'ver_xyz']);
     expect($a->missing_fields)->toBe(['username']);
     expect($a->unverified_fields)->toBe(['email_address']);
 });

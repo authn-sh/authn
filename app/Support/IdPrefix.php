@@ -25,7 +25,7 @@ final class IdPrefix
         'user_', 'idn_', 'eml_', 'phn_', 'ext_', 'entacc_', 'pkey_', 'totp_', 'bcc_',
 
         // Verification + flow state
-        'ver_', 'client_', 'sess_', 'sact_', 'sia_', 'sui_', 'sit_', 'act_',
+        'ver_', 'client_', 'sess_', 'sact_', 'sia_', 'sui_', 'sit_', 'act_', 'chal_',
 
         // Organizations
         'org_', 'orgmem_', 'orginv_', 'orgdom_', 'orgreq_', 'role_', 'perm_',

@@ -8,8 +8,10 @@ use App\Models\SignUpAttempt;
 use App\Models\Verification;
 
 /**
- * Mirrors PLAN §3.3's SignUp shape — what FAPI returns for any sign-up
- * state-machine endpoint. Excludes secrets (password_hash, transfer_token).
+ * Mirrors openapi `SignUp`. Verification state is no longer inlined as
+ * a per-identifier map — it lives on the Challenge sub-resource. The
+ * SignUp exposes the live Challenge id (`current_challenge_id`) plus
+ * the strategies the client may issue next.
  */
 final class SignUpResource
 {
@@ -19,12 +21,6 @@ final class SignUpResource
             return null;
         }
 
-        $verifications = is_array($attempt->verifications) ? $attempt->verifications : [];
-        $emailVerificationId = $verifications['email_address'] ?? null;
-        $emailVerification = is_string($emailVerificationId)
-            ? Verification::query()->withoutGlobalScopes()->where('id', $emailVerificationId)->first()
-            : null;
-
         return [
             'object' => 'sign_up_attempt',
             'id' => $attempt->id,
@@ -33,12 +29,8 @@ final class SignUpResource
             'optional_fields' => [],
             'missing_fields' => self::expandFields($attempt->missing_fields),
             'unverified_fields' => self::expandFields($attempt->unverified_fields),
-            'verifications' => [
-                'email_address' => self::verificationShape($emailVerification),
-                'phone_number' => null,
-                'web3_wallet' => null,
-                'external_account' => null,
-            ],
+            'supported_strategies' => self::supportedStrategies($attempt),
+            'current_challenge_id' => $attempt->current_challenge_id,
             'email_address' => $attempt->email_address,
             'username' => $attempt->username,
             'phone_number' => $attempt->phone_number,
@@ -66,23 +58,22 @@ final class SignUpResource
         return array_values(array_map('strval', $fields));
     }
 
-    private static function verificationShape(?Verification $verification): ?array
+    /**
+     * @return list<string>
+     */
+    private static function supportedStrategies(SignUpAttempt $attempt): array
     {
-        if ($verification === null) {
-            return null;
+        if ($attempt->status !== SignUpAttempt::STATUS_MISSING_REQUIREMENTS) {
+            return [];
+        }
+        $unverified = is_array($attempt->unverified_fields) ? $attempt->unverified_fields : [];
+        if (! in_array('email_address', $unverified, true)) {
+            return [];
         }
 
         return [
-            'status' => $verification->status,
-            'strategy' => $verification->strategy,
-            'attempts' => $verification->attempts,
-            'expire_at' => $verification->expire_at->getTimestampMs(),
-            'external_verification_redirect_url' => $verification->external_verification_redirect_url,
-            'nonce' => $verification->nonce,
-            'error' => $verification->error_code !== null ? [
-                'code' => $verification->error_code,
-                'message' => $verification->error_message,
-            ] : null,
+            Verification::STRATEGY_EMAIL_CODE,
+            Verification::STRATEGY_EMAIL_LINK,
         ];
     }
 }

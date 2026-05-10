@@ -10,10 +10,10 @@ use App\Models\User;
 use App\Models\Verification;
 
 /**
- * Mirrors PLAN §3.2's SignIn shape — what FAPI returns for any
- * sign-in state-machine endpoint. Surfaces just enough of the user
- * to render an avatar / name preview without revealing private data
- * before authentication completes.
+ * Mirrors openapi `SignIn`. Factor verification state is no longer
+ * inlined — it lives on the Challenge sub-resource. The SignIn exposes
+ * the live Challenge id (`current_challenge_id`) plus the strategies the
+ * client may issue next, narrowed to its current state.
  */
 final class SignInResource
 {
@@ -29,14 +29,8 @@ final class SignInResource
             'status' => $attempt->status,
             'identifier' => $attempt->identifier,
             'supported_identifiers' => ['email_address'],
-            'supported_first_factors' => self::supportedFirstFactors($attempt),
-            'supported_second_factors' => [],
-            'first_factor_verification' => self::verificationShape(
-                $attempt->first_factor_verification_id !== null
-                    ? Verification::query()->withoutGlobalScopes()->where('id', $attempt->first_factor_verification_id)->first()
-                    : null
-            ),
-            'second_factor_verification' => null,
+            'supported_strategies' => self::supportedStrategies($attempt),
+            'current_challenge_id' => $attempt->current_challenge_id,
             'user_data' => self::userDataPreview($attempt),
             'created_session_id' => $attempt->created_session_id,
             'abandon_at' => $attempt->abandon_at->getTimestampMs(),
@@ -44,10 +38,17 @@ final class SignInResource
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * Strategies the client may issue next via `POST /sign-ins/{sid}/challenges`.
+     * Narrowed by the SignIn's current status — terminal states return [].
+     *
+     * @return list<string>
      */
-    private static function supportedFirstFactors(SignInAttempt $attempt): array
+    private static function supportedStrategies(SignInAttempt $attempt): array
     {
+        if ($attempt->status !== SignInAttempt::STATUS_NEEDS_FIRST_FACTOR) {
+            return [];
+        }
+
         if ($attempt->identifier === null) {
             return [];
         }
@@ -60,48 +61,20 @@ final class SignInResource
         if ($email === null) {
             return [];
         }
-
         $user = User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
         if ($user === null) {
             return [];
         }
 
-        $factors = [];
+        $strategies = [];
         if ($user->password_hash !== null) {
-            $factors[] = ['strategy' => Verification::STRATEGY_PASSWORD];
+            $strategies[] = Verification::STRATEGY_PASSWORD;
         }
-        $factors[] = [
-            'strategy' => Verification::STRATEGY_EMAIL_CODE,
-            'email_address_id' => $email->id,
-            'safe_identifier' => self::redactEmail($email->email_address),
-        ];
-        $factors[] = [
-            'strategy' => Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
-            'email_address_id' => $email->id,
-            'safe_identifier' => self::redactEmail($email->email_address),
-        ];
+        $strategies[] = Verification::STRATEGY_EMAIL_CODE;
+        $strategies[] = Verification::STRATEGY_EMAIL_LINK;
+        $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
 
-        return $factors;
-    }
-
-    private static function verificationShape(?Verification $verification): ?array
-    {
-        if ($verification === null) {
-            return null;
-        }
-
-        return [
-            'status' => $verification->status,
-            'strategy' => $verification->strategy,
-            'attempts' => $verification->attempts,
-            'expire_at' => $verification->expire_at->getTimestampMs(),
-            'external_verification_redirect_url' => $verification->external_verification_redirect_url,
-            'nonce' => $verification->nonce,
-            'error' => $verification->error_code !== null ? [
-                'code' => $verification->error_code,
-                'message' => $verification->error_message,
-            ] : null,
-        ];
+        return $strategies;
     }
 
     private static function userDataPreview(SignInAttempt $attempt): ?array
@@ -129,16 +102,5 @@ final class SignInResource
             'image_url' => $user->image_url,
             'has_image' => (bool) $user->has_image,
         ];
-    }
-
-    private static function redactEmail(string $email): string
-    {
-        if (! str_contains($email, '@')) {
-            return $email;
-        }
-        [$local, $domain] = explode('@', $email, 2);
-        $first = $local !== '' ? $local[0] : '';
-
-        return $first.str_repeat('*', max(1, strlen($local) - 1)).'@'.$domain;
     }
 }
