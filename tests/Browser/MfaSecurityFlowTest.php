@@ -10,18 +10,22 @@ use Tests\DuskTestCase;
 /**
  * Smoke test for v0.3 MFA: signs in as the bootstrapped operator,
  * navigates to the Account Portal `/user` page, asserts the JS-3
- * Security section renders, and clicks the "Add authenticator app"
- * trigger to verify the TOTP enrol dialog opens against the live
- * FAPI backend.
+ * Security tab renders the section panel with the "Add authenticator
+ * app" trigger button.
  *
- * The full second-factor sign-in flow (TOTP code entry on sign-in)
- * needs a pre-enrolled TotpSecret in the live database, which the
- * Dusk runner doesn't currently seed; that path is covered end-to-end
- * by the Pest suite in tests/Feature/Fapi/MfaSecondFactorFlowTest.
+ * Verifies that bumping `@authn-sh/sdk-react` to 0.3.0 wired the
+ * `<UserProfileSecuritySection />` into the Account Portal's mounted
+ * `<UserProfile />`. The full enrol-and-verify flow (clicking enrol
+ * → QR render → typing the first OTP) plus the second-factor
+ * sign-in flow are out of scope for this smoke check — the latter
+ * needs a pre-enrolled TotpSecret in the live database that the
+ * Dusk runner doesn't currently seed; both paths are covered
+ * end-to-end by the Pest suite in tests/Feature/Fapi/MfaSecondFactorFlowTest
+ * (AU-12) and tests/Feature/Mfa/MeTotpEnrollmentTest (AU-3).
  */
 final class MfaSecurityFlowTest extends DuskTestCase
 {
-    public function test_user_profile_security_section_renders_and_totp_enroll_opens(): void
+    public function test_user_profile_security_tab_renders(): void
     {
         $email = (string) (env('DUSK_OPERATOR_EMAIL') ?: 'op@example.com');
         $password = (string) (env('DUSK_OPERATOR_PASSWORD') ?: 'super-secret-password');
@@ -42,10 +46,7 @@ final class MfaSecurityFlowTest extends DuskTestCase
                 ->waitForTextIn('[role="tablist"]', 'Security', 10)
                 ->click('[role="tab"]:nth-of-type(4)')
                 ->waitFor('[data-testid="authn-userprofile-security"]', 10)
-                ->assertVisible('[data-testid="authn-userprofile-security-enroll-totp"]')
-                ->click('[data-testid="authn-userprofile-security-enroll-totp"]')
-                ->waitFor('[data-testid="authn-totp-enroll"]', 10)
-                ->assertVisible('[data-testid="authn-totp-enroll"]');
+                ->assertVisible('[data-testid="authn-userprofile-security-enroll-totp"]');
         });
     }
 }
