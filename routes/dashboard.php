@@ -40,6 +40,10 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::get('/blocklist', [DashboardController::class, 'blocklist'])->name('dashboard.blocklist');
     Route::get('/configure/{section?}', [DashboardController::class, 'configure'])->name('dashboard.configure');
     Route::patch('/configure/multi-factor', [DashboardController::class, 'updateMultiFactor'])->name('dashboard.configure.multi_factor.update');
+    Route::patch('/configure/attributes', [DashboardController::class, 'updateAttributes'])->name('dashboard.configure.attributes.update');
+    Route::patch('/configure/sms', [DashboardController::class, 'updateSms'])->name('dashboard.configure.sms.update');
+    Route::post('/configure/sms/test', [DashboardController::class, 'sendTestSms'])->name('dashboard.configure.sms.test');
+    Route::patch('/configure/sms-templates/{slug}', [DashboardController::class, 'updateSmsTemplate'])->name('dashboard.configure.sms_templates.update');
     Route::get('/email-templates', [DashboardController::class, 'emailTemplates'])->name('dashboard.email_templates');
 
     Route::get('/api-keys', [DashboardController::class, 'apiKeys'])->name('dashboard.api_keys');
