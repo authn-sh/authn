@@ -150,8 +150,11 @@ class OauthProvider extends Model
      */
     protected function redirectUri(): Attribute
     {
-        return Attribute::get(function (): string {
-            return Url::fapi($this->environment, '/v1/oauth-callback/'.$this->provider_key);
-        });
+        return Attribute::get(fn (): string => $this->computeRedirectUri());
+    }
+
+    public function computeRedirectUri(): string
+    {
+        return Url::fapi($this->environment, '/v1/oauth-callback/'.$this->provider_key);
     }
 }
