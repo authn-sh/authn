@@ -16,6 +16,7 @@ use App\Http\Controllers\Bapi\PingController;
 use App\Http\Controllers\Bapi\RedirectUrlsController;
 use App\Http\Controllers\Bapi\RoleController;
 use App\Http\Controllers\Bapi\SessionsController;
+use App\Http\Controllers\Bapi\SmsTemplatesController;
 use App\Http\Controllers\Bapi\UsersController;
 use App\Http\Controllers\Bapi\WebhookDeliveriesController;
 use App\Http\Controllers\Bapi\WebhookEndpointsController;
@@ -95,6 +96,12 @@ Route::post('/webhooks/endpoints/{id}/rotate-secret', [WebhookEndpointsControlle
 Route::get('/webhooks/deliveries', [WebhookDeliveriesController::class, 'index'])->middleware(RateLimit::class.':webhooks.list,300,60');
 Route::get('/webhooks/deliveries/{id}', [WebhookDeliveriesController::class, 'show'])->middleware(RateLimit::class.':webhooks.read,300,60');
 Route::post('/webhooks/deliveries/{id}/replay', [WebhookDeliveriesController::class, 'replay'])->middleware(RateLimit::class.':webhooks.replay,30,60');
+
+// SMS templates
+Route::get('/sms-templates', [SmsTemplatesController::class, 'index'])->middleware(RateLimit::class.':sms_templates.list,300,60')->name('bapi.sms_templates.index');
+Route::get('/sms-templates/{slug}', [SmsTemplatesController::class, 'show'])->middleware(RateLimit::class.':sms_templates.read,300,60')->name('bapi.sms_templates.show');
+Route::patch('/sms-templates/{slug}', [SmsTemplatesController::class, 'update'])->middleware(RateLimit::class.':sms_templates.update,60,60')->name('bapi.sms_templates.update');
+Route::post('/sms-templates/{slug}/revert', [SmsTemplatesController::class, 'revert'])->middleware(RateLimit::class.':sms_templates.update,30,60')->name('bapi.sms_templates.revert');
 
 // Organizations
 Route::get('/organizations', [OrganizationController::class, 'index'])->middleware(RateLimit::class.':orgs.list,300,60')->name('bapi.organizations.index');
