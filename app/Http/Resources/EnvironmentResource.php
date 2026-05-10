@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Resources;
 
 use App\Models\Environment;
+use App\Settings\MultiFactorSettings;
 
 /**
  * The public-facing shape returned by `GET /v1/environment`. The SDK
@@ -22,8 +23,10 @@ final class EnvironmentResource
     public static function from(Environment $environment): array
     {
         $appearance = is_array($environment->appearance) ? $environment->appearance : [];
+        $userSettings = is_array($environment->user_settings) ? $environment->user_settings : [];
         $sessions = is_array($appearance['sessions'] ?? null) ? $appearance['sessions'] : [];
         $localization = is_array($environment->localization) ? $environment->localization : [];
+        $multiFactor = MultiFactorSettings::fromUserSettings($userSettings);
 
         return [
             'object' => 'environment',
@@ -36,7 +39,7 @@ final class EnvironmentResource
                     'username' => 'off',
                 ],
                 'first_factors' => ['password', 'email_code', 'reset_password_email_code', 'ticket'],
-                'second_factors' => [],
+                'second_factors' => $multiFactor->enabledStrategies(),
                 'sign_up_modes' => ['public'],
             ],
 
