@@ -160,5 +160,5 @@ it('serialises phone_numbers on UserResource with the flat shape', function (): 
     expect($entry['reserved_for_second_factor'])->toBeTrue();
     expect($entry['default_second_factor'])->toBeFalse();
     expect($entry)->toHaveKey('current_challenge_id');
-    expect($entry['linked_to'])->toBe([]);
+    expect($entry['linked_to_external_account_id'])->toBeNull();
 });
