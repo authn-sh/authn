@@ -24,6 +24,7 @@ final readonly class MultiFactorSettings
         public bool $totpEnabled = true,
         public bool $backupCodesEnabled = true,
         public int $backupCodesDefaultCount = self::DEFAULT_BACKUP_CODE_COUNT,
+        public bool $phoneCodeEnabled = false,
     ) {}
 
     /**
@@ -43,16 +44,18 @@ final readonly class MultiFactorSettings
     {
         $totp = is_array($multiFactor['totp'] ?? null) ? $multiFactor['totp'] : [];
         $backup = is_array($multiFactor['backup_codes'] ?? null) ? $multiFactor['backup_codes'] : [];
+        $phoneCode = is_array($multiFactor['phone_code'] ?? null) ? $multiFactor['phone_code'] : [];
 
         return new self(
             totpEnabled: (bool) ($totp['enabled'] ?? true),
             backupCodesEnabled: (bool) ($backup['enabled'] ?? true),
             backupCodesDefaultCount: (int) ($backup['default_count'] ?? self::DEFAULT_BACKUP_CODE_COUNT),
+            phoneCodeEnabled: (bool) ($phoneCode['enabled'] ?? false),
         );
     }
 
     /**
-     * @return array{totp: array{enabled: bool}, backup_codes: array{enabled: bool, default_count: int}}
+     * @return array{totp: array{enabled: bool}, backup_codes: array{enabled: bool, default_count: int}, phone_code: array{enabled: bool}}
      */
     public function toArray(): array
     {
@@ -63,6 +66,9 @@ final readonly class MultiFactorSettings
             'backup_codes' => [
                 'enabled' => $this->backupCodesEnabled,
                 'default_count' => $this->backupCodesDefaultCount,
+            ],
+            'phone_code' => [
+                'enabled' => $this->phoneCodeEnabled,
             ],
         ];
     }
@@ -77,6 +83,7 @@ final readonly class MultiFactorSettings
         $totpEnabled = $this->totpEnabled;
         $backupCodesEnabled = $this->backupCodesEnabled;
         $backupCodesDefaultCount = $this->backupCodesDefaultCount;
+        $phoneCodeEnabled = $this->phoneCodeEnabled;
 
         if (is_array($patch['totp'] ?? null) && array_key_exists('enabled', $patch['totp'])) {
             $totpEnabled = (bool) $patch['totp']['enabled'];
@@ -89,8 +96,11 @@ final readonly class MultiFactorSettings
                 $backupCodesDefaultCount = (int) $patch['backup_codes']['default_count'];
             }
         }
+        if (is_array($patch['phone_code'] ?? null) && array_key_exists('enabled', $patch['phone_code'])) {
+            $phoneCodeEnabled = (bool) $patch['phone_code']['enabled'];
+        }
 
-        return new self($totpEnabled, $backupCodesEnabled, $backupCodesDefaultCount);
+        return new self($totpEnabled, $backupCodesEnabled, $backupCodesDefaultCount, $phoneCodeEnabled);
     }
 
     /**
@@ -104,6 +114,7 @@ final readonly class MultiFactorSettings
         return match ($strategy) {
             Verification::STRATEGY_TOTP => $this->totpEnabled,
             Verification::STRATEGY_BACKUP_CODE => $this->backupCodesEnabled,
+            Verification::STRATEGY_PHONE_CODE => $this->phoneCodeEnabled,
             default => false,
         };
     }
@@ -123,6 +134,9 @@ final readonly class MultiFactorSettings
         }
         if ($this->backupCodesEnabled) {
             $out[] = Verification::STRATEGY_BACKUP_CODE;
+        }
+        if ($this->phoneCodeEnabled) {
+            $out[] = Verification::STRATEGY_PHONE_CODE;
         }
 
         return $out;
