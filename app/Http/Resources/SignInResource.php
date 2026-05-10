@@ -6,12 +6,10 @@ namespace App\Http\Resources;
 
 use App\Models\BackupCode;
 use App\Models\EmailAddress;
-use App\Models\Environment;
 use App\Models\SignInAttempt;
 use App\Models\TotpSecret;
 use App\Models\User;
 use App\Models\Verification;
-use App\Settings\MultiFactorSettings;
 
 /**
  * Mirrors openapi `SignIn`. Factor verification state is no longer
@@ -78,6 +76,11 @@ final class SignInResource
     }
 
     /**
+     * Strict semantic: second-factor availability is purely per-user
+     * enrolment. The env-level `multi_factor.{totp,backup_codes}.enabled`
+     * toggle gates new enrolments only — operator policy changes never
+     * silently downgrade an already-enrolled user.
+     *
      * @return list<string>
      */
     private static function secondFactorStrategies(SignInAttempt $attempt): array
@@ -86,32 +89,23 @@ final class SignInResource
         if ($user === null) {
             return [];
         }
-        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
-        if ($env === null) {
-            return [];
-        }
-        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
 
         $strategies = [];
-        if ($settings->totpEnabled) {
-            $hasTotp = TotpSecret::query()
-                ->withoutGlobalScopes()
-                ->where('user_id', $user->id)
-                ->whereNotNull('verified_at')
-                ->exists();
-            if ($hasTotp) {
-                $strategies[] = Verification::STRATEGY_TOTP;
-            }
+        $hasTotp = (bool) $user->totp_enabled && TotpSecret::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->exists();
+        if ($hasTotp) {
+            $strategies[] = Verification::STRATEGY_TOTP;
         }
-        if ($settings->backupCodesEnabled) {
-            $hasUnspent = BackupCode::query()
-                ->withoutGlobalScopes()
-                ->where('user_id', $user->id)
-                ->whereNull('consumed_at')
-                ->exists();
-            if ($hasUnspent) {
-                $strategies[] = Verification::STRATEGY_BACKUP_CODE;
-            }
+        $hasUnspent = (bool) $user->backup_code_enabled && BackupCode::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNull('consumed_at')
+            ->exists();
+        if ($hasUnspent) {
+            $strategies[] = Verification::STRATEGY_BACKUP_CODE;
         }
 
         return $strategies;

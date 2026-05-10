@@ -31,7 +31,6 @@ use App\Services\MagicLink\MagicLinkIssuer;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Verification\VerificationManager;
-use App\Settings\MultiFactorSettings;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -218,10 +217,16 @@ final class ChallengeController
         // needs_second_factor instead of completing. Second-factor
         // strategies (totp, backup_code) skip this branch — their answer
         // promotes the attempt straight to complete.
+        //
+        // The pivot is purely a function of user enrolment; the env-level
+        // multi_factor toggle gates *new enrolments* (in MeTotpController
+        // / MeBackupCodesController) but never bypasses an already-
+        // enrolled user's second factor. Operator policy changes don't
+        // silently downgrade a user from "I expect MFA" to "first-factor-
+        // only".
         if ($challenge->step === Challenge::STEP_FIRST
             && $user !== null
             && $this->userHasEnrolledSecondFactor($user)
-            && $this->envOffersSecondFactor($attempt)
         ) {
             $attempt->status = SignInAttempt::STATUS_NEEDS_SECOND_FACTOR;
             $attempt->save();
@@ -236,7 +241,7 @@ final class ChallengeController
 
     private function userHasEnrolledSecondFactor(User $user): bool
     {
-        $hasTotp = TotpSecret::query()
+        $hasTotp = (bool) $user->totp_enabled && TotpSecret::query()
             ->withoutGlobalScopes()
             ->where('user_id', $user->id)
             ->whereNotNull('verified_at')
@@ -245,22 +250,11 @@ final class ChallengeController
             return true;
         }
 
-        return BackupCode::query()
+        return (bool) $user->backup_code_enabled && BackupCode::query()
             ->withoutGlobalScopes()
             ->where('user_id', $user->id)
             ->whereNull('consumed_at')
             ->exists();
-    }
-
-    private function envOffersSecondFactor(SignInAttempt $attempt): bool
-    {
-        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
-        if ($env === null) {
-            return false;
-        }
-        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
-
-        return $settings->totpEnabled || $settings->backupCodesEnabled;
     }
 
     public function showForSignIn(Request $request): JsonResponse
@@ -812,44 +806,39 @@ final class ChallengeController
     }
 
     /**
-     * Narrow second-factor strategies by per-env enable toggles AND
-     * per-user enrolment. Empty if MFA is disabled at the env level.
+     * Narrow second-factor strategies purely by per-user enrolment.
+     * The env-level `multi_factor.{totp,backup_codes}.enabled` toggle
+     * gates *new enrolments* (in MeTotpController / MeBackupCodesController)
+     * but does not strip already-enrolled users of their second factor.
+     * An operator who turns the toggle off after users have enrolled
+     * MUST clear those rows (BAPI `DELETE /v1/users/{id}/mfa`) to
+     * actually downgrade them.
      *
      * @return list<string>
      */
     private function signInSecondFactorStrategies(SignInAttempt $attempt): array
     {
-        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
-        if ($env === null) {
-            return [];
-        }
-        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
-
         $user = $this->resolveUserForSignIn($attempt);
         if ($user === null) {
             return [];
         }
 
         $strategies = [];
-        if ($settings->totpEnabled) {
-            $hasTotp = TotpSecret::query()
-                ->withoutGlobalScopes()
-                ->where('user_id', $user->id)
-                ->whereNotNull('verified_at')
-                ->exists();
-            if ($hasTotp) {
-                $strategies[] = Verification::STRATEGY_TOTP;
-            }
+        $hasTotp = (bool) $user->totp_enabled && TotpSecret::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->exists();
+        if ($hasTotp) {
+            $strategies[] = Verification::STRATEGY_TOTP;
         }
-        if ($settings->backupCodesEnabled) {
-            $hasUnspent = BackupCode::query()
-                ->withoutGlobalScopes()
-                ->where('user_id', $user->id)
-                ->whereNull('consumed_at')
-                ->exists();
-            if ($hasUnspent) {
-                $strategies[] = Verification::STRATEGY_BACKUP_CODE;
-            }
+        $hasUnspent = (bool) $user->backup_code_enabled && BackupCode::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNull('consumed_at')
+            ->exists();
+        if ($hasUnspent) {
+            $strategies[] = Verification::STRATEGY_BACKUP_CODE;
         }
 
         return $strategies;
