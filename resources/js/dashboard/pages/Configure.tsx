@@ -28,6 +28,27 @@ type SmsTemplate = {
     from_number_override: string | null
 }
 
+type OauthProvider = {
+    id: string
+    provider_kind: 'preset' | 'custom_oidc' | 'custom_oauth2'
+    provider_key: string
+    name: string
+    enabled: boolean
+    allow_sign_in: boolean
+    allow_sign_up: boolean
+    block_email_subaddresses: boolean
+    client_id: string
+    client_secret_set: boolean
+    scopes: string[]
+    attribute_mapping: Record<string, string>
+    additional_authorization_params: Record<string, unknown>
+    issuer: string | null
+    authorization_endpoint: string | null
+    token_endpoint: string | null
+    userinfo_endpoint: string | null
+    redirect_uri: string
+}
+
 type Props = {
     section: string
     user_settings: Record<string, unknown>
@@ -38,12 +59,15 @@ type Props = {
     attributes: AttributesSettings
     sms: SmsSettings
     sms_templates: SmsTemplate[]
+    oauth_providers: OauthProvider[]
+    oauth_preset_keys: string[]
 }
 
 const SECTIONS = [
     { slug: 'attributes', label: 'Attributes' },
     { slug: 'multi-factor', label: 'Multi-factor' },
     { slug: 'sms', label: 'SMS' },
+    { slug: 'social-providers', label: 'Social providers' },
 ] as const
 
 export default function Configure(props: Props) {
@@ -73,10 +97,11 @@ export default function Configure(props: Props) {
                     </Link>
                 ))}
             </nav>
+            {props.section === 'attributes' && <AttributesSection attributes={props.attributes} signupMode={props.signup_mode} />}
             {props.section === 'multi-factor' && <MultiFactorSection multiFactor={props.multi_factor} />}
             {props.section === 'sms' && <SmsSection sms={props.sms} smsTemplates={props.sms_templates} />}
-            {props.section === 'attributes' && <AttributesSection attributes={props.attributes} signupMode={props.signup_mode} />}
-            {!['multi-factor', 'sms', 'attributes'].includes(props.section) && (
+            {props.section === 'social-providers' && <SocialProvidersSection providers={props.oauth_providers} presetKeys={props.oauth_preset_keys} />}
+            {!['attributes', 'multi-factor', 'sms', 'social-providers'].includes(props.section) && (
                 <pre style={{ background: '#f1f5f9', padding: 12, borderRadius: 6 }}>
                     {JSON.stringify(props.user_settings, null, 2)}
                 </pre>
@@ -418,6 +443,302 @@ function SmsTemplateRow({ template }: { template: SmsTemplate }) {
                 </label>
                 <button type="submit" disabled={form.processing}>
                     {form.processing ? 'Saving…' : 'Save'}
+                </button>
+            </form>
+        </details>
+    )
+}
+
+function SocialProvidersSection({ providers, presetKeys }: { providers: OauthProvider[]; presetKeys: string[] }) {
+    const url = useDashboardUrl()
+    const { active_project, active_environment } = useDashboard()
+    const { props: pageProps } = usePage<{ flash?: { oauth_provider_saved?: boolean; oauth_provider_test?: { provider_id: string; userinfo_status: number | null; errors: string[] } } }>()
+
+    if (!active_project || !active_environment) {
+        return <p>No active environment.</p>
+    }
+    const base = `/${active_project.slug}/${active_environment.slug}/configure`
+
+    const presetsConfigured = new Set(providers.filter(p => p.provider_kind === 'preset').map(p => p.provider_key))
+    const presetsMissing = presetKeys.filter(k => !presetsConfigured.has(k))
+
+    return (
+        <section>
+            <h2>Social providers</h2>
+            <p>Per-environment OAuth IdPs. Toggle a preset on/off, or add a custom OIDC / OAuth2 IdP.</p>
+            {pageProps.flash?.oauth_provider_saved && (
+                <div style={{ padding: 12, background: '#dcfce7', borderRadius: 6, marginBottom: 16 }}>Saved.</div>
+            )}
+            {pageProps.flash?.oauth_provider_test && (
+                <div style={{ padding: 12, background: '#dbeafe', borderRadius: 6, marginBottom: 16 }}>
+                    Test result for {pageProps.flash.oauth_provider_test.provider_id}: userinfo status {pageProps.flash.oauth_provider_test.userinfo_status ?? 'n/a'}
+                    {pageProps.flash.oauth_provider_test.errors.length > 0 && (
+                        <ul>{pageProps.flash.oauth_provider_test.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
+                    )}
+                </div>
+            )}
+
+            {providers.length === 0 && presetsMissing.length === presetKeys.length && (
+                <p style={{ color: '#64748b' }}>No social providers configured. Pick a preset below or add a custom IdP.</p>
+            )}
+
+            {providers.map(p => <ProviderRow key={p.id} provider={p} base={base} url={url} />)}
+
+            {presetsMissing.length > 0 && (
+                <fieldset style={{ marginTop: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                    <legend><strong>Add preset</strong></legend>
+                    {presetsMissing.map(k => <PresetCreateForm key={k} providerKey={k} base={base} url={url} />)}
+                </fieldset>
+            )}
+
+            <CustomOidcWizard base={base} url={url} />
+            <CustomOauth2Wizard base={base} url={url} />
+        </section>
+    )
+}
+
+function ProviderRow({ provider, base, url }: { provider: OauthProvider; base: string; url: (s: string) => string }) {
+    const form = useForm({
+        name: provider.name,
+        enabled: provider.enabled,
+        allow_sign_in: provider.allow_sign_in,
+        allow_sign_up: provider.allow_sign_up,
+        block_email_subaddresses: provider.block_email_subaddresses,
+        client_id: provider.client_id,
+        client_secret: '',
+        scopes: provider.scopes.join(' '),
+    })
+    const action = url(`${base}/oauth-providers/${provider.id}`)
+
+    return (
+        <details style={{ marginBottom: 12, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            <summary>
+                <strong>{provider.name}</strong> — <code>{provider.provider_key}</code> ({provider.provider_kind})
+                {provider.enabled ? ' · enabled' : ' · disabled'}
+            </summary>
+            <p style={{ marginTop: 8, fontSize: 13, color: '#64748b' }}>
+                Redirect URL (paste into the IdP's allow-list): <code>{provider.redirect_uri}</code>
+            </p>
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    const payload: Record<string, unknown> = {
+                        name: form.data.name,
+                        enabled: form.data.enabled,
+                        allow_sign_in: form.data.allow_sign_in,
+                        allow_sign_up: form.data.allow_sign_up,
+                        block_email_subaddresses: form.data.block_email_subaddresses,
+                        client_id: form.data.client_id,
+                        scopes: form.data.scopes.trim() === '' ? [] : form.data.scopes.trim().split(/\s+/),
+                    }
+                    if (form.data.client_secret !== '') {
+                        payload.client_secret = form.data.client_secret
+                    }
+                    form.transform(() => payload).patch(action, { preserveScroll: true })
+                }}
+            >
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <input type="checkbox" checked={form.data.enabled} onChange={e => form.setData('enabled', e.target.checked)} />
+                    Enabled
+                </label>
+                <label style={{ display: 'block', marginBottom: 8 }}>
+                    Display name
+                    <input
+                        type="text"
+                        value={form.data.name}
+                        onChange={e => form.setData('name', e.target.value)}
+                        style={{ display: 'block', marginTop: 4, padding: 6, width: 320 }}
+                    />
+                </label>
+                <label style={{ display: 'block', marginBottom: 8 }}>
+                    client_id
+                    <input
+                        type="text"
+                        value={form.data.client_id}
+                        onChange={e => form.setData('client_id', e.target.value)}
+                        style={{ display: 'block', marginTop: 4, padding: 6, width: 360 }}
+                    />
+                </label>
+                <label style={{ display: 'block', marginBottom: 8 }}>
+                    client_secret {provider.client_secret_set && <span style={{ color: '#64748b', fontSize: 12 }}>(••••, leave blank to keep)</span>}
+                    <input
+                        type="password"
+                        value={form.data.client_secret}
+                        onChange={e => form.setData('client_secret', e.target.value)}
+                        placeholder={provider.client_secret_set ? '•••• rotate' : ''}
+                        style={{ display: 'block', marginTop: 4, padding: 6, width: 360 }}
+                    />
+                </label>
+                <label style={{ display: 'block', marginBottom: 8 }}>
+                    Scopes (space-separated)
+                    <input
+                        type="text"
+                        value={form.data.scopes}
+                        onChange={e => form.setData('scopes', e.target.value)}
+                        style={{ display: 'block', marginTop: 4, padding: 6, width: 360 }}
+                    />
+                </label>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <input type="checkbox" checked={form.data.allow_sign_in} onChange={e => form.setData('allow_sign_in', e.target.checked)} />
+                    Allow sign-in
+                </label>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+                    <input type="checkbox" checked={form.data.allow_sign_up} onChange={e => form.setData('allow_sign_up', e.target.checked)} />
+                    Allow sign-up
+                </label>
+                <button type="submit" disabled={form.processing} style={{ marginRight: 8 }}>
+                    {form.processing ? 'Saving…' : 'Save'}
+                </button>
+                <TestButton providerId={provider.id} base={base} url={url} />
+                <DeleteButton providerId={provider.id} base={base} url={url} />
+            </form>
+        </details>
+    )
+}
+
+function TestButton({ providerId, base, url }: { providerId: string; base: string; url: (s: string) => string }) {
+    const form = useForm({})
+    return (
+        <button
+            type="button"
+            disabled={form.processing}
+            onClick={() => form.post(url(`${base}/oauth-providers/${providerId}/test`), { preserveScroll: true })}
+            style={{ marginRight: 8 }}
+        >
+            Test
+        </button>
+    )
+}
+
+function DeleteButton({ providerId, base, url }: { providerId: string; base: string; url: (s: string) => string }) {
+    const form = useForm({})
+    return (
+        <button
+            type="button"
+            disabled={form.processing}
+            onClick={() => {
+                if (!confirm('Delete this OAuth provider?')) return
+                form.delete(url(`${base}/oauth-providers/${providerId}`), { preserveScroll: true })
+            }}
+        >
+            Delete
+        </button>
+    )
+}
+
+function PresetCreateForm({ providerKey, base, url }: { providerKey: string; base: string; url: (s: string) => string }) {
+    const form = useForm({
+        provider_kind: 'preset',
+        provider_key: providerKey,
+        name: providerKey.charAt(0).toUpperCase() + providerKey.slice(1),
+        client_id: '',
+        client_secret: '',
+        enabled: true,
+    })
+
+    return (
+        <form
+            onSubmit={(e) => {
+                e.preventDefault()
+                form.post(url(`${base}/oauth-providers`), { preserveScroll: true })
+            }}
+            style={{ marginBottom: 8 }}
+        >
+            <strong>{providerKey}</strong>
+            <input
+                type="text"
+                value={form.data.client_id}
+                onChange={e => form.setData('client_id', e.target.value)}
+                placeholder="client_id"
+                style={{ marginLeft: 8, padding: 4, width: 240 }}
+            />
+            <input
+                type="password"
+                value={form.data.client_secret}
+                onChange={e => form.setData('client_secret', e.target.value)}
+                placeholder="client_secret"
+                style={{ marginLeft: 8, padding: 4, width: 240 }}
+            />
+            <button type="submit" disabled={form.processing} style={{ marginLeft: 8 }}>
+                {form.processing ? 'Adding…' : 'Add'}
+            </button>
+        </form>
+    )
+}
+
+function CustomOidcWizard({ base, url }: { base: string; url: (s: string) => string }) {
+    const form = useForm({
+        provider_kind: 'custom_oidc',
+        provider_key: '',
+        name: '',
+        client_id: '',
+        client_secret: '',
+        issuer: '',
+    })
+    return (
+        <details style={{ marginTop: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            <summary><strong>Add custom OIDC</strong></summary>
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    form.post(url(`${base}/oauth-providers`), { preserveScroll: true })
+                }}
+                style={{ marginTop: 8 }}
+            >
+                <input type="text" placeholder="provider_key" value={form.data.provider_key} onChange={e => form.setData('provider_key', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 240 }} />
+                <input type="text" placeholder="display name" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 320 }} />
+                <input type="url" placeholder="https://idp.example.com (issuer)" value={form.data.issuer} onChange={e => form.setData('issuer', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <input type="text" placeholder="client_id" value={form.data.client_id} onChange={e => form.setData('client_id', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <input type="password" placeholder="client_secret" value={form.data.client_secret} onChange={e => form.setData('client_secret', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <button type="submit" disabled={form.processing}>
+                    {form.processing ? 'Adding…' : 'Discover + add'}
+                </button>
+            </form>
+        </details>
+    )
+}
+
+function CustomOauth2Wizard({ base, url }: { base: string; url: (s: string) => string }) {
+    const form = useForm({
+        provider_kind: 'custom_oauth2',
+        provider_key: '',
+        name: '',
+        client_id: '',
+        client_secret: '',
+        authorization_endpoint: '',
+        token_endpoint: '',
+        userinfo_endpoint: '',
+        userinfo_method: 'GET',
+        userinfo_auth: 'bearer',
+    })
+    return (
+        <details style={{ marginTop: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            <summary><strong>Add custom OAuth2</strong></summary>
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault()
+                    form.post(url(`${base}/oauth-providers`), { preserveScroll: true })
+                }}
+                style={{ marginTop: 8 }}
+            >
+                <input type="text" placeholder="provider_key" value={form.data.provider_key} onChange={e => form.setData('provider_key', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 240 }} />
+                <input type="text" placeholder="display name" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 320 }} />
+                <input type="text" placeholder="client_id" value={form.data.client_id} onChange={e => form.setData('client_id', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <input type="password" placeholder="client_secret" value={form.data.client_secret} onChange={e => form.setData('client_secret', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <input type="url" placeholder="authorization_endpoint" value={form.data.authorization_endpoint} onChange={e => form.setData('authorization_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <input type="url" placeholder="token_endpoint" value={form.data.token_endpoint} onChange={e => form.setData('token_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <input type="url" placeholder="userinfo_endpoint" value={form.data.userinfo_endpoint} onChange={e => form.setData('userinfo_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <select value={form.data.userinfo_method} onChange={e => form.setData('userinfo_method', e.target.value)} style={{ marginRight: 8, padding: 6 }}>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                </select>
+                <select value={form.data.userinfo_auth} onChange={e => form.setData('userinfo_auth', e.target.value)} style={{ marginRight: 8, padding: 6 }}>
+                    <option value="bearer">bearer</option>
+                    <option value="basic">basic</option>
+                    <option value="query">query</option>
+                </select>
+                <button type="submit" disabled={form.processing}>
+                    {form.processing ? 'Adding…' : 'Add'}
                 </button>
             </form>
         </details>
