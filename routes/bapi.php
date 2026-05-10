@@ -6,6 +6,7 @@ use App\Http\Controllers\Bapi\AllowlistIdentifiersController;
 use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
 use App\Http\Controllers\Bapi\InstanceController;
 use App\Http\Controllers\Bapi\InvitationsController;
+use App\Http\Controllers\Bapi\OauthProviderController;
 use App\Http\Controllers\Bapi\OrganizationController;
 use App\Http\Controllers\Bapi\OrganizationDomainChallengeController;
 use App\Http\Controllers\Bapi\OrganizationDomainController;
@@ -102,6 +103,14 @@ Route::get('/sms-templates', [SmsTemplatesController::class, 'index'])->middlewa
 Route::get('/sms-templates/{slug}', [SmsTemplatesController::class, 'show'])->middleware(RateLimit::class.':sms_templates.read,300,60')->name('bapi.sms_templates.show');
 Route::patch('/sms-templates/{slug}', [SmsTemplatesController::class, 'update'])->middleware(RateLimit::class.':sms_templates.update,60,60')->name('bapi.sms_templates.update');
 Route::post('/sms-templates/{slug}/revert', [SmsTemplatesController::class, 'revert'])->middleware(RateLimit::class.':sms_templates.update,30,60')->name('bapi.sms_templates.revert');
+
+// OAuth providers
+Route::get('/oauth-providers', [OauthProviderController::class, 'index'])->middleware(RateLimit::class.':oauth_providers.list,300,60')->name('bapi.oauth_providers.index');
+Route::post('/oauth-providers', [OauthProviderController::class, 'store'])->middleware(RateLimit::class.':oauth_providers.create,30,60')->name('bapi.oauth_providers.store');
+Route::get('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'show'])->middleware(RateLimit::class.':oauth_providers.read,300,60')->name('bapi.oauth_providers.show');
+Route::patch('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'update'])->middleware(RateLimit::class.':oauth_providers.update,60,60')->name('bapi.oauth_providers.update');
+Route::delete('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'destroy'])->middleware(RateLimit::class.':oauth_providers.destroy,30,60')->name('bapi.oauth_providers.destroy');
+Route::post('/oauth-providers/{oauth_provider_id}/test', [OauthProviderController::class, 'test'])->middleware(RateLimit::class.':oauth_providers.test,30,60')->name('bapi.oauth_providers.test');
 
 // Organizations
 Route::get('/organizations', [OrganizationController::class, 'index'])->middleware(RateLimit::class.':orgs.list,300,60')->name('bapi.organizations.index');
