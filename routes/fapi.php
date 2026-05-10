@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\AccountPortal\AccountPortalController;
+use App\Http\Controllers\Fapi\ChallengeController;
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\MagicLinkController;
@@ -74,16 +75,18 @@ Route::prefix('v1')->group(function (): void {
     Route::post('/client/sign-ups', [SignUpController::class, 'store'])->name('fapi.sign_up.store');
     Route::middleware(ResolveClientFromCookie::class)->group(function (): void {
         Route::get('/client/sign-ins/{sid}', [SignInController::class, 'show'])->name('fapi.sign_in.show');
-        Route::post('/client/sign-ins/{sid}/prepare-first-factor', [SignInController::class, 'prepareFirstFactor'])->name('fapi.sign_in.prepare_first_factor');
-        Route::post('/client/sign-ins/{sid}/attempt-first-factor', [SignInController::class, 'attemptFirstFactor'])->name('fapi.sign_in.attempt_first_factor');
-        Route::post('/client/sign-ins/{sid}/prepare-second-factor', [SignInController::class, 'prepareSecondFactor'])->name('fapi.sign_in.prepare_second_factor');
-        Route::post('/client/sign-ins/{sid}/attempt-second-factor', [SignInController::class, 'attemptSecondFactor'])->name('fapi.sign_in.attempt_second_factor');
-        Route::post('/client/sign-ins/{sid}/reset-password', [SignInController::class, 'resetPassword'])->name('fapi.sign_in.reset_password');
+        Route::patch('/client/sign-ins/{sid}', [SignInController::class, 'patch'])->name('fapi.sign_in.patch');
+
+        Route::post('/client/sign-ins/{sid}/challenges', [ChallengeController::class, 'storeForSignIn'])->name('fapi.sign_in.challenges.store');
+        Route::post('/client/sign-ins/{sid}/challenges/{cid}/answer', [ChallengeController::class, 'answerForSignIn'])->name('fapi.sign_in.challenges.answer');
+        Route::get('/client/sign-ins/{sid}/challenges/{cid}', [ChallengeController::class, 'showForSignIn'])->name('fapi.sign_in.challenges.show');
 
         Route::get('/client/sign-ups/{sid}', [SignUpController::class, 'show'])->name('fapi.sign_up.show');
         Route::patch('/client/sign-ups/{sid}', [SignUpController::class, 'patch'])->name('fapi.sign_up.patch');
-        Route::post('/client/sign-ups/{sid}/prepare-verification', [SignUpController::class, 'prepareVerification'])->name('fapi.sign_up.prepare_verification');
-        Route::post('/client/sign-ups/{sid}/attempt-verification', [SignUpController::class, 'attemptVerification'])->name('fapi.sign_up.attempt_verification');
+
+        Route::post('/client/sign-ups/{sid}/challenges', [ChallengeController::class, 'storeForSignUp'])->name('fapi.sign_up.challenges.store');
+        Route::post('/client/sign-ups/{sid}/challenges/{cid}/answer', [ChallengeController::class, 'answerForSignUp'])->name('fapi.sign_up.challenges.answer');
+        Route::get('/client/sign-ups/{sid}/challenges/{cid}', [ChallengeController::class, 'showForSignUp'])->name('fapi.sign_up.challenges.show');
 
         Route::get('/client/sessions/{sid}', [SessionsController::class, 'show'])->name('fapi.session.show');
         Route::post('/client/sessions/{sid}/touch', [SessionsController::class, 'touch'])->name('fapi.session.touch');

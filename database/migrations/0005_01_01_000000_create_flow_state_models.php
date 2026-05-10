@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Schema;
  *                            install; identified by the `__client` cookie)
  *   - sign_in_attempts     — in-progress sign-in state machines
  *   - sign_up_attempts     — in-progress sign-up state machines
+ *   - challenges           — uniform verification sub-resource attached to
+ *                            sign_in_attempts / sign_up_attempts
  *   - sessions             — live authenticated sessions
  *   - session_activities   — append-only touch log per session
  *
@@ -55,8 +57,7 @@ return new class extends Migration
             $table->string('status', 32);
             $table->string('identifier')->nullable();
 
-            $table->string('first_factor_verification_id', 64)->nullable();
-            $table->string('second_factor_verification_id', 64)->nullable();
+            $table->string('current_challenge_id', 64)->nullable();
 
             $table->string('created_session_id', 64)->nullable();
 
@@ -73,8 +74,6 @@ return new class extends Migration
 
             $table->foreign('environment_id')->references('id')->on('environments')->cascadeOnDelete();
             $table->foreign('client_id')->references('id')->on('clients')->cascadeOnDelete();
-            $table->foreign('first_factor_verification_id')->references('id')->on('verifications')->nullOnDelete();
-            $table->foreign('second_factor_verification_id')->references('id')->on('verifications')->nullOnDelete();
             $table->index(['status', 'abandon_at']);
         });
 
@@ -98,9 +97,10 @@ return new class extends Migration
 
             $table->jsonb('unsafe_metadata')->default(json_encode((object) []));
             $table->jsonb('public_metadata')->default(json_encode((object) []));
-            $table->jsonb('verifications')->default(json_encode((object) []));
             $table->jsonb('missing_fields')->default(json_encode([]));
             $table->jsonb('unverified_fields')->default(json_encode([]));
+
+            $table->string('current_challenge_id', 64)->nullable();
 
             $table->string('created_session_id', 64)->nullable();
             $table->string('created_user_id', 64)->nullable();
@@ -120,6 +120,46 @@ return new class extends Migration
             $table->foreign('client_id')->references('id')->on('clients')->cascadeOnDelete();
             $table->foreign('created_user_id')->references('id')->on('users')->nullOnDelete();
             $table->index(['status', 'abandon_at']);
+        });
+
+        // ----------------------------------------------------- challenges
+
+        Schema::create('challenges', function (Blueprint $table): void {
+            $table->string('id', 64)->primary();
+            $table->string('environment_id', 64);
+
+            // Polymorphic parent: 'sign_in' | 'sign_up'. The parent_id points
+            // at sign_in_attempts.id or sign_up_attempts.id; no DB-level FK
+            // because the type column disambiguates the target table.
+            $table->string('parent_type', 16);
+            $table->string('parent_id', 64);
+
+            $table->string('step', 16);
+            $table->string('strategy', 64);
+            $table->string('status', 32);
+
+            $table->string('verification_id', 64);
+            $table->unsignedInteger('attempts')->default(0);
+
+            $table->string('nonce')->nullable();
+            $table->string('external_verification_redirect_url', 2048)->nullable();
+            $table->string('error_code', 64)->nullable();
+            $table->string('error_message')->nullable();
+
+            $table->timestamp('expire_at');
+            $table->timestamps();
+
+            $table->foreign('environment_id')->references('id')->on('environments')->cascadeOnDelete();
+            $table->foreign('verification_id')->references('id')->on('verifications')->cascadeOnDelete();
+            $table->index(['parent_type', 'parent_id', 'status']);
+        });
+
+        Schema::table('sign_in_attempts', function (Blueprint $table): void {
+            $table->foreign('current_challenge_id')->references('id')->on('challenges')->nullOnDelete();
+        });
+
+        Schema::table('sign_up_attempts', function (Blueprint $table): void {
+            $table->foreign('current_challenge_id')->references('id')->on('challenges')->nullOnDelete();
         });
 
         // ----------------------------------------------------- sessions
@@ -195,9 +235,11 @@ return new class extends Migration
     {
         Schema::table('sign_up_attempts', function (Blueprint $table): void {
             $table->dropForeign(['created_session_id']);
+            $table->dropForeign(['current_challenge_id']);
         });
         Schema::table('sign_in_attempts', function (Blueprint $table): void {
             $table->dropForeign(['created_session_id']);
+            $table->dropForeign(['current_challenge_id']);
         });
         Schema::table('clients', function (Blueprint $table): void {
             $table->dropForeign(['last_active_session_id']);
@@ -207,6 +249,7 @@ return new class extends Migration
 
         Schema::dropIfExists('session_activities');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('challenges');
         Schema::dropIfExists('sign_up_attempts');
         Schema::dropIfExists('sign_in_attempts');
         Schema::dropIfExists('clients');

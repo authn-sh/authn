@@ -71,9 +71,7 @@ final class EmailCodeStrategy implements Strategy
             $emailAddress->id,
         );
 
-        $attempt->forceFill(['first_factor_verification_id' => $verification->id])->save();
-
-        return StrategyResult::ok($attempt);
+        return StrategyResult::ok($attempt, verification: $verification);
     }
 
     public function attempt(SignInAttempt $attempt, array $params): StrategyResult
@@ -83,26 +81,22 @@ final class EmailCodeStrategy implements Strategy
             return StrategyResult::fail($attempt, ErrorCodes::FORM_PARAM_NIL, 'code is required.');
         }
 
-        $verification = Verification::query()
-            ->withoutGlobalScopes()
-            ->where('id', (string) $attempt->first_factor_verification_id)
-            ->first();
-        if ($verification === null) {
+        $verification = $params['verification'] ?? null;
+        if (! $verification instanceof Verification) {
             return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_FAILED, 'No verification is in progress for this attempt.', 422);
         }
 
         $ok = $this->verifications->attempt($verification, $code);
         if (! $ok) {
-            $code = $verification->fresh()->status === Verification::STATUS_FAILED
+            $errCode = $verification->fresh()->status === Verification::STATUS_FAILED
                 ? ErrorCodes::VERIFICATION_FAILED
                 : ($verification->fresh()->status === Verification::STATUS_EXPIRED
                     ? ErrorCodes::VERIFICATION_EXPIRED
                     : ErrorCodes::FORM_CODE_INCORRECT);
 
-            return StrategyResult::fail($attempt, $code, 'Incorrect code.');
+            return StrategyResult::fail($attempt, $errCode, 'Incorrect code.', verification: $verification->fresh() ?? $verification);
         }
 
-        // Map verifiable -> User via EmailAddress.
         $email = EmailAddress::query()->withoutGlobalScopes()->where('id', $verification->verifiable_id)->first();
         $user = $email ? User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first() : null;
 
@@ -117,7 +111,7 @@ final class EmailCodeStrategy implements Strategy
             return StrategyResult::fail($attempt, ErrorCodes::USER_LOCKED, 'This user is temporarily locked.', 403);
         }
 
-        return StrategyResult::ok($attempt, $user);
+        return StrategyResult::ok($attempt, $user, $verification->fresh() ?? $verification);
     }
 
     private function resolveEmailAddress(SignInAttempt $attempt, array $params): ?EmailAddress

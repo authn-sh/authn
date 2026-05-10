@@ -90,7 +90,7 @@ it('refuses sign-in for a locked user with a future lockout_expires_at', functio
         ->assertJsonPath('errors.0.code', 'user_locked');
 });
 
-it('returns supported_first_factors on identifier-only create', function (): void {
+it('returns supported_strategies on identifier-only create', function (): void {
     $f = SignInTestSupport::bootEnv();
     SignInTestSupport::makeUser($f['env']);
 
@@ -103,8 +103,9 @@ it('returns supported_first_factors on identifier-only create', function (): voi
     $response->assertOk()
         ->assertJsonPath('response.status', 'needs_first_factor');
 
-    $strategies = collect($response->json('response.supported_first_factors'))->pluck('strategy');
+    $strategies = collect($response->json('response.supported_strategies'));
     expect($strategies->contains('password'))->toBeTrue();
     expect($strategies->contains('email_code'))->toBeTrue();
+    expect($strategies->contains('email_link'))->toBeTrue();
     expect($strategies->contains('reset_password_email_code'))->toBeTrue();
 });

@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 use App\Models\EmailAddress;
 use App\Models\Session;
+use App\Models\SignUpAttempt;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
 use Tests\Feature\Http\SignUp\SignUpTestSupport;
 
-it('runs create → prepare → attempt → complete with email + password', function (): void {
+it('runs create → challenge → answer → complete with email + password', function (): void {
     $f = SignUpTestSupport::bootEnv();
     $bs = SignUpTestSupport::clientWithCookie($f['env']);
     $cookie = $bs['cookie'];
@@ -29,14 +30,18 @@ it('runs create → prepare → attempt → complete with email + password', fun
         ->assertJsonPath('response.unverified_fields', ['email_address']);
     $sid = $create->json('response.id');
 
-    // 2. POST /prepare-verification strategy=email_code.
-    $this->withCredentials()
+    // 2. POST /challenges strategy=email_code.
+    $issue = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/prepare-verification", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/challenges", [
             'strategy' => 'email_code',
-        ])
-        ->assertOk();
+        ]);
+    $issue->assertOk()
+        ->assertJsonPath('response.object', 'challenge')
+        ->assertJsonPath('response.strategy', 'email_code')
+        ->assertJsonPath('response.step', 'single');
+    $cid = $issue->json('response.id');
 
     // 3. Stamp a known code on the row.
     $verification = Verification::query()->withoutGlobalScopes()->latest('id')->first();
@@ -44,22 +49,24 @@ it('runs create → prepare → attempt → complete with email + password', fun
     $known = '424242';
     $codeRow->forceFill(['code_hash' => hash('sha256', $known)])->save();
 
-    // 4. POST /attempt-verification → complete.
-    $attempt = $this->withCredentials()
+    // 4. POST /challenges/{cid}/answer → SignUp completes.
+    $answer = $this->withCredentials()
         ->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/attempt-verification", [
-            'strategy' => 'email_code',
+        ->postJson("https://acme.authn.local/v1/client/sign-ups/{$sid}/challenges/{$cid}/answer", [
             'code' => $known,
         ]);
 
-    $attempt->assertOk()
-        ->assertJsonPath('response.status', 'complete');
-    expect($attempt->json('response.created_session_id'))->toStartWith('sess_');
-    expect($attempt->json('response.created_user_id'))->toStartWith('user_');
+    $answer->assertOk()
+        ->assertJsonPath('response.status', 'verified');
+
+    $signUp = SignUpAttempt::query()->withoutGlobalScopes()->where('id', $sid)->firstOrFail();
+    expect($signUp->status)->toBe('complete');
+    expect($signUp->created_session_id)->toStartWith('sess_');
+    expect($signUp->created_user_id)->toStartWith('user_');
 
     // 5. Verify the User + EmailAddress + Session rows exist with the right state.
-    $userId = $attempt->json('response.created_user_id');
+    $userId = $signUp->created_user_id;
     $user = User::query()->withoutGlobalScopes()->where('id', $userId)->first();
     expect($user)->not->toBeNull();
     expect($user->checkPassword('super-secret-password'))->toBeTrue();
@@ -70,7 +77,7 @@ it('runs create → prepare → attempt → complete with email + password', fun
     expect($email->isVerified())->toBeTrue();
     expect($email->is_primary)->toBeTrue();
 
-    $sessionId = $attempt->json('response.created_session_id');
+    $sessionId = $signUp->created_session_id;
     expect(Session::query()->withoutGlobalScopes()->where('id', $sessionId)->where('status', 'active')->exists())->toBeTrue();
 });
 
@@ -95,6 +102,5 @@ it('returns missing_fields when first_name is required and not provided', functi
         ->assertJsonPath('response.status', 'missing_requirements')
         ->assertJsonPath('response.missing_fields', ['first_name']);
 
-    // No User row written until everything is supplied + verified.
     expect(User::query()->withoutGlobalScopes()->count())->toBe(0);
 });

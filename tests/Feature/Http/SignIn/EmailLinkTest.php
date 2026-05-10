@@ -41,12 +41,11 @@ function setupMagicLinkUser(Environment $env, string $email = 'alice@example.com
     return ['user' => $user, 'email' => $emailRow];
 }
 
-it('prepare-first-factor email_link issues a magic link, dispatches the email job', function (): void {
+it('challenge email_link issues a magic link, dispatches the email job', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);
     $f = SessionsTestSupport::bootEnv();
     $u = setupMagicLinkUser($f['env']);
 
-    // Create a sign-in attempt directly (mirrors what FAPI POST does).
     $client = Client::create(['environment_id' => $f['env']->id]);
     $cookie = app(ClientResolver::class)->mintCookieValue($client);
     $attempt = SignInAttempt::create([
@@ -62,11 +61,14 @@ it('prepare-first-factor email_link issues a magic link, dispatches the email jo
             'Host' => 'acme.authn.local',
             'Origin' => $f['origin'],
         ])
-        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/prepare-first-factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/challenges", [
             'strategy' => 'email_link',
             'email_address_id' => $u['email']->id,
         ]);
-    $r->assertOk();
+    $r->assertOk()
+        ->assertJsonPath('response.object', 'challenge')
+        ->assertJsonPath('response.strategy', 'email_link')
+        ->assertJsonPath('response.status', 'pending');
 
     $verification = Verification::query()->withoutGlobalScopes()
         ->where('verifiable_type', $attempt->getMorphClass())
@@ -82,7 +84,7 @@ it('prepare-first-factor email_link issues a magic link, dispatches the email jo
     Bus::assertDispatched(SendMagicLinkEmail::class, fn ($job) => $job->emailAddress === 'alice@example.com');
 });
 
-it('attempt-first-factor email_link returns verification_failed while link is still unredeemed', function (): void {
+it('answer email_link returns verification_failed while link is still unredeemed', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);
     $f = SessionsTestSupport::bootEnv();
     $u = setupMagicLinkUser($f['env']);
@@ -95,22 +97,23 @@ it('attempt-first-factor email_link returns verification_failed while link is st
         'status' => SignInAttempt::STATUS_NEEDS_FIRST_FACTOR,
     ]);
 
-    test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
+    $issue = test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/prepare-first-factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/challenges", [
             'strategy' => 'email_link',
             'email_address_id' => $u['email']->id,
-        ])->assertOk();
+        ]);
+    $issue->assertOk();
+    $cid = $issue->json('response.id');
 
     test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/attempt-first-factor", [
-            'strategy' => 'email_link',
-        ])->assertStatus(422)
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/challenges/{$cid}/answer", [])
+        ->assertStatus(422)
         ->assertJsonPath('errors.0.code', 'verification_failed');
 });
 
-it('end-to-end same-device magic link flow: prepare → click → attempt completes', function (): void {
+it('end-to-end same-device magic link flow: issue → click → answer completes', function (): void {
     Bus::fake([SendMagicLinkEmail::class]);
     $f = SessionsTestSupport::bootEnv();
     $u = setupMagicLinkUser($f['env']);
@@ -123,23 +126,20 @@ it('end-to-end same-device magic link flow: prepare → click → attempt comple
         'status' => SignInAttempt::STATUS_NEEDS_FIRST_FACTOR,
     ]);
 
-    test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
+    $issue = test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/prepare-first-factor", [
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/challenges", [
             'strategy' => 'email_link',
             'email_address_id' => $u['email']->id,
-        ])->assertOk();
+        ]);
+    $issue->assertOk();
+    $cid = $issue->json('response.id');
 
-    // Mint a magic link directly (simulates the email click). The issuer
-    // returns the click URL so we extract the JWT from it.
     $verification = Verification::query()->withoutGlobalScopes()
         ->where('verifiable_type', $attempt->getMorphClass())
         ->where('verifiable_id', $attempt->id)
         ->where('strategy', 'email_link')
         ->firstOrFail();
-    // Re-mint a fresh JWT so the test exercises the click path. The
-    // VerificationCode persisted on prepare is what the verifier matches
-    // against — we use that one.
     $code = VerificationCode::query()->where('verification_id', $verification->id)->firstOrFail();
     expect($code->consumed_at)->toBeNull();
 
@@ -151,17 +151,16 @@ it('end-to-end same-device magic link flow: prepare → click → attempt comple
         ->getJson("https://acme.authn.local/v1/client/magic-link/redeem?__authn_magic_link={$issued['jwt']}");
     $click->assertOk()->assertJsonPath('verified', true);
 
-    // Verification flipped + Client.token_version bumped.
     expect($verification->fresh()->status)->toBe('verified');
     expect((int) Client::query()->withoutGlobalScopes()->where('id', $client->id)->firstOrFail()->token_version)->toBe(1);
 
-    // Now poll attempt-first-factor — should complete and return a session.
+    // Now answer the challenge — should complete and return a session.
     $r = test()->withCredentials()->withUnencryptedCookie('__client', $cookie)
         ->withHeaders(['Host' => 'acme.authn.local', 'Origin' => $f['origin']])
-        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/attempt-first-factor", [
-            'strategy' => 'email_link',
-        ]);
-    $r->assertOk()->assertJsonPath('response.status', 'complete');
+        ->postJson("https://acme.authn.local/v1/client/sign-ins/{$attempt->id}/challenges/{$cid}/answer", []);
+    $r->assertOk()->assertJsonPath('response.status', 'verified');
+
+    expect($attempt->fresh()->status)->toBe('complete');
 });
 
 it('replay protection: second click on the same link returns 410 consumed', function (): void {

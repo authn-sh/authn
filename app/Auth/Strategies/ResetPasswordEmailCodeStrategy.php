@@ -65,9 +65,7 @@ final class ResetPasswordEmailCodeStrategy implements Strategy
             $emailAddress->id,
         );
 
-        $attempt->forceFill(['first_factor_verification_id' => $verification->id])->save();
-
-        return StrategyResult::ok($attempt);
+        return StrategyResult::ok($attempt, verification: $verification);
     }
 
     public function attempt(SignInAttempt $attempt, array $params): StrategyResult
@@ -77,11 +75,8 @@ final class ResetPasswordEmailCodeStrategy implements Strategy
             return StrategyResult::fail($attempt, ErrorCodes::FORM_PARAM_NIL, 'code is required.');
         }
 
-        $verification = Verification::query()
-            ->withoutGlobalScopes()
-            ->where('id', (string) $attempt->first_factor_verification_id)
-            ->first();
-        if ($verification === null) {
+        $verification = $params['verification'] ?? null;
+        if (! $verification instanceof Verification) {
             return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_FAILED, 'No verification is in progress for this attempt.', 422);
         }
 
@@ -93,7 +88,7 @@ final class ResetPasswordEmailCodeStrategy implements Strategy
                     ? ErrorCodes::VERIFICATION_EXPIRED
                     : ErrorCodes::FORM_CODE_INCORRECT);
 
-            return StrategyResult::fail($attempt, $errorCode, 'Incorrect code.');
+            return StrategyResult::fail($attempt, $errorCode, 'Incorrect code.', verification: $verification->fresh() ?? $verification);
         }
 
         $email = EmailAddress::query()->withoutGlobalScopes()->where('id', $verification->verifiable_id)->first();
@@ -103,6 +98,6 @@ final class ResetPasswordEmailCodeStrategy implements Strategy
             return StrategyResult::fail($attempt, ErrorCodes::FORM_IDENTIFIER_NOT_FOUND, 'User not found.', 422);
         }
 
-        return StrategyResult::ok($attempt, $user);
+        return StrategyResult::ok($attempt, $user, $verification->fresh() ?? $verification);
     }
 }

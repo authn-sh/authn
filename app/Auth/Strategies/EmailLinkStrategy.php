@@ -79,34 +79,28 @@ final class EmailLinkStrategy implements Strategy
             $emailAddress->id,
         );
 
-        $attempt->forceFill(['first_factor_verification_id' => $verification->id])->save();
+        $verification->forceFill(['external_verification_redirect_url' => $minted['url']])->save();
 
-        return StrategyResult::ok($attempt);
+        return StrategyResult::ok($attempt, verification: $verification->fresh() ?? $verification);
     }
 
     public function attempt(SignInAttempt $attempt, array $params): StrategyResult
     {
-        $verification = Verification::query()
-            ->withoutGlobalScopes()
-            ->where('id', (string) $attempt->first_factor_verification_id)
-            ->first();
-        if ($verification === null) {
+        $verification = $params['verification'] ?? null;
+        if (! $verification instanceof Verification) {
             return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_FAILED, 'No magic link is in flight for this attempt.', 422);
         }
 
         if ($verification->status === Verification::STATUS_UNVERIFIED) {
-            // Still pending — the user hasn't clicked the link yet. The SDK
-            // polls; we tell it to keep waiting.
-            return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_FAILED, 'Magic link not yet redeemed.', 422);
+            return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_FAILED, 'Magic link not yet redeemed.', 422, $verification);
         }
         if ($verification->status === Verification::STATUS_EXPIRED) {
-            return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_EXPIRED, 'Magic link expired.', 422);
+            return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_EXPIRED, 'Magic link expired.', 422, $verification);
         }
         if ($verification->status !== Verification::STATUS_VERIFIED) {
-            return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_FAILED, "Magic link verification is in status {$verification->status}.", 422);
+            return StrategyResult::fail($attempt, ErrorCodes::VERIFICATION_FAILED, "Magic link verification is in status {$verification->status}.", 422, $verification);
         }
 
-        // Verified — resolve the user via the email captured at prepare-time.
         $email = EmailAddress::query()
             ->withoutGlobalScopes()
             ->where('environment_id', $attempt->environment_id)
@@ -125,7 +119,7 @@ final class EmailLinkStrategy implements Strategy
             return StrategyResult::fail($attempt, ErrorCodes::USER_LOCKED, 'This user is temporarily locked.', 403);
         }
 
-        return StrategyResult::ok($attempt, $user);
+        return StrategyResult::ok($attempt, $user, $verification);
     }
 
     private function resolveEmailAddress(SignInAttempt $attempt, array $params): ?EmailAddress
