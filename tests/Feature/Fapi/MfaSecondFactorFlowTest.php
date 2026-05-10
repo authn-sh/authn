@@ -187,9 +187,9 @@ it('user without MFA enrolled completes sign-in in one round-trip', function ():
 
 it('env disable of both totp + backup_codes mid-flight falls through to complete (loose semantic)', function (): void {
     // NOTE: pending decision on env-toggle vs enrolled-user-lockout
-    // semantic — see https://github.com/authn-sh/authn/issues/110.
+    // semantic — see https://github.com/authn-sh/authn/issues/109.
     // This test pins the AU-5 loose semantic currently shipped:
-    // operator toggle bypasses enrolled MFA. If issue #110 resolves
+    // operator toggle bypasses enrolled MFA. If issue #109 resolves
     // toward strict, flip this assertion to needs_second_factor.
     $f = SignInTestSupport::bootEnv();
     $bundle = SignInTestSupport::makeUser($f['env']);
