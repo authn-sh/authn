@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Fapi;
 
 use App\Auth\ErrorCodes;
+use App\Auth\SignUp\StageRequirements;
 use App\Auth\StrategyResolver;
 use App\Http\Resources\ChallengeResource;
 use App\Http\Resources\ClientResource;
@@ -586,7 +587,7 @@ final class ChallengeController
     {
         $env = app(Environment::class);
 
-        $stage = app(\App\Auth\SignUp\StageRequirements::class);
+        $stage = app(StageRequirements::class);
 
         $verifiedFlags = [];
         $emailVerified = $attempt->challenges()

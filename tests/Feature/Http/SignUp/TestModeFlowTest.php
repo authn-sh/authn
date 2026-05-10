@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Models\ApiKey;
 use App\Models\Environment;
+use App\Models\SignUpAttempt;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
@@ -50,7 +51,7 @@ it('sign-up against +authn_test in dev uses fixed code 424242, no driver call', 
         ]);
     $r->assertOk()->assertJsonPath('response.status', 'verified');
 
-    $signUp = \App\Models\SignUpAttempt::query()->withoutGlobalScopes()->where('id', $sid)->firstOrFail();
+    $signUp = SignUpAttempt::query()->withoutGlobalScopes()->where('id', $sid)->firstOrFail();
     expect($signUp->status)->toBe('complete');
     expect($signUp->created_user_id)->toStartWith('user_');
 });

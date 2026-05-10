@@ -27,9 +27,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property string $id
  * @property string $environment_id
- * @property string $parent_type      'sign_in' | 'sign_up'
+ * @property string $parent_type 'sign_in' | 'sign_up'
  * @property string $parent_id
- * @property string $step             'first' | 'second' | 'single'
+ * @property string $step 'first' | 'second' | 'single'
  * @property string $strategy
  * @property string $status
  * @property string $verification_id
