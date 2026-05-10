@@ -160,7 +160,10 @@ it('rejects a replayed backup code with form_code_already_used on the second use
     $replay->assertStatus(422)->assertJsonPath('errors.0.code', 'form_code_already_used');
 });
 
-it('omits second_factors when the env disables both totp and backup_codes mid-flight', function (): void {
+it('still requires second factor when the env disables both totp and backup_codes (strict)', function (): void {
+    // Strict semantic per #109: env-level multi_factor toggles gate
+    // new enrolments only; an enrolled user is never silently
+    // downgraded by an operator policy change.
     $f = SignInTestSupport::bootEnv();
     $bundle = SignInTestSupport::makeUser($f['env']);
     TotpSecret::create([
@@ -182,10 +185,12 @@ it('omits second_factors when the env disables both totp and backup_codes mid-fl
 
     $r = signInPost($f, ['identifier' => 'alice@example.com', 'strategy' => 'password', 'password' => 'super-secret-password']);
 
-    $r->assertOk()->assertJsonPath('response.status', 'complete');
+    $r->assertOk()
+        ->assertJsonPath('response.status', 'needs_second_factor')
+        ->assertJsonPath('response.supported_strategies', ['totp']);
 });
 
-it('narrows supported_strategies to [backup_code] when totp.enabled is false but the user has backup codes', function (): void {
+it('exposes [totp, backup_code] when both are enrolled regardless of env toggle (strict)', function (): void {
     $f = SignInTestSupport::bootEnv();
     $bundle = SignInTestSupport::makeUser($f['env']);
     TotpSecret::create([
@@ -214,5 +219,5 @@ it('narrows supported_strategies to [backup_code] when totp.enabled is false but
 
     $r->assertOk()
         ->assertJsonPath('response.status', 'needs_second_factor')
-        ->assertJsonPath('response.supported_strategies', ['backup_code']);
+        ->assertJsonPath('response.supported_strategies', ['totp', 'backup_code']);
 });

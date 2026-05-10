@@ -24,7 +24,6 @@ use App\Models\Verification;
 use App\Services\Client\ClientResolver;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
-use App\Settings\MultiFactorSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -279,30 +278,25 @@ final class SignInController
 
     private function shouldPivotToSecondFactor(SignInAttempt $attempt, User $user): bool
     {
-        $env = Environment::query()->withoutGlobalScopes()->where('id', $attempt->environment_id)->first();
-        if ($env === null) {
-            return false;
-        }
-        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
-        if (! $settings->totpEnabled && ! $settings->backupCodesEnabled) {
-            return false;
-        }
-
-        $hasTotp = TotpSecret::query()
+        // Strict semantic: pivot when the user is enrolled, regardless
+        // of the env-level multi_factor toggle. The toggle gates new
+        // enrolments only; an operator who turns it off after users
+        // have enrolled MUST clear their rows via BAPI
+        // `DELETE /v1/users/{id}/mfa` to actually downgrade them.
+        $hasTotp = (bool) $user->totp_enabled && TotpSecret::query()
             ->withoutGlobalScopes()
             ->where('user_id', $user->id)
             ->whereNotNull('verified_at')
             ->exists();
-        if ($hasTotp && $settings->totpEnabled) {
+        if ($hasTotp) {
             return true;
         }
-        $hasBackup = BackupCode::query()
+
+        return (bool) $user->backup_code_enabled && BackupCode::query()
             ->withoutGlobalScopes()
             ->where('user_id', $user->id)
             ->whereNull('consumed_at')
             ->exists();
-
-        return $hasBackup && $settings->backupCodesEnabled;
     }
 
     private function createSession(SignInAttempt $attempt, ?User $user): Session

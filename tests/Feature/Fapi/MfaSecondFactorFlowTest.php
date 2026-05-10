@@ -185,15 +185,15 @@ it('user without MFA enrolled completes sign-in in one round-trip', function ():
     $r->assertOk()->assertJsonPath('response.status', 'complete');
 });
 
-it('env disable of both totp + backup_codes mid-flight falls through to complete (loose semantic)', function (): void {
-    // NOTE: pending decision on env-toggle vs enrolled-user-lockout
-    // semantic — see https://github.com/authn-sh/authn/issues/109.
-    // This test pins the AU-5 loose semantic currently shipped:
-    // operator toggle bypasses enrolled MFA. If issue #109 resolves
-    // toward strict, flip this assertion to needs_second_factor.
+it('env disable of both totp + backup_codes does NOT downgrade an enrolled user (strict semantic)', function (): void {
+    // Strict semantic per issue #109: the env-level multi_factor toggle
+    // gates new enrolments only. An already-enrolled user is still
+    // required to provide a second factor at sign-in. Operator policy
+    // changes never silently drop a user from "I expect MFA" to
+    // first-factor-only — they must DELETE /v1/users/{id}/mfa to do that.
     $f = SignInTestSupport::bootEnv();
     $bundle = SignInTestSupport::makeUser($f['env']);
-    seedTotpForFlow($f['env'], $bundle['user']);
+    $secret = seedTotpForFlow($f['env'], $bundle['user']);
     $f['env']->forceFill([
         'user_settings' => [
             'multi_factor' => [
@@ -203,13 +203,68 @@ it('env disable of both totp + backup_codes mid-flight falls through to complete
         ],
     ])->save();
 
+    $cb = SignInTestSupport::clientWithCookie($f['env']);
+    $headers = ['Host' => 'acme.authn.local', 'Origin' => $f['origin']];
     $r = flowReq('POST', 'https://acme.authn.local/v1/client/sign-ins', [
         'identifier' => 'alice@example.com',
         'strategy' => 'password',
         'password' => 'super-secret-password',
-    ], ['Host' => 'acme.authn.local', 'Origin' => $f['origin']], null);
+    ], $headers, $cb['cookie']);
 
-    $r->assertOk()->assertJsonPath('response.status', 'complete');
+    $r->assertOk()
+        ->assertJsonPath('response.status', 'needs_second_factor')
+        ->assertJsonPath('response.supported_strategies', ['totp']);
+    expect($r->json('response.created_session_id'))->toBeNull();
+
+    // Enrolled user can still complete sign-in by answering the second factor.
+    $sid = $r->json('response.id');
+    $code = (new Google2FA)->getCurrentOtp($secret->secret);
+    flowReq('POST', "https://acme.authn.local/v1/client/sign-ins/{$sid}/challenges", [
+        'strategy' => 'totp',
+        'code' => $code,
+    ], $headers, $cb['cookie'])->assertOk();
+    expect(Session::query()->withoutGlobalScopes()->where('user_id', $bundle['user']->id)->where('status', 'active')->exists())->toBeTrue();
+});
+
+it('operator flips totp.enabled to false post-enrolment but the user must still complete TOTP (strict)', function (): void {
+    // The narrow operator-disabled-after-enrolment path: user enrolled
+    // while totp.enabled=true; operator later disables; the user's
+    // next sign-in still requires the second factor and completes
+    // successfully when they answer.
+    $f = SignInTestSupport::bootEnv();
+    $bundle = SignInTestSupport::makeUser($f['env']);
+    $secret = seedTotpForFlow($f['env'], $bundle['user']);
+
+    // Operator flips the toggle off after enrolment.
+    $f['env']->forceFill([
+        'user_settings' => [
+            'multi_factor' => [
+                'totp' => ['enabled' => false],
+                'backup_codes' => ['enabled' => true, 'default_count' => 10],
+            ],
+        ],
+    ])->save();
+
+    $cb = SignInTestSupport::clientWithCookie($f['env']);
+    $headers = ['Host' => 'acme.authn.local', 'Origin' => $f['origin']];
+    $first = flowReq('POST', 'https://acme.authn.local/v1/client/sign-ins', [
+        'identifier' => 'alice@example.com',
+        'strategy' => 'password',
+        'password' => 'super-secret-password',
+    ], $headers, $cb['cookie']);
+
+    $first->assertOk()
+        ->assertJsonPath('response.status', 'needs_second_factor')
+        ->assertJsonPath('response.supported_strategies', ['totp']);
+
+    $sid = $first->json('response.id');
+    $code = (new Google2FA)->getCurrentOtp($secret->secret);
+    flowReq('POST', "https://acme.authn.local/v1/client/sign-ins/{$sid}/challenges", [
+        'strategy' => 'totp',
+        'code' => $code,
+    ], $headers, $cb['cookie'])->assertOk();
+
+    expect(Session::query()->withoutGlobalScopes()->where('user_id', $bundle['user']->id)->where('status', 'active')->exists())->toBeTrue();
 });
 
 it('mfa_already_verified on re-enrol after a successful verify', function (): void {
