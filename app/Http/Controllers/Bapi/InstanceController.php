@@ -86,6 +86,7 @@ final class InstanceController
             'organizations' => [
                 'enabled' => false,
             ],
+            'multi_factor' => $this->multiFactor($userSettings),
             'audit_log_retention_days' => (int) ($userSettings['audit_log_retention_days'] ?? 90),
         ]);
     }
@@ -114,6 +115,27 @@ final class InstanceController
         }
 
         return $defaults;
+    }
+
+    /**
+     * @param  array<string, mixed>  $userSettings
+     * @return array{totp: array{enabled: bool}, backup_codes: array{enabled: bool, default_count: int}}
+     */
+    private function multiFactor(array $userSettings): array
+    {
+        $mf = is_array($userSettings['multi_factor'] ?? null) ? $userSettings['multi_factor'] : [];
+        $totp = is_array($mf['totp'] ?? null) ? $mf['totp'] : [];
+        $backup = is_array($mf['backup_codes'] ?? null) ? $mf['backup_codes'] : [];
+
+        return [
+            'totp' => [
+                'enabled' => (bool) ($totp['enabled'] ?? true),
+            ],
+            'backup_codes' => [
+                'enabled' => (bool) ($backup['enabled'] ?? true),
+                'default_count' => (int) ($backup['default_count'] ?? 10),
+            ],
+        ];
     }
 
     public function update(Request $request): JsonResponse
