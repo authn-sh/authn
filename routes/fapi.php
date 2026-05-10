@@ -9,6 +9,7 @@ use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\MagicLinkController;
 use App\Http\Controllers\Fapi\MeController;
 use App\Http\Controllers\Fapi\MeOrganizationController;
+use App\Http\Controllers\Fapi\MeTotpController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
 use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
 use App\Http\Controllers\Fapi\OrganizationMembershipController as FapiOrganizationMembershipController;
@@ -116,6 +117,11 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/me/sessions', [MeController::class, 'listSessions'])->name('fapi.me.sessions.list');
         Route::post('/me/change-password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');
+
+        Route::post('/me/totp', [MeTotpController::class, 'start'])->name('fapi.me.totp.start');
+        Route::post('/me/totp/verify', [MeTotpController::class, 'verify'])->name('fapi.me.totp.verify');
+        Route::get('/me/totp', [MeTotpController::class, 'show'])->name('fapi.me.totp.show');
+        Route::delete('/me/totp', [MeTotpController::class, 'destroy'])->name('fapi.me.totp.destroy');
 
         // Organizations — user-scoped CRUD (PLAN §4.4 / OA-3 / AU-6).
         Route::post('/organizations', [FapiOrganizationController::class, 'store'])->name('fapi.organizations.store');

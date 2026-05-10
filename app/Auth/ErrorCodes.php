@@ -59,6 +59,10 @@ final class ErrorCodes
 
     public const MFA_NOT_ENABLED = 'mfa_not_enabled';
 
+    public const MFA_ALREADY_VERIFIED = 'mfa_already_verified';
+
+    public const TOTP_NOT_FOUND = 'totp_not_found';
+
     public const STRATEGY_NOT_SUPPORTED = 'strategy_not_supported';
 
     public const PREPARE_NOT_REQUIRED = 'prepare_not_required';
