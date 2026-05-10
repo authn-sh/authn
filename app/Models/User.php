@@ -35,6 +35,8 @@ use Illuminate\Support\Facades\Hash;
  * @property ?string $image_url
  * @property bool $has_image
  * @property ?string $primary_email_address_id
+ * @property ?string $primary_phone_number_id
+ * @property bool $phone_number_enabled
  * @property ?string $password_hash
  * @property ?\DateTimeInterface $password_changed_at
  * @property bool $two_factor_enabled
@@ -73,6 +75,8 @@ class User extends Model implements AuthenticatableContract
         'image_url',
         'has_image',
         'primary_email_address_id',
+        'primary_phone_number_id',
+        'phone_number_enabled',
         'password',
         'password_hash',
         'password_changed_at',
@@ -104,6 +108,7 @@ class User extends Model implements AuthenticatableContract
     {
         return [
             'has_image' => 'boolean',
+            'phone_number_enabled' => 'boolean',
             'password_imported' => 'boolean',
             'two_factor_enabled' => 'boolean',
             'totp_enabled' => 'boolean',
@@ -146,6 +151,16 @@ class User extends Model implements AuthenticatableContract
     public function primaryEmailAddress(): BelongsTo
     {
         return $this->belongsTo(EmailAddress::class, 'primary_email_address_id');
+    }
+
+    public function phoneNumbers(): HasMany
+    {
+        return $this->hasMany(PhoneNumber::class);
+    }
+
+    public function primaryPhoneNumber(): BelongsTo
+    {
+        return $this->belongsTo(PhoneNumber::class, 'primary_phone_number_id');
     }
 
     public function organizationMemberships(): BelongsToMany

@@ -18,6 +18,7 @@ final class UserResource
     public static function from(User $user, bool $includePrivate = false): array
     {
         $emails = $user->emailAddresses()->withoutGlobalScopes()->get();
+        $phones = $user->phoneNumbers()->withoutGlobalScopes()->get();
 
         $shape = [
             'object' => 'user',
@@ -30,8 +31,9 @@ final class UserResource
             'has_image' => (bool) $user->has_image,
             'primary_email_address_id' => $user->primary_email_address_id,
             'email_addresses' => $emails->map(fn ($email) => EmailAddressResource::from($email))->all(),
-            // v0.1: stable arrays so SDK types are forward-compatible.
-            'phone_numbers' => [],
+            'primary_phone_number_id' => $user->primary_phone_number_id,
+            'phone_numbers' => $phones->map(fn ($phone) => PhoneNumberResource::from($phone))->all(),
+            // v0.5+: stable arrays so SDK types are forward-compatible.
             'external_accounts' => [],
             'enterprise_accounts' => [],
             'passkeys' => [],
