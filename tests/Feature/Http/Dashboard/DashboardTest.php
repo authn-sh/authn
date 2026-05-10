@@ -322,3 +322,73 @@ it('redirects on unknown organization id back to organizations list', function (
     $r->assertRedirect();
     expect($r->headers->get('Location'))->toContain('/acme/production/organizations');
 });
+
+it('Configure renders the multi-factor subsection with spec defaults when user_settings.multi_factor is unset', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/configure/multi-factor');
+
+    $r->assertOk()
+        ->assertJsonPath('component', 'Dashboard/Configure')
+        ->assertJsonPath('props.section', 'multi-factor')
+        ->assertJsonPath('props.multi_factor.totp.enabled', true)
+        ->assertJsonPath('props.multi_factor.backup_codes.enabled', true)
+        ->assertJsonPath('props.multi_factor.backup_codes.default_count', 10);
+});
+
+it('PATCH /configure/multi-factor writes the toggles through to user_settings.multi_factor', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/multi-factor', [
+            'totp' => ['enabled' => false],
+            'backup_codes' => ['enabled' => true, 'default_count' => 16],
+        ]);
+
+    $r->assertRedirect();
+    expect($env->fresh()->user_settings['multi_factor']['totp']['enabled'])->toBeFalse();
+    expect($env->fresh()->user_settings['multi_factor']['backup_codes']['default_count'])->toBe(16);
+    expect(session('multi_factor_saved'))->toBeTrue();
+});
+
+it('PATCH /configure/multi-factor rejects default_count outside 4..24 with validation errors', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/multi-factor', [
+            'totp' => ['enabled' => true],
+            'backup_codes' => ['enabled' => true, 'default_count' => 3],
+        ]);
+
+    $r->assertStatus(422);
+    $errors = $r->json('errors');
+    expect($errors)->toHaveKey('backup_codes.default_count');
+});
