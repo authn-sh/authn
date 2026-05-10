@@ -7,6 +7,7 @@ use App\Http\Controllers\Fapi\ChallengeController;
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\MagicLinkController;
+use App\Http\Controllers\Fapi\MeBackupCodesController;
 use App\Http\Controllers\Fapi\MeController;
 use App\Http\Controllers\Fapi\MeOrganizationController;
 use App\Http\Controllers\Fapi\MeTotpController;
@@ -122,6 +123,10 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/me/totp/verify', [MeTotpController::class, 'verify'])->name('fapi.me.totp.verify');
         Route::get('/me/totp', [MeTotpController::class, 'show'])->name('fapi.me.totp.show');
         Route::delete('/me/totp', [MeTotpController::class, 'destroy'])->name('fapi.me.totp.destroy');
+
+        Route::post('/me/backup-codes', [MeBackupCodesController::class, 'regenerate'])->name('fapi.me.backup_codes.regenerate');
+        Route::get('/me/backup-codes', [MeBackupCodesController::class, 'show'])->name('fapi.me.backup_codes.show');
+        Route::delete('/me/backup-codes', [MeBackupCodesController::class, 'destroy'])->name('fapi.me.backup_codes.destroy');
 
         // Organizations — user-scoped CRUD (PLAN §4.4 / OA-3 / AU-6).
         Route::post('/organizations', [FapiOrganizationController::class, 'store'])->name('fapi.organizations.store');
