@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Dashboard;
 
+use App\Jobs\Sms\SendSmsTemplate;
 use App\Models\AllowlistIdentifier;
 use App\Models\ApiKey;
 use App\Models\BlocklistIdentifier;
@@ -19,6 +20,7 @@ use App\Models\Permission;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Session;
+use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
@@ -247,13 +249,41 @@ final class DashboardController
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $smsCfg = is_array($userSettings['sms'] ?? null) ? $userSettings['sms'] : [];
+        $attributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
+        $smsTemplates = SmsTemplate::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->orderBy('slug')
+            ->get(['id', 'slug', 'body', 'delivered_by_us', 'from_number_override']);
+
         return Inertia::render('Dashboard/Configure', [
             'section' => $section,
-            'user_settings' => is_array($env->user_settings) ? $env->user_settings : [],
+            'user_settings' => $userSettings,
             'allowed_origins' => is_array($env->allowed_origins) ? $env->allowed_origins : [],
             'appearance' => is_array($env->appearance) ? $env->appearance : [],
             'signup_mode' => $env->signup_mode,
-            'multi_factor' => MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : [])->toArray(),
+            'multi_factor' => MultiFactorSettings::fromUserSettings($userSettings)->toArray(),
+            'attributes' => [
+                'phone_number' => is_string($attributes['phone_number'] ?? null)
+                    ? (string) $attributes['phone_number']
+                    : 'off',
+            ],
+            'sms' => [
+                'driver' => $smsCfg['driver'] ?? null,
+                'from_number' => $smsCfg['from_number'] ?? null,
+                'twilio_account_sid' => $smsCfg['twilio']['account_sid'] ?? null,
+                'twilio_auth_token_set' => isset($smsCfg['twilio']['auth_token']) && $smsCfg['twilio']['auth_token'] !== '',
+                'vonage_api_key' => $smsCfg['vonage']['api_key'] ?? null,
+                'vonage_api_secret_set' => isset($smsCfg['vonage']['api_secret']) && $smsCfg['vonage']['api_secret'] !== '',
+            ],
+            'sms_templates' => $smsTemplates->map(fn (SmsTemplate $t) => [
+                'id' => $t->id,
+                'slug' => $t->slug,
+                'body' => $t->body,
+                'delivered_by_us' => (bool) $t->delivered_by_us,
+                'from_number_override' => $t->from_number_override,
+            ])->all(),
         ]);
     }
 
@@ -287,6 +317,131 @@ final class DashboardController
 
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/multi-factor")
             ->with('multi_factor_saved', true);
+    }
+
+    public function updateAttributes(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $request->validate([
+            'phone_number' => ['required', 'in:required,optional,off'],
+        ]);
+
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $attributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
+        $attributes['phone_number'] = (string) $request->input('phone_number');
+        $userSettings['attributes'] = $attributes;
+        $env->forceFill(['user_settings' => $userSettings])->save();
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/attributes")
+            ->with('attributes_saved', true);
+    }
+
+    public function updateSms(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $request->validate([
+            'driver' => ['nullable', 'in:twilio,vonage'],
+            'from_number' => ['nullable', 'string', 'max:32'],
+            'twilio.account_sid' => ['nullable', 'string', 'max:255'],
+            'twilio.auth_token' => ['nullable', 'string', 'max:255'],
+            'vonage.api_key' => ['nullable', 'string', 'max:255'],
+            'vonage.api_secret' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $sms = is_array($userSettings['sms'] ?? null) ? $userSettings['sms'] : [];
+
+        $sms['driver'] = $request->input('driver');
+        $sms['from_number'] = $request->input('from_number');
+
+        // Credential write-only semantics: empty / null leaves the stored value
+        // untouched (so the UI can render `•••• rotate` placeholders without
+        // wiping the secret on every save). Operators that need to clear a
+        // secret should rotate via the BAPI `Environment` patch.
+        foreach (['twilio' => ['account_sid', 'auth_token'], 'vonage' => ['api_key', 'api_secret']] as $vendor => $keys) {
+            $vendorBlock = is_array($sms[$vendor] ?? null) ? $sms[$vendor] : [];
+            foreach ($keys as $field) {
+                if (! $request->has("{$vendor}.{$field}")) {
+                    continue;
+                }
+                $value = $request->input("{$vendor}.{$field}");
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                $vendorBlock[$field] = $value;
+            }
+            if ($vendorBlock !== []) {
+                $sms[$vendor] = $vendorBlock;
+            }
+        }
+
+        $userSettings['sms'] = $sms;
+        $env->forceFill(['user_settings' => $userSettings])->save();
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/sms")
+            ->with('sms_saved', true);
+    }
+
+    public function sendTestSms(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $request->validate([
+            'to_number' => ['required', 'string', 'regex:/^\+[1-9][0-9]{7,14}$/'],
+        ]);
+
+        SendSmsTemplate::dispatch(
+            $env->id,
+            SmsTemplate::SLUG_VERIFICATION_CODE,
+            (string) $request->input('to_number'),
+            ['otp_code' => '424242', 'expiry_minutes' => 10],
+        );
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/sms")
+            ->with('sms_test_dispatched', true);
+    }
+
+    public function updateSmsTemplate(Request $request, string $project_slug, string $env_slug, string $slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $request->validate([
+            'body' => ['nullable', 'string', 'max:1600'],
+            'delivered_by_us' => ['nullable', 'boolean'],
+            'from_number_override' => ['nullable', 'string', 'max:32'],
+        ]);
+
+        $row = SmsTemplate::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('slug', $slug)
+            ->first();
+        if ($row === null) {
+            return redirect()->back()->withErrors(['slug' => 'Template not found.']);
+        }
+
+        $patch = array_filter([
+            'body' => $request->input('body'),
+            'delivered_by_us' => $request->has('delivered_by_us') ? $request->boolean('delivered_by_us') : null,
+            'from_number_override' => $request->input('from_number_override'),
+        ], static fn ($v) => $v !== null);
+        $row->forceFill($patch)->save();
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/sms")
+            ->with('sms_template_saved', true);
     }
 
     public function emailTemplates(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse

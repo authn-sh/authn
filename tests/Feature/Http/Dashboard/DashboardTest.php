@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Jobs\Sms\SendSmsTemplate;
 use App\Models\ApiKey;
 use App\Models\Client;
 use App\Models\EmailAddress;
@@ -11,11 +12,13 @@ use App\Models\OrganizationMembership;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\Session;
+use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Models\WebhookEndpoint;
 use App\Services\Keys\SigningKeyGenerator;
 use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Routing\RouteCollection;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 
 function reloadDashboardRoutes(): void
@@ -391,4 +394,172 @@ it('PATCH /configure/multi-factor rejects default_count outside 4..24 with valid
     $r->assertStatus(422);
     $errors = $r->json('errors');
     expect($errors)->toHaveKey('backup_codes.default_count');
+});
+
+it('PATCH /configure/attributes writes phone_number tri-state through to user_settings.attributes', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/attributes', [
+            'phone_number' => 'optional',
+        ]);
+
+    $r->assertRedirect();
+    expect($env->fresh()->user_settings['attributes']['phone_number'])->toBe('optional');
+});
+
+it('PATCH /configure/attributes rejects unknown phone_number values', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/attributes', [
+            'phone_number' => 'maybe',
+        ]);
+
+    $r->assertStatus(422);
+});
+
+it('PATCH /configure/sms writes driver + from_number + credentials through with rotate semantics', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/sms', [
+            'driver' => 'twilio',
+            'from_number' => '+15555550100',
+            'twilio' => ['account_sid' => 'AC123', 'auth_token' => 'tok-1'],
+        ]);
+
+    $r->assertRedirect();
+    $sms = $env->fresh()->user_settings['sms'];
+    expect($sms['driver'])->toBe('twilio');
+    expect($sms['from_number'])->toBe('+15555550100');
+    expect($sms['twilio']['account_sid'])->toBe('AC123');
+    expect($sms['twilio']['auth_token'])->toBe('tok-1');
+
+    // Empty auth_token leaves the stored value untouched.
+    $r2 = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/sms', [
+            'driver' => 'twilio',
+            'from_number' => '+15555550100',
+            'twilio' => ['account_sid' => 'AC123', 'auth_token' => ''],
+        ]);
+    $r2->assertRedirect();
+    expect($env->fresh()->user_settings['sms']['twilio']['auth_token'])->toBe('tok-1');
+});
+
+it('POST /configure/sms/test dispatches a SendSmsTemplate job', function (): void {
+    Queue::fake();
+
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->post('http://dashboard.authn.local/acme/production/configure/sms/test', [
+            'to_number' => '+15555550100',
+        ]);
+
+    $r->assertRedirect();
+    Queue::assertPushed(SendSmsTemplate::class);
+});
+
+it('POST /configure/sms/test 422s on non-E.164 input', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->post('http://dashboard.authn.local/acme/production/configure/sms/test', [
+            'to_number' => 'bad',
+        ]);
+
+    $r->assertStatus(422);
+});
+
+it('PATCH /configure/sms-templates/{slug} updates the template body', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/sms-templates/verification_code', [
+            'body' => 'Custom: {{otp_code}}',
+        ]);
+
+    $r->assertRedirect();
+    $row = SmsTemplate::query()->withoutGlobalScopes()
+        ->where('environment_id', $env->id)
+        ->where('slug', 'verification_code')
+        ->firstOrFail();
+    expect($row->body)->toBe('Custom: {{otp_code}}');
+});
+
+it('Configure renders the sms section with seeded templates + null driver default', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/configure/sms');
+
+    $r->assertOk()
+        ->assertJsonPath('component', 'Dashboard/Configure')
+        ->assertJsonPath('props.section', 'sms')
+        ->assertJsonPath('props.sms.driver', null)
+        ->assertJsonCount(3, 'props.sms_templates');
 });
