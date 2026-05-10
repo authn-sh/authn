@@ -29,7 +29,6 @@ final class RecheckVerifiedDomains implements ShouldQueue
         OrganizationDomain::query()
             ->withoutGlobalScopes()
             ->where('verified', true)
-            ->whereNotNull('verification_id')
             ->orderBy('id')
             ->chunk(200, function ($domains): void {
                 foreach ($domains as $domain) {

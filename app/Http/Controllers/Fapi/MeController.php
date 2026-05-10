@@ -9,16 +9,12 @@ use App\Http\Resources\ClientResource;
 use App\Http\Resources\EmailAddressResource;
 use App\Http\Resources\UserResource;
 use App\Jobs\Mail\SendPasswordChangedNotification;
-use App\Jobs\Mail\SendVerificationEmail;
 use App\Models\Client;
 use App\Models\EmailAddress;
 use App\Models\Environment;
 use App\Models\Session;
 use App\Models\User;
-use App\Models\Verification;
-use App\Models\VerificationCode;
 use App\Services\Sessions\SessionLifecycle;
-use App\Services\Verification\VerificationManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -33,14 +29,11 @@ use Illuminate\Http\Request;
  */
 final class MeController
 {
-    private const EMAIL_VERIFICATION_TTL = 600;
-
     private const WRITABLE_PROFILE_FIELDS = [
         'first_name', 'last_name', 'username', 'image_url', 'locale',
     ];
 
     public function __construct(
-        private readonly VerificationManager $verifications,
         private readonly SessionLifecycle $lifecycle,
     ) {}
 
@@ -219,81 +212,6 @@ final class MeController
         return response()->json(null, 204);
     }
 
-    public function prepareEmailVerification(Request $request): JsonResponse
-    {
-        $session = app(Session::class);
-        if ($session->isImpersonation()) {
-            return $this->error(403, ErrorCodes::ACTOR_SESSION_FORBIDDEN, 'Impersonation sessions cannot verify emails.');
-        }
-        $email = $this->loadEmail($request);
-        if ($email instanceof JsonResponse) {
-            return $email;
-        }
-
-        $strategy = (string) $request->input('strategy', '');
-        if ($strategy !== Verification::STRATEGY_EMAIL_CODE) {
-            return $this->error(422, ErrorCodes::STRATEGY_NOT_SUPPORTED_IN_V0_1, "strategy {$strategy} is not enabled in v0.1.");
-        }
-
-        $verification = $this->verifications->start($email, Verification::STRATEGY_EMAIL_CODE, self::EMAIL_VERIFICATION_TTL);
-        $code = $this->verifications->mintNumericCode($verification, VerificationCode::PURPOSE_EMAIL_CODE, self::EMAIL_VERIFICATION_TTL);
-
-        SendVerificationEmail::dispatch(
-            $email->environment_id,
-            $email->email_address,
-            $code,
-            VerificationCode::PURPOSE_EMAIL_CODE,
-            $verification->id,
-            $email->id,
-        );
-
-        return $this->clientEnvelope(EmailAddressResource::from($email->fresh()));
-    }
-
-    public function attemptEmailVerification(Request $request): JsonResponse
-    {
-        $session = app(Session::class);
-        if ($session->isImpersonation()) {
-            return $this->error(403, ErrorCodes::ACTOR_SESSION_FORBIDDEN, 'Impersonation sessions cannot verify emails.');
-        }
-        $email = $this->loadEmail($request);
-        if ($email instanceof JsonResponse) {
-            return $email;
-        }
-
-        $code = $request->input('code');
-        if (! is_string($code) || $code === '') {
-            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'code is required.');
-        }
-
-        $verification = Verification::query()
-            ->withoutGlobalScopes()
-            ->where('verifiable_type', $email->getMorphClass())
-            ->where('verifiable_id', $email->id)
-            ->where('status', Verification::STATUS_UNVERIFIED)
-            ->latest('id')
-            ->first();
-        if ($verification === null) {
-            return $this->error(422, ErrorCodes::NO_VERIFICATION_IN_PROGRESS, 'No verification is in progress for this email.');
-        }
-
-        $ok = $this->verifications->attempt($verification, $code);
-        if (! $ok) {
-            $fresh = $verification->fresh();
-            $errCode = $fresh->status === Verification::STATUS_FAILED
-                ? ErrorCodes::VERIFICATION_FAILED
-                : ($fresh->status === Verification::STATUS_EXPIRED
-                    ? ErrorCodes::VERIFICATION_EXPIRED
-                    : ErrorCodes::FORM_CODE_INCORRECT);
-
-            return $this->error(422, $errCode, 'Incorrect code.');
-        }
-
-        $email->forceFill(['verified_at' => now()])->save();
-
-        return $this->clientEnvelope(EmailAddressResource::from($email->fresh()));
-    }
-
     /* -------------------- sessions -------------------- */
 
     public function listSessions(): JsonResponse
@@ -354,7 +272,7 @@ final class MeController
 
     private function loadEmail(Request $request): EmailAddress|JsonResponse
     {
-        $eid = (string) $request->route('eid');
+        $eid = (string) $request->route('email_address_id');
         $user = app(User::class);
         $email = EmailAddress::query()
             ->withoutGlobalScopes()

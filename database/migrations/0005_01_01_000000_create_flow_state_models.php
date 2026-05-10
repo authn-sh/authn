@@ -128,10 +128,10 @@ return new class extends Migration
             $table->string('id', 64)->primary();
             $table->string('environment_id', 64);
 
-            // Polymorphic parent: 'sign_in' | 'sign_up'. The parent_id points
-            // at sign_in_attempts.id or sign_up_attempts.id; no DB-level FK
-            // because the type column disambiguates the target table.
-            $table->string('parent_type', 16);
+            // Polymorphic parent: 'sign_in' | 'sign_up' | 'email_address' |
+            // 'organization_domain'. The parent_id points at the matching
+            // table; no DB-level FK because the type column disambiguates.
+            $table->string('parent_type', 32);
             $table->string('parent_id', 64);
 
             $table->string('step', 16);
@@ -159,6 +159,10 @@ return new class extends Migration
         });
 
         Schema::table('sign_up_attempts', function (Blueprint $table): void {
+            $table->foreign('current_challenge_id')->references('id')->on('challenges')->nullOnDelete();
+        });
+
+        Schema::table('email_addresses', function (Blueprint $table): void {
             $table->foreign('current_challenge_id')->references('id')->on('challenges')->nullOnDelete();
         });
 
@@ -233,6 +237,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::table('email_addresses', function (Blueprint $table): void {
+            $table->dropForeign(['current_challenge_id']);
+        });
         Schema::table('sign_up_attempts', function (Blueprint $table): void {
             $table->dropForeign(['created_session_id']);
             $table->dropForeign(['current_challenge_id']);

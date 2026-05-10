@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $name
  * @property bool $verified
  * @property string $enrollment_mode
- * @property ?string $verification_id
+ * @property ?string $current_challenge_id
  * @property ?string $affiliation_email_address
  * @property int $total_pending_invitations
  * @property int $total_pending_suggestions
@@ -47,7 +47,7 @@ class OrganizationDomain extends Model
         'name',
         'verified',
         'enrollment_mode',
-        'verification_id',
+        'current_challenge_id',
         'affiliation_email_address',
         'total_pending_invitations',
         'total_pending_suggestions',
@@ -72,8 +72,8 @@ class OrganizationDomain extends Model
         return $this->belongsTo(Organization::class);
     }
 
-    public function verification(): BelongsTo
+    public function currentChallenge(): BelongsTo
     {
-        return $this->belongsTo(Verification::class);
+        return $this->belongsTo(Challenge::class, 'current_challenge_id');
     }
 }

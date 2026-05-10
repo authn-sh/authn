@@ -28,6 +28,7 @@ use Illuminate\Support\Str;
  * @property ?\DateTimeInterface $verified_at
  * @property bool $is_primary
  * @property ?string $linked_to_external_account_id
+ * @property ?string $current_challenge_id
  */
 #[ObservedBy([EmailAddressObserver::class])]
 class EmailAddress extends Model
@@ -46,6 +47,7 @@ class EmailAddress extends Model
         'verified_at',
         'is_primary',
         'linked_to_external_account_id',
+        'current_challenge_id',
     ];
 
     protected function casts(): array

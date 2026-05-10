@@ -48,19 +48,26 @@ it('PATCH /v1/me updates writable fields and ignores unknown', function (): void
         ->assertJsonPath('client.object', 'client');
 });
 
-it('POST /v1/me/email-addresses creates an unverified row; verifies via prepare + attempt', function (): void {
+it('POST /v1/me/email-addresses creates an unverified row; verifies via Challenge sub-resource', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
 
     $created = meReq('POST', '/me/email-addresses', $auth['jwt'], ['email_address' => 'alt@example.com']);
     $created->assertOk()
         ->assertJsonPath('response.email_address', 'alt@example.com')
-        ->assertJsonPath('response.verification', null);
+        ->assertJsonPath('response.verified', false)
+        ->assertJsonPath('response.current_challenge_id', null);
     $eid = $created->json('response.id');
 
-    meReq('POST', "/me/email-addresses/{$eid}/prepare-verification", $auth['jwt'], [
+    $challenge = meReq('POST', "/me/email-addresses/{$eid}/challenges", $auth['jwt'], [
         'strategy' => 'email_code',
-    ])->assertOk();
+    ]);
+    $challenge->assertOk()
+        ->assertJsonPath('object', 'challenge')
+        ->assertJsonPath('strategy', 'email_code')
+        ->assertJsonPath('status', 'pending')
+        ->assertJsonPath('email_address_id', $eid);
+    $cid = $challenge->json('id');
 
     // Stamp a known code on the verification row.
     $verification = Verification::query()->withoutGlobalScopes()->latest('id')->first();
@@ -68,10 +75,11 @@ it('POST /v1/me/email-addresses creates an unverified row; verifies via prepare 
     $known = '424242';
     $codeRow->forceFill(['code_hash' => hash('sha256', $known)])->save();
 
-    meReq('POST', "/me/email-addresses/{$eid}/attempt-verification", $auth['jwt'], [
-        'strategy' => 'email_code',
+    meReq('POST', "/me/email-addresses/{$eid}/challenges/{$cid}/answer", $auth['jwt'], [
         'code' => $known,
-    ])->assertOk()->assertJsonPath('response.verification.status', 'verified');
+    ])->assertOk()
+        ->assertJsonPath('object', 'challenge')
+        ->assertJsonPath('status', 'verified');
 
     expect(EmailAddress::query()->withoutGlobalScopes()->where('id', $eid)->first()->isVerified())->toBeTrue();
 });
