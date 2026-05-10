@@ -6,8 +6,10 @@ namespace App\Services\Sessions;
 
 use App\Models\Environment;
 use App\Models\OrganizationMembership;
+use App\Models\PhoneNumber;
 use App\Models\Session;
 use App\Models\SigningKey;
+use App\Models\TotpSecret;
 use App\Support\Url;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -80,6 +82,13 @@ final class SessionTokenIssuer
         $orgClaim = $this->orgClaim($session);
         if ($orgClaim !== null) {
             $builder = $builder->withClaim('org', $orgClaim);
+        }
+
+        $builder = $builder->withClaim('pnv', $this->phoneNumberVerified($session));
+
+        $dsf = $this->defaultSecondFactor($session);
+        if ($dsf !== null) {
+            $builder = $builder->withClaim('dsf', $dsf);
         }
 
         if ($shape === 'flat') {
@@ -184,6 +193,43 @@ final class SessionTokenIssuer
             'rol' => $membership->role->key,
             'per' => $membership->role->permissions->pluck('key')->unique()->values()->all(),
         ];
+    }
+
+    private function phoneNumberVerified(Session $session): bool
+    {
+        return PhoneNumber::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $session->user_id)
+            ->whereNotNull('verified_at')
+            ->exists();
+    }
+
+    /**
+     * Resolves the user's preferred second-factor strategy. Phone wins when
+     * a verified row is flagged `default_second_factor`; otherwise any
+     * verified TOTP enrolment maps to `"totp"`. Returns null when neither
+     * holds, so `dsf` is omitted entirely from the JWT (consumers default
+     * to "no preference").
+     */
+    private function defaultSecondFactor(Session $session): ?string
+    {
+        $hasDefaultPhone = PhoneNumber::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $session->user_id)
+            ->whereNotNull('verified_at')
+            ->where('default_second_factor', true)
+            ->exists();
+        if ($hasDefaultPhone) {
+            return 'phone_code';
+        }
+
+        $hasTotp = TotpSecret::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $session->user_id)
+            ->whereNotNull('verified_at')
+            ->exists();
+
+        return $hasTotp ? 'totp' : null;
     }
 
     /**
