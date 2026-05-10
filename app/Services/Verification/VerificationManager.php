@@ -37,8 +37,8 @@ final class VerificationManager
      */
     public function start(Model $owner, string $strategy, int $ttlSeconds, ?string $purpose = null): Verification
     {
-        if (! in_array($strategy, Verification::V0_1_STRATEGIES, true)) {
-            throw new InvalidArgumentException("Strategy {$strategy} is not enabled in v0.1.");
+        if (! in_array($strategy, Verification::STRATEGIES, true)) {
+            throw new InvalidArgumentException("Strategy {$strategy} is not supported.");
         }
 
         $environmentId = $this->resolveEnvironmentId($owner);

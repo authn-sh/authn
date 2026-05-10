@@ -55,12 +55,11 @@ final class ErrorCodes
     // Captcha (full enforcement in AU-18)
     public const CAPTCHA_INVALID = 'captcha_invalid';
 
-    // v0.1 stop signs for features that land later
-    public const TRANSFER_NOT_SUPPORTED_IN_V0_1 = 'transfer_not_supported_in_v0_1';
+    public const TRANSFER_NOT_SUPPORTED = 'transfer_not_supported';
 
-    public const MFA_NOT_ENABLED_IN_V0_1 = 'mfa_not_enabled_in_v0_1';
+    public const MFA_NOT_ENABLED = 'mfa_not_enabled';
 
-    public const STRATEGY_NOT_SUPPORTED_IN_V0_1 = 'strategy_not_supported_in_v0_1';
+    public const STRATEGY_NOT_SUPPORTED = 'strategy_not_supported';
 
     public const PREPARE_NOT_REQUIRED = 'prepare_not_required';
 

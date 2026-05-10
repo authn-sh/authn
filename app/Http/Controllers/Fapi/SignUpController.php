@@ -63,7 +63,7 @@ final class SignUpController
         $client = $this->resolveOrCreateClient($request, $env, $createdClient);
 
         if ($request->boolean('transfer')) {
-            return $this->error(422, ErrorCodes::TRANSFER_NOT_SUPPORTED_IN_V0_1, 'transfer flow lands in a later milestone.', $client);
+            return $this->error(422, ErrorCodes::TRANSFER_NOT_SUPPORTED, 'transfer flow is not supported.', $client);
         }
 
         $emailInput = $request->input('email_address');

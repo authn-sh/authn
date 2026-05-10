@@ -77,12 +77,19 @@ class Verification extends Model
 
     public const STRATEGY_DOMAIN_DNS_TXT = 'domain_dns_txt';
 
-    public const V0_1_STRATEGIES = [
+    public const STRATEGY_TOTP = 'totp';
+
+    public const STRATEGY_BACKUP_CODE = 'backup_code';
+
+    public const STRATEGIES = [
         self::STRATEGY_PASSWORD,
         self::STRATEGY_EMAIL_CODE,
         self::STRATEGY_EMAIL_LINK,
         self::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
         self::STRATEGY_TICKET,
+        self::STRATEGY_DOMAIN_DNS_TXT,
+        self::STRATEGY_TOTP,
+        self::STRATEGY_BACKUP_CODE,
     ];
 
     protected string $idPrefix = 'ver_';

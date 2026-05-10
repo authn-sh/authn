@@ -42,12 +42,12 @@ it('starts a fresh verification with status=unverified and 0 attempts', function
     expect($v->expire_at->getTimestamp())->toBeGreaterThan(now()->addSeconds(595)->getTimestamp());
 });
 
-it('refuses strategies not enabled in v0.1', function (): void {
+it('refuses unsupported strategies', function (): void {
     $f = vmFixture();
     $manager = app(VerificationManager::class);
 
     expect(fn () => $manager->start($f['email'], 'oauth_google', 600))
-        ->toThrow(InvalidArgumentException::class, 'is not enabled in v0.1');
+        ->toThrow(InvalidArgumentException::class, 'is not supported');
 });
 
 it('mints a numeric code whose hash is what we store', function (): void {
