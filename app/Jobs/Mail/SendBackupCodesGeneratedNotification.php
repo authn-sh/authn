@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Jobs\Mail;
 
+use App\Mail\EmailPipeline;
+use App\Models\EmailAddress;
+use App\Models\EmailTemplate;
+use App\Models\Environment;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,9 +17,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Heads-up email sent when a user (re)generates backup codes. Body
- * wiring (template lookup, EmailPipeline dispatch) lands in AU-9; this
- * stub keeps the dispatch site stable so AU-9 is a one-line replace.
+ * Heads-up email sent when a user (re)generates backup codes — "New
+ * backup codes were generated for your account." Triggered by
+ * `MeBackupCodesController::regenerate`.
  */
 final class SendBackupCodesGeneratedNotification implements ShouldQueue
 {
@@ -26,8 +30,10 @@ final class SendBackupCodesGeneratedNotification implements ShouldQueue
 
     public int $tries = 3;
 
-    public function __construct(public readonly string $userId)
-    {
+    public function __construct(
+        public readonly string $userId,
+        public readonly int $count,
+    ) {
         $this->onQueue('mail');
     }
 
@@ -36,17 +42,38 @@ final class SendBackupCodesGeneratedNotification implements ShouldQueue
         return [10, 60, 300];
     }
 
-    public function handle(): void
+    public function handle(EmailPipeline $pipeline): void
     {
         $user = User::query()->withoutGlobalScopes()->where('id', $this->userId)->first();
         if ($user === null) {
-            Log::warning('mail_user_missing', ['user_id' => $this->userId, 'template' => 'backup_codes_generated']);
+            Log::warning('mail_user_missing', ['user_id' => $this->userId, 'template' => EmailTemplate::SLUG_BACKUP_CODES_GENERATED]);
 
             return;
         }
-        Log::info('mfa.backup_codes_generated_notification.queued', [
-            'user_id' => $user->id,
-            'environment_id' => $user->environment_id,
-        ]);
+        $env = Environment::query()->withoutGlobalScopes()->where('id', $user->environment_id)->first();
+        if ($env === null) {
+            return;
+        }
+        $email = EmailAddress::query()->withoutGlobalScopes()
+            ->where('id', (string) $user->primary_email_address_id)
+            ->first();
+        if ($email === null) {
+            return;
+        }
+
+        $pipeline->dispatch(
+            environment: $env,
+            templateSlug: EmailTemplate::SLUG_BACKUP_CODES_GENERATED,
+            toEmail: $email->email_address,
+            toName: $user->first_name,
+            vars: [
+                'user' => [
+                    'first_name' => (string) ($user->first_name ?? ''),
+                    'last_name' => (string) ($user->last_name ?? ''),
+                    'email_address' => $email->email_address,
+                ],
+                'count' => $this->count,
+            ],
+        );
     }
 }

@@ -66,6 +66,12 @@ class EmailTemplate extends Model
 
     public const SLUG_PASSKEY_REMOVED = 'passkey_removed';
 
+    public const SLUG_TOTP_ENABLED = 'totp_enabled';
+
+    public const SLUG_MFA_DISABLED = 'mfa_disabled';
+
+    public const SLUG_BACKUP_CODES_GENERATED = 'backup_codes_generated';
+
     /**
      * Active set seeded at bootstrap. Every entry has a body_markup (MJML
      * source) and a precompiled body_html (the result of running the mjml
@@ -122,6 +128,21 @@ class EmailTemplate extends Model
             'subject' => "You've been invited to join {{organization.name}}",
             'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>{{inviter.name}} ({{inviter.email}}) has invited you to join <strong>{{organization.name}}</strong> on {{app.name}}.</mj-text><mj-text>You\'ll be added with the <strong>{{role.name}}</strong> role.</mj-text><mj-button href="{{action_url}}">Accept invitation</mj-button><mj-text>This invitation expires {{expires_at_human}}.</mj-text></mj-column></mj-section></mj-body></mjml>',
             'body_html' => '<!doctype html><html><body><p>{{inviter.name}} ({{inviter.email}}) has invited you to join <strong>{{organization.name}}</strong> on {{app.name}}.</p><p>You\'ll be added with the <strong>{{role.name}}</strong> role.</p><p><a href="{{action_url}}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Accept invitation</a></p><p>This invitation expires {{expires_at_human}}.</p></body></html>',
+        ],
+        self::SLUG_TOTP_ENABLED => [
+            'subject' => 'Two-step verification turned on for {{app.name}}',
+            'body_markup' => "<mjml><mj-body><mj-section><mj-column><mj-text>Hi {{user.first_name}},</mj-text><mj-text>An authenticator app was just added to your {{app.name}} account. From now on, you'll be asked for a 6-digit code from your authenticator after your password.</mj-text><mj-text>If this wasn't you, contact {{app.support_email}} immediately.</mj-text></mj-column></mj-section></mj-body></mjml>",
+            'body_html' => "<!doctype html><html><body><p>Hi {{user.first_name}},</p><p>An authenticator app was just added to your {{app.name}} account. From now on, you'll be asked for a 6-digit code from your authenticator after your password.</p><p>If this wasn't you, contact {{app.support_email}} immediately.</p></body></html>",
+        ],
+        self::SLUG_MFA_DISABLED => [
+            'subject' => 'Two-step verification turned off for {{app.name}}',
+            'body_markup' => "<mjml><mj-body><mj-section><mj-column><mj-text>Hi {{user.first_name}},</mj-text><mj-text>Two-step verification was just turned off on your {{app.name}} account. Future sign-ins will only require your password.</mj-text><mj-text>If this wasn't you, contact {{app.support_email}} immediately.</mj-text></mj-column></mj-section></mj-body></mjml>",
+            'body_html' => "<!doctype html><html><body><p>Hi {{user.first_name}},</p><p>Two-step verification was just turned off on your {{app.name}} account. Future sign-ins will only require your password.</p><p>If this wasn't you, contact {{app.support_email}} immediately.</p></body></html>",
+        ],
+        self::SLUG_BACKUP_CODES_GENERATED => [
+            'subject' => 'New backup codes for {{app.name}}',
+            'body_markup' => "<mjml><mj-body><mj-section><mj-column><mj-text>Hi {{user.first_name}},</mj-text><mj-text>{{count}} new backup codes were just generated for your {{app.name}} account. Any backup codes from before this change no longer work.</mj-text><mj-text>If this wasn't you, contact {{app.support_email}} immediately.</mj-text></mj-column></mj-section></mj-body></mjml>",
+            'body_html' => "<!doctype html><html><body><p>Hi {{user.first_name}},</p><p>{{count}} new backup codes were just generated for your {{app.name}} account. Any backup codes from before this change no longer work.</p><p>If this wasn't you, contact {{app.support_email}} immediately.</p></body></html>",
         ],
     ];
 

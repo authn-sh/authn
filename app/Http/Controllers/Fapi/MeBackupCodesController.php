@@ -9,6 +9,7 @@ use App\Auth\Mfa\BackupCodesService;
 use App\Http\Resources\BackupCodeBatchResource;
 use App\Http\Resources\ClientResource;
 use App\Jobs\Mail\SendBackupCodesGeneratedNotification;
+use App\Jobs\Mail\SendMfaDisabledNotification;
 use App\Models\BackupCode;
 use App\Models\Client;
 use App\Models\Environment;
@@ -66,7 +67,7 @@ final class MeBackupCodesController
         }
         $user->save();
 
-        SendBackupCodesGeneratedNotification::dispatch($user->id);
+        SendBackupCodesGeneratedNotification::dispatch($user->id, count($codes));
 
         return $this->clientEnvelope(BackupCodeBatchResource::from($user->fresh(), $codes));
     }
@@ -100,11 +101,17 @@ final class MeBackupCodesController
             ->where('user_id', $user->id)
             ->whereNotNull('verified_at')
             ->exists();
+        $disabledMfa = false;
         if (! $hasTotp) {
             $user->two_factor_enabled = false;
             $user->mfa_disabled_at = now();
+            $disabledMfa = true;
         }
         $user->save();
+
+        if ($disabledMfa) {
+            SendMfaDisabledNotification::dispatch($user->id);
+        }
 
         return $this->clientEnvelope(BackupCodeBatchResource::empty($user->fresh()));
     }

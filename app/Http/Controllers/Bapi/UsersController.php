@@ -12,6 +12,7 @@ use App\Http\Requests\Bapi\Users\UpdateUserRequest;
 use App\Http\Requests\Bapi\Users\VerifyPasswordRequest;
 use App\Http\Requests\Bapi\Users\VerifyTotpRequest;
 use App\Http\Resources\UserResource;
+use App\Jobs\Mail\SendMfaDisabledNotification;
 use App\Models\BackupCode;
 use App\Models\EmailAddress;
 use App\Models\Environment;
@@ -267,13 +268,15 @@ final class UsersController
         TotpSecret::query()->withoutGlobalScopes()->where('user_id', $user->id)->delete();
         BackupCode::query()->withoutGlobalScopes()->where('user_id', $user->id)->whereNull('consumed_at')->delete();
 
-        if ($hadTotp || $hadBackup || $user->two_factor_enabled) {
+        $disabledMfa = $hadTotp || $hadBackup || $user->two_factor_enabled;
+        if ($disabledMfa) {
             $user->forceFill([
                 'totp_enabled' => false,
                 'backup_code_enabled' => false,
                 'two_factor_enabled' => false,
                 'mfa_disabled_at' => now(),
             ])->save();
+            SendMfaDisabledNotification::dispatch($user->id);
         }
 
         return response()->json(UserResource::from($user->fresh(), includePrivate: true))

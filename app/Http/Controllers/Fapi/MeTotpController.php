@@ -8,6 +8,7 @@ use App\Auth\ErrorCodes;
 use App\Auth\Mfa\TotpEnrolmentService;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\TotpSecretResource;
+use App\Jobs\Mail\SendMfaDisabledNotification;
 use App\Jobs\Mail\SendTotpEnabledNotification;
 use App\Models\Client;
 use App\Models\EmailAddress;
@@ -143,11 +144,17 @@ final class MeTotpController
         $this->enrolment->remove($user);
 
         $user->totp_enabled = false;
+        $disabledMfa = false;
         if (! $user->backup_code_enabled) {
             $user->two_factor_enabled = false;
             $user->mfa_disabled_at = now();
+            $disabledMfa = true;
         }
         $user->save();
+
+        if ($disabledMfa) {
+            SendMfaDisabledNotification::dispatch($user->id);
+        }
 
         return $this->clientEnvelope($shape);
     }
