@@ -6,6 +6,7 @@ namespace App\Http\Resources;
 
 use App\Models\BackupCode;
 use App\Models\EmailAddress;
+use App\Models\PhoneNumber;
 use App\Models\SignInAttempt;
 use App\Models\TotpSecret;
 use App\Models\User;
@@ -106,6 +107,16 @@ final class SignInResource
             ->exists();
         if ($hasUnspent) {
             $strategies[] = Verification::STRATEGY_BACKUP_CODE;
+        }
+
+        $hasReservedPhone = PhoneNumber::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->where('reserved_for_second_factor', true)
+            ->exists();
+        if ($hasReservedPhone) {
+            $strategies[] = Verification::STRATEGY_PHONE_CODE;
         }
 
         return $strategies;
