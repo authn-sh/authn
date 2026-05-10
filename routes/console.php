@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\Maintenance\ExpireSessions;
+use App\Jobs\Maintenance\PruneMfaArtifacts;
 use App\Jobs\Maintenance\PruneVerificationCodes;
 use App\Jobs\Maintenance\ReapAbandonedAttempts;
 use App\Jobs\Maintenance\RecheckVerifiedDomains;
@@ -40,5 +41,9 @@ Schedule::job(RotateSigningKey::class)
     ->withoutOverlapping();
 
 Schedule::job(RecheckVerifiedDomains::class)
+    ->daily()
+    ->withoutOverlapping();
+
+Schedule::job(PruneMfaArtifacts::class)
     ->daily()
     ->withoutOverlapping();
