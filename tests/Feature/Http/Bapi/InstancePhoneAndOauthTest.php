@@ -79,15 +79,11 @@ it('GET /environment narrows first_factors and oauth_providers based on env stat
         ])
         ->assertOk();
 
-    OauthProvider::query()->withoutGlobalScopes()->create([
-        'environment_id' => $f['env']->id,
-        'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'google',
-        'name' => 'Google',
-        'enabled' => true,
-        'client_id' => 'gid',
-        'encrypted_client_secret' => 'gsecret',
-    ]);
+    // AU-4's seeder pre-creates the four preset rows; flip Google to enabled.
+    OauthProvider::query()->withoutGlobalScopes()
+        ->where('environment_id', $f['env']->id)
+        ->where('provider_key', 'google')
+        ->update(['enabled' => true, 'client_id' => 'gid', 'encrypted_client_secret' => 'gsecret']);
 
     // Render the resource directly — full FAPI route reload would clobber
     // the BAPI routes the bootEnv() above just installed.

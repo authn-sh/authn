@@ -28,8 +28,8 @@ it('mints a oauthp_ prefixed id and casts JSON columns to arrays', function (): 
     $provider = OauthProvider::create([
         'environment_id' => $env->id,
         'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'google',
-        'name' => 'Google',
+        'provider_key' => 'acme',
+        'name' => 'Acme',
         'client_id' => 'gid',
         'encrypted_client_secret' => 'gsecret',
         'scopes' => ['openid', 'email'],
@@ -53,8 +53,8 @@ it('encrypts the client secret at rest and hides it from array serialization', f
     $provider = OauthProvider::create([
         'environment_id' => $env->id,
         'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'github',
-        'name' => 'GitHub',
+        'provider_key' => 'beta',
+        'name' => 'Beta',
         'client_id' => 'cid',
         'encrypted_client_secret' => 'super-secret-value',
     ]);
@@ -74,8 +74,8 @@ it('enforces unique (environment_id, provider_key)', function (): void {
     OauthProvider::create([
         'environment_id' => $env->id,
         'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'google',
-        'name' => 'Google',
+        'provider_key' => 'acme',
+        'name' => 'Acme',
         'client_id' => 'a',
         'encrypted_client_secret' => 'b',
     ]);
@@ -83,8 +83,8 @@ it('enforces unique (environment_id, provider_key)', function (): void {
     expect(fn () => OauthProvider::create([
         'environment_id' => $env->id,
         'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'google',
-        'name' => 'Google',
+        'provider_key' => 'acme',
+        'name' => 'Acme',
         'client_id' => 'c',
         'encrypted_client_secret' => 'd',
     ]))->toThrow(QueryException::class);
@@ -100,13 +100,13 @@ it('computes the redirect_uri off the env FAPI host and provider_key', function 
     $provider = OauthProvider::create([
         'environment_id' => $env->id,
         'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'google',
-        'name' => 'Google',
+        'provider_key' => 'acme',
+        'name' => 'Acme',
         'client_id' => 'gid',
         'encrypted_client_secret' => 'gsecret',
     ]);
 
-    expect($provider->redirect_uri)->toBe('https://acme.authn.sh/v1/oauth-callback/google');
+    expect($provider->redirect_uri)->toBe('https://acme.authn.sh/v1/oauth-callback/acme');
 });
 
 it('relates ExternalAccount → OauthProvider + User', function (): void {
@@ -116,8 +116,8 @@ it('relates ExternalAccount → OauthProvider + User', function (): void {
     $provider = OauthProvider::create([
         'environment_id' => $env->id,
         'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'google',
-        'name' => 'Google',
+        'provider_key' => 'acme',
+        'name' => 'Acme',
         'client_id' => 'gid',
         'encrypted_client_secret' => 'gsecret',
     ]);
@@ -147,8 +147,8 @@ it('hides encrypted token columns and stores ciphertext on disk', function (): v
     $provider = OauthProvider::create([
         'environment_id' => $env->id,
         'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'google',
-        'name' => 'Google',
+        'provider_key' => 'acme',
+        'name' => 'Acme',
         'client_id' => 'gid',
         'encrypted_client_secret' => 'gsecret',
     ]);
@@ -181,8 +181,8 @@ it('enforces unique (environment_id, oauth_provider_id, provider_user_id)', func
     $provider = OauthProvider::create([
         'environment_id' => $env->id,
         'provider_kind' => OauthProvider::KIND_PRESET,
-        'provider_key' => 'google',
-        'name' => 'Google',
+        'provider_key' => 'acme',
+        'name' => 'Acme',
         'client_id' => 'gid',
         'encrypted_client_secret' => 'gsecret',
     ]);
