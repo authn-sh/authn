@@ -106,11 +106,13 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/me/email-addresses', [MeController::class, 'listEmails'])->name('fapi.me.emails.list');
         Route::post('/me/email-addresses', [MeController::class, 'createEmail'])->name('fapi.me.emails.create');
-        Route::get('/me/email-addresses/{eid}', [MeController::class, 'showEmail'])->name('fapi.me.emails.show');
-        Route::patch('/me/email-addresses/{eid}', [MeController::class, 'updateEmail'])->name('fapi.me.emails.update');
-        Route::delete('/me/email-addresses/{eid}', [MeController::class, 'deleteEmail'])->name('fapi.me.emails.destroy');
-        Route::post('/me/email-addresses/{eid}/prepare-verification', [MeController::class, 'prepareEmailVerification'])->name('fapi.me.emails.prepare_verification');
-        Route::post('/me/email-addresses/{eid}/attempt-verification', [MeController::class, 'attemptEmailVerification'])->name('fapi.me.emails.attempt_verification');
+        Route::get('/me/email-addresses/{email_address_id}', [MeController::class, 'showEmail'])->name('fapi.me.emails.show');
+        Route::patch('/me/email-addresses/{email_address_id}', [MeController::class, 'updateEmail'])->name('fapi.me.emails.update');
+        Route::delete('/me/email-addresses/{email_address_id}', [MeController::class, 'deleteEmail'])->name('fapi.me.emails.destroy');
+
+        Route::post('/me/email-addresses/{email_address_id}/challenges', [ChallengeController::class, 'storeForEmailAddress'])->name('fapi.me.emails.challenges.store');
+        Route::post('/me/email-addresses/{email_address_id}/challenges/{cid}/answer', [ChallengeController::class, 'answerForEmailAddress'])->name('fapi.me.emails.challenges.answer');
+        Route::get('/me/email-addresses/{email_address_id}/challenges/{cid}', [ChallengeController::class, 'showForEmailAddress'])->name('fapi.me.emails.challenges.show');
 
         Route::get('/me/sessions', [MeController::class, 'listSessions'])->name('fapi.me.sessions.list');
         Route::post('/me/change-password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');

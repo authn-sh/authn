@@ -79,14 +79,22 @@ class Challenge extends Model
 
     public const PARENT_SIGN_UP = 'sign_up';
 
+    public const PARENT_EMAIL_ADDRESS = 'email_address';
+
+    public const PARENT_ORGANIZATION_DOMAIN = 'organization_domain';
+
     public const PARENT_TYPES = [
         self::PARENT_SIGN_IN,
         self::PARENT_SIGN_UP,
+        self::PARENT_EMAIL_ADDRESS,
+        self::PARENT_ORGANIZATION_DOMAIN,
     ];
 
     public const MORPH_MAP = [
         self::PARENT_SIGN_IN => SignInAttempt::class,
         self::PARENT_SIGN_UP => SignUpAttempt::class,
+        self::PARENT_EMAIL_ADDRESS => EmailAddress::class,
+        self::PARENT_ORGANIZATION_DOMAIN => OrganizationDomain::class,
     ];
 
     protected string $idPrefix = 'chal_';

@@ -7,6 +7,7 @@ use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
 use App\Http\Controllers\Bapi\InstanceController;
 use App\Http\Controllers\Bapi\InvitationsController;
 use App\Http\Controllers\Bapi\OrganizationController;
+use App\Http\Controllers\Bapi\OrganizationDomainChallengeController;
 use App\Http\Controllers\Bapi\OrganizationDomainController;
 use App\Http\Controllers\Bapi\OrganizationInvitationController;
 use App\Http\Controllers\Bapi\OrganizationMembershipController;
@@ -115,7 +116,10 @@ Route::post('/organizations/{organization_id}/domains', [OrganizationDomainContr
 Route::get('/organizations/{organization_id}/domains/{domain_id}', [OrganizationDomainController::class, 'show'])->middleware(RateLimit::class.':orgs.domains.read,300,60')->name('bapi.organizations.domains.show');
 Route::patch('/organizations/{organization_id}/domains/{domain_id}', [OrganizationDomainController::class, 'update'])->middleware(RateLimit::class.':orgs.domains.update,60,60')->name('bapi.organizations.domains.update');
 Route::delete('/organizations/{organization_id}/domains/{domain_id}', [OrganizationDomainController::class, 'destroy'])->middleware(RateLimit::class.':orgs.domains.destroy,30,60')->name('bapi.organizations.domains.destroy');
-Route::post('/organizations/{organization_id}/domains/{domain_id}/verify', [OrganizationDomainController::class, 'verify'])->middleware(RateLimit::class.':orgs.domains.verify,30,60')->name('bapi.organizations.domains.verify');
+
+Route::post('/organizations/{organization_id}/domains/{domain_id}/challenges', [OrganizationDomainChallengeController::class, 'store'])->middleware(RateLimit::class.':orgs.domains.verify,30,60')->name('bapi.organizations.domains.challenges.store');
+Route::post('/organizations/{organization_id}/domains/{domain_id}/challenges/{cid}/answer', [OrganizationDomainChallengeController::class, 'answer'])->middleware(RateLimit::class.':orgs.domains.verify,30,60')->name('bapi.organizations.domains.challenges.answer');
+Route::get('/organizations/{organization_id}/domains/{domain_id}/challenges/{cid}', [OrganizationDomainChallengeController::class, 'show'])->middleware(RateLimit::class.':orgs.domains.read,300,60')->name('bapi.organizations.domains.challenges.show');
 
 // Roles + Permissions
 Route::get('/roles', [RoleController::class, 'index'])->middleware(RateLimit::class.':roles.list,300,60')->name('bapi.roles.index');

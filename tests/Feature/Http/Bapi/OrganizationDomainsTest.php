@@ -6,9 +6,11 @@ use App\Events\Organizations\OrganizationDomainCreated;
 use App\Events\Organizations\OrganizationDomainDeleted;
 use App\Events\Organizations\OrganizationDomainUpdated;
 use App\Jobs\Organizations\VerifyOrganizationDomain;
+use App\Models\Challenge;
 use App\Models\Environment;
 use App\Models\OrganizationDomain;
 use App\Models\Verification;
+use App\Services\Domains\DnsTxtResolver;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
@@ -30,7 +32,7 @@ function setupOrgForDomains(TestCase $testCase): array
     ];
 }
 
-it('POST /domains creates a domain, mints a domain_dns_txt Verification, fires the event', function (): void {
+it('POST /domains creates a domain row and fires the event; no challenge minted on create', function (): void {
     Event::fake([OrganizationDomainCreated::class]);
     $ctx = setupOrgForDomains($this);
 
@@ -44,13 +46,9 @@ it('POST /domains creates a domain, mints a domain_dns_txt Verification, fires t
         ->assertJsonPath('name', 'acme.test')
         ->assertJsonPath('enrollment_mode', 'automatic_invitation')
         ->assertJsonPath('verified', false)
-        ->assertJsonPath('verification.strategy', 'domain_dns_txt')
-        ->assertJsonPath('verification.status', 'unverified');
+        ->assertJsonPath('current_challenge_id', null);
     expect($r->json('id'))->toStartWith('orgdom_');
-    expect($r->json('verification.nonce'))->toStartWith('authn-domain-verify=');
-
-    $nonce = $r->json('verification.nonce');
-    expect(Verification::query()->withoutGlobalScopes()->where('nonce', $nonce)->exists())->toBeTrue();
+    expect($r->json())->not->toHaveKey('verification');
 
     Event::assertDispatched(OrganizationDomainCreated::class, 1);
 });
@@ -75,13 +73,16 @@ it('GET /domains lists rows scoped to the org', function (): void {
     $r->assertOk()->assertJsonPath('total_count', 2);
 });
 
-it('GET /domains/{id} returns the verification block', function (): void {
+it('GET /domains/{id} returns the domain without a nested verification block', function (): void {
     $ctx = setupOrgForDomains($this);
     $created = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains"), ['name' => 'show.test']);
     $id = $created->json('id');
 
     $r = $this->withHeaders($ctx['headers'])->getJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}"));
-    $r->assertOk()->assertJsonPath('verification.strategy', 'domain_dns_txt');
+    $r->assertOk()
+        ->assertJsonPath('id', $id)
+        ->assertJsonPath('current_challenge_id', null);
+    expect($r->json())->not->toHaveKey('verification');
 });
 
 it('PATCH /domains/{id} updates enrollment_mode and fires the event', function (): void {
@@ -98,18 +99,93 @@ it('PATCH /domains/{id} updates enrollment_mode and fires the event', function (
     Event::assertDispatched(OrganizationDomainUpdated::class, 1);
 });
 
-it('POST /domains/{id}/verify re-issues a fresh Verification with a new nonce', function (): void {
-    Bus::fake([VerifyOrganizationDomain::class]);
+it('POST /domains/{id}/challenges mints a domain_dns_txt Challenge with a fresh nonce and points current_challenge_id at it', function (): void {
     $ctx = setupOrgForDomains($this);
     $created = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains"), ['name' => 'verify.test']);
     $id = $created->json('id');
-    $firstNonce = $created->json('verification.nonce');
 
-    $r = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/verify"));
-    $r->assertOk();
-    expect($r->json('verification.nonce'))->not->toBe($firstNonce);
-    expect($r->json('verification.strategy'))->toBe('domain_dns_txt');
-    Bus::assertDispatched(VerifyOrganizationDomain::class, 1);
+    $r = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/challenges"));
+    $r->assertStatus(201)
+        ->assertJsonPath('object', 'challenge')
+        ->assertJsonPath('strategy', 'domain_dns_txt')
+        ->assertJsonPath('status', 'pending')
+        ->assertJsonPath('organization_domain_id', $id);
+    expect($r->json('id'))->toStartWith('chal_');
+    expect($r->json('nonce'))->toStartWith('authn-domain-verify=');
+
+    $cid = $r->json('id');
+    expect(OrganizationDomain::query()->withoutGlobalScopes()->where('id', $id)->first()->current_challenge_id)->toBe($cid);
+});
+
+it('POST /domains/{id}/challenges/{cid}/answer flips the domain on a matching TXT and fires OrganizationDomainVerified', function (): void {
+    Bus::fake([VerifyOrganizationDomain::class]);
+    $ctx = setupOrgForDomains($this);
+    $created = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains"), ['name' => 'answer.test']);
+    $id = $created->json('id');
+    $challenge = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/challenges"));
+    $cid = $challenge->json('id');
+    $nonce = $challenge->json('nonce');
+
+    $resolver = new class extends DnsTxtResolver
+    {
+        public string $nonce = '';
+
+        public function resolve(string $host): array
+        {
+            return $host === '_authn-verification.answer.test' ? [$this->nonce] : [];
+        }
+    };
+    $resolver->nonce = $nonce;
+    app()->instance(DnsTxtResolver::class, $resolver);
+
+    $r = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/challenges/{$cid}/answer"));
+    $r->assertOk()
+        ->assertJsonPath('object', 'challenge')
+        ->assertJsonPath('status', 'verified');
+
+    $domain = OrganizationDomain::query()->withoutGlobalScopes()->where('id', $id)->first();
+    expect($domain->verified)->toBeTrue();
+    expect($domain->current_challenge_id)->toBeNull();
+    expect(Verification::query()->withoutGlobalScopes()->where('id', Challenge::query()->withoutGlobalScopes()->where('id', $cid)->first()->verification_id)->first()->status)->toBe('verified');
+});
+
+it('POST /domains/{id}/challenges/{cid}/answer leaves status pending on a TXT miss and increments attempts', function (): void {
+    Bus::fake([VerifyOrganizationDomain::class]);
+    $ctx = setupOrgForDomains($this);
+    $created = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains"), ['name' => 'miss.test']);
+    $id = $created->json('id');
+    $challenge = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/challenges"));
+    $cid = $challenge->json('id');
+
+    $resolver = new class extends DnsTxtResolver
+    {
+        public function resolve(string $host): array
+        {
+            return [];
+        }
+    };
+    app()->instance(DnsTxtResolver::class, $resolver);
+
+    $r = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/challenges/{$cid}/answer"));
+    $r->assertOk()
+        ->assertJsonPath('status', 'pending')
+        ->assertJsonPath('attempts', 1);
+
+    expect(OrganizationDomain::query()->withoutGlobalScopes()->where('id', $id)->first()->verified)->toBeFalse();
+});
+
+it('GET /domains/{id}/challenges/{cid} polls the challenge state', function (): void {
+    $ctx = setupOrgForDomains($this);
+    $created = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains"), ['name' => 'poll.test']);
+    $id = $created->json('id');
+    $challenge = $this->withHeaders($ctx['headers'])->postJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/challenges"));
+    $cid = $challenge->json('id');
+
+    $r = $this->withHeaders($ctx['headers'])->getJson(BapiTestSupport::url("/organizations/{$ctx['org_id']}/domains/{$id}/challenges/{$cid}"));
+    $r->assertOk()
+        ->assertJsonPath('id', $cid)
+        ->assertJsonPath('strategy', 'domain_dns_txt')
+        ->assertJsonPath('status', 'pending');
 });
 
 it('DELETE /domains/{id} removes the row and fires the event', function (): void {

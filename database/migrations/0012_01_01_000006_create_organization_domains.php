@@ -15,7 +15,9 @@ return new class extends Migration
             $table->string('name');
             $table->boolean('verified')->default(false);
             $table->string('enrollment_mode', 32)->default('manual_invitation');
-            $table->string('verification_id', 64)->nullable();
+            // Live domain_dns_txt Challenge the operator is currently being
+            // asked to satisfy. Cleared once verified or re-issued.
+            $table->string('current_challenge_id', 64)->nullable();
             $table->string('affiliation_email_address')->nullable();
             $table->unsignedInteger('total_pending_invitations')->default(0);
             $table->unsignedInteger('total_pending_suggestions')->default(0);
@@ -23,7 +25,7 @@ return new class extends Migration
 
             $table->foreign('environment_id')->references('id')->on('environments')->cascadeOnDelete();
             $table->foreign('organization_id')->references('id')->on('organizations')->cascadeOnDelete();
-            $table->foreign('verification_id')->references('id')->on('verifications')->nullOnDelete();
+            $table->foreign('current_challenge_id')->references('id')->on('challenges')->nullOnDelete();
 
             $table->unique(['environment_id', 'name']);
             $table->index(['organization_id', 'verified']);

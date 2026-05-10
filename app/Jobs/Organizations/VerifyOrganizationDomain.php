@@ -6,6 +6,7 @@ namespace App\Jobs\Organizations;
 
 use App\Events\Organizations\OrganizationDomainUpdated;
 use App\Events\Organizations\OrganizationDomainVerified;
+use App\Models\Challenge;
 use App\Models\OrganizationDomain;
 use App\Models\Verification;
 use App\Services\Domains\DnsTxtResolver;
@@ -62,12 +63,28 @@ final class VerifyOrganizationDomain implements ShouldQueue
         if ($domain === null) {
             return;
         }
-        $verification = $domain->verification_id !== null
-            ? Verification::query()->withoutGlobalScopes()->where('id', $domain->verification_id)->first()
-            : null;
-        if ($verification === null) {
+        // Live pending Challenge is the primary source. For an already-
+        // verified domain (recheck path), `current_challenge_id` is null
+        // once we cleared it on the verified flip — fall back to the most
+        // recent verified Challenge so we can read its nonce and demote on
+        // a missing TXT.
+        $challenge = $domain->current_challenge_id !== null
+            ? Challenge::query()->withoutGlobalScopes()->where('id', $domain->current_challenge_id)->first()
+            : Challenge::query()
+                ->withoutGlobalScopes()
+                ->where('parent_type', Challenge::PARENT_ORGANIZATION_DOMAIN)
+                ->where('parent_id', $domain->id)
+                ->where('strategy', Verification::STRATEGY_DOMAIN_DNS_TXT)
+                ->where('status', Challenge::STATUS_VERIFIED)
+                ->latest('id')
+                ->first();
+        if ($challenge === null) {
             Log::info('domain_verification_no_challenge', ['domain_id' => $domain->id]);
 
+            return;
+        }
+        $verification = Verification::query()->withoutGlobalScopes()->where('id', $challenge->verification_id)->first();
+        if ($verification === null) {
             return;
         }
 
@@ -87,22 +104,31 @@ final class VerifyOrganizationDomain implements ShouldQueue
         }
 
         if ($matched) {
-            $this->flipToVerified($domain, $verification);
+            $this->flipToVerified($domain, $challenge, $verification);
 
             return;
         }
 
-        $this->recordMiss($domain, $verification);
+        $this->recordMiss($domain, $challenge, $verification);
     }
 
-    private function flipToVerified(OrganizationDomain $domain, Verification $verification): void
+    private function flipToVerified(OrganizationDomain $domain, Challenge $challenge, Verification $verification): void
     {
         $wasVerified = (bool) $domain->verified;
         $verification->forceFill([
             'status' => Verification::STATUS_VERIFIED,
             'verified_at' => now(),
         ])->save();
-        $domain->forceFill(['verified' => true])->save();
+        $challenge->forceFill([
+            'status' => Challenge::STATUS_VERIFIED,
+            'attempts' => (int) $verification->attempts,
+            'error_code' => null,
+            'error_message' => null,
+        ])->save();
+        $domain->forceFill([
+            'verified' => true,
+            'current_challenge_id' => null,
+        ])->save();
 
         if (! $wasVerified) {
             OrganizationDomainVerified::dispatch($domain->fresh());
@@ -110,13 +136,14 @@ final class VerifyOrganizationDomain implements ShouldQueue
         OrganizationDomainUpdated::dispatch($domain->fresh());
     }
 
-    private function recordMiss(OrganizationDomain $domain, Verification $verification): void
+    private function recordMiss(OrganizationDomain $domain, Challenge $challenge, Verification $verification): void
     {
         $attempt = (int) $verification->attempts + 1;
         $verification->forceFill(['attempts' => $attempt])->save();
+        $challenge->forceFill(['attempts' => $attempt])->save();
 
         // If the domain was previously verified and the TXT record is gone,
-        // demote it. The org admin can `/verify` again to re-issue.
+        // demote it. The org admin can issue a new Challenge to re-verify.
         if ($domain->verified) {
             $domain->forceFill(['verified' => false])->save();
             OrganizationDomainUpdated::dispatch($domain->fresh());
