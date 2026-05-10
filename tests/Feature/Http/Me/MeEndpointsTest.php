@@ -63,11 +63,11 @@ it('POST /v1/me/email-addresses creates an unverified row; verifies via Challeng
         'strategy' => 'email_code',
     ]);
     $challenge->assertOk()
-        ->assertJsonPath('object', 'challenge')
-        ->assertJsonPath('strategy', 'email_code')
-        ->assertJsonPath('status', 'pending')
-        ->assertJsonPath('email_address_id', $eid);
-    $cid = $challenge->json('id');
+        ->assertJsonPath('response.object', 'challenge')
+        ->assertJsonPath('response.strategy', 'email_code')
+        ->assertJsonPath('response.status', 'pending')
+        ->assertJsonPath('response.email_address_id', $eid);
+    $cid = $challenge->json('response.id');
 
     // Stamp a known code on the verification row.
     $verification = Verification::query()->withoutGlobalScopes()->latest('id')->first();
@@ -78,8 +78,8 @@ it('POST /v1/me/email-addresses creates an unverified row; verifies via Challeng
     meReq('POST', "/me/email-addresses/{$eid}/challenges/{$cid}/answer", $auth['jwt'], [
         'code' => $known,
     ])->assertOk()
-        ->assertJsonPath('object', 'challenge')
-        ->assertJsonPath('status', 'verified');
+        ->assertJsonPath('response.object', 'challenge')
+        ->assertJsonPath('response.status', 'verified');
 
     expect(EmailAddress::query()->withoutGlobalScopes()->where('id', $eid)->first()->isVerified())->toBeTrue();
 });

@@ -397,8 +397,7 @@ final class ChallengeController
             return $this->runEmailAddressAnswer($email, $challenge, ['code' => $code]);
         }
 
-        return response()->json(ChallengeResource::from($challenge->fresh()))
-            ->header('Cache-Control', 'no-store');
+        return $this->emailAddressEnvelope($challenge->fresh());
     }
 
     public function answerForEmailAddress(Request $request): JsonResponse
@@ -530,7 +529,7 @@ final class ChallengeController
             }
             $this->reflectEmailLinkRedemption($email, $fresh);
 
-            return response()->json(ChallengeResource::from($fresh))->header('Cache-Control', 'no-store');
+            return $this->emailAddressEnvelope($fresh);
         }
 
         $code = $params['code'] ?? null;
@@ -554,7 +553,7 @@ final class ChallengeController
         $this->markChallengeVerified($challenge, $verification->fresh() ?? $verification);
         $email->forceFill(['verified_at' => now()])->save();
 
-        return response()->json(ChallengeResource::from($challenge->fresh()))->header('Cache-Control', 'no-store');
+        return $this->emailAddressEnvelope($challenge->fresh());
     }
 
     private function reflectEmailLinkRedemption(EmailAddress $email, Challenge $challenge): void
@@ -566,6 +565,16 @@ final class ChallengeController
             return;
         }
         $email->forceFill(['verified_at' => now()])->save();
+    }
+
+    private function emailAddressEnvelope(?Challenge $challenge): JsonResponse
+    {
+        $client = app()->bound(Client::class) ? app(Client::class) : null;
+
+        return response()->json([
+            'response' => ChallengeResource::from($challenge),
+            'client' => $client !== null ? ClientResource::from($client->fresh()) : null,
+        ])->header('Cache-Control', 'no-store');
     }
 
     private function loadEmailForUser(Request $request): EmailAddress|JsonResponse
