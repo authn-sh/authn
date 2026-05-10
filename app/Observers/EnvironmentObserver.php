@@ -6,11 +6,13 @@ namespace App\Observers;
 
 use App\Models\EmailTemplate;
 use App\Models\Environment;
+use App\Models\SmsTemplate;
 use App\Services\Tenancy\RoleSeeder;
 
 /**
  * Seeds the per-env defaults — system permissions + default roles, plus
- * the active EmailTemplate set — into every freshly-minted environment.
+ * the active EmailTemplate / SmsTemplate sets — into every freshly-minted
+ * environment.
  *
  * The bootstrap service calls RoleSeeder directly so it keeps a handle on
  * the seeded admin role for the workspace owner membership; everywhere
@@ -24,10 +26,11 @@ final class EnvironmentObserver
     public function created(Environment $environment): void
     {
         $this->seeder->seed($environment);
-        $this->seedDefaultTemplates($environment);
+        $this->seedDefaultEmailTemplates($environment);
+        $this->seedDefaultSmsTemplates($environment);
     }
 
-    private function seedDefaultTemplates(Environment $environment): void
+    private function seedDefaultEmailTemplates(Environment $environment): void
     {
         foreach (EmailTemplate::DEFAULT_TEMPLATES as $slug => $payload) {
             $exists = EmailTemplate::query()
@@ -44,6 +47,25 @@ final class EnvironmentObserver
                 'subject' => $payload['subject'],
                 'body_markup' => $payload['body_markup'],
                 'body_html' => $payload['body_html'],
+            ]);
+        }
+    }
+
+    private function seedDefaultSmsTemplates(Environment $environment): void
+    {
+        foreach (SmsTemplate::DEFAULT_TEMPLATES as $slug => $payload) {
+            $exists = SmsTemplate::query()
+                ->withoutGlobalScopes()
+                ->where('environment_id', $environment->id)
+                ->where('slug', $slug)
+                ->exists();
+            if ($exists) {
+                continue;
+            }
+            SmsTemplate::query()->withoutGlobalScopes()->create([
+                'environment_id' => $environment->id,
+                'slug' => $slug,
+                'body' => $payload['body'],
             ]);
         }
     }
