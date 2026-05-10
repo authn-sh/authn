@@ -39,6 +39,8 @@ final class MfaSecurityFlowTest extends DuskTestCase
                 ->waitUntil("window.location.pathname.startsWith('/dashboard')", 10)
                 ->visit('/user')
                 ->waitFor('[data-testid="authn-userprofile"]', 10)
+                ->waitFor('button[role="tab"][value="security"]', 10)
+                ->click('button[role="tab"][value="security"]')
                 ->waitFor('[data-testid="authn-userprofile-security"]', 10)
                 ->assertVisible('[data-testid="authn-userprofile-security-enroll-totp"]')
                 ->click('[data-testid="authn-userprofile-security-enroll-totp"]')
