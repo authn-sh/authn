@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Dashboard;
 use App\Auth\Oauth\Exceptions\OauthDiscoveryFailedException;
 use App\Auth\Oauth\OauthProviderResolver;
 use App\Auth\Oauth\PresetRegistry;
+use App\Http\Resources\OauthProviderResource;
 use App\Jobs\Sms\SendSmsTemplate;
 use App\Models\AllowlistIdentifier;
 use App\Models\ApiKey;
@@ -29,10 +30,12 @@ use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
+use App\Models\WebhookEvent;
 use App\Services\Keys\KeyGenerator;
 use App\Settings\MultiFactorSettings;
 use App\Support\RoutingLabel;
 use App\Support\Url;
+use App\Webhooks\Emitter;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\RedirectResponse;
@@ -565,7 +568,9 @@ final class DashboardController
             }
         }
 
-        OauthProvider::query()->withoutGlobalScopes()->create($payload);
+        $created = OauthProvider::query()->withoutGlobalScopes()->create($payload);
+
+        app(Emitter::class)->emit('oauthProvider.created', OauthProviderResource::from($created), $env);
 
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/social-providers")
             ->with('oauth_provider_saved', true);
@@ -612,6 +617,8 @@ final class DashboardController
 
         $row->forceFill($patch)->save();
 
+        app(Emitter::class)->emit('oauthProvider.updated', OauthProviderResource::from($row->refresh()), $env);
+
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/social-providers")
             ->with('oauth_provider_saved', true);
     }
@@ -638,7 +645,10 @@ final class DashboardController
             return redirect()->back()->withErrors(['oauth_provider_id' => 'ExternalAccount rows still link to this provider.']);
         }
 
+        $snapshot = OauthProviderResource::from($row);
         $row->delete();
+
+        app(Emitter::class)->emit('oauthProvider.deleted', $snapshot, $env);
 
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/social-providers")
             ->with('oauth_provider_saved', true);
@@ -836,16 +846,30 @@ final class DashboardController
             ->with('signing_secret', $row->displaySecret());
     }
 
-    public function auditLog(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    public function auditLog(Request $request, string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
+        $query = WebhookEvent::query()->withoutGlobalScopes()->where('environment_id', $env->id);
+        $filter = (string) $request->input('type', '');
+        if ($filter !== '') {
+            $query->where('type', 'like', $filter.'%');
+        }
+        $entries = $query->latest('created_at')->limit(100)->get();
+
         return Inertia::render('Dashboard/AuditLog', [
-            'note' => 'Full audit log lands in v0.8 (PLAN §15.5). v0.1 surfaces only API key + webhook endpoint mutations.',
-            'entries' => [],
+            'note' => 'Operator audit feed: all webhook events for this environment. Full audit log lands in v0.8 (PLAN §15.5).',
+            'filter' => $filter,
+            'entries' => $entries->map(fn (WebhookEvent $e) => [
+                'id' => $e->id,
+                'type' => $e->type,
+                'was_test' => (bool) $e->was_test,
+                'data' => $e->data,
+                'created_at' => $e->created_at?->getTimestampMs(),
+            ])->all(),
         ]);
     }
 

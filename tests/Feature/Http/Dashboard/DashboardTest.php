@@ -16,6 +16,7 @@ use App\Models\Session;
 use App\Models\SmsTemplate;
 use App\Models\User;
 use App\Models\WebhookEndpoint;
+use App\Models\WebhookEvent;
 use App\Services\Keys\SigningKeyGenerator;
 use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Routing\RouteCollection;
@@ -733,4 +734,71 @@ it('DELETE /configure/oauth-providers/{id} removes the row when no ExternalAccou
 
     $r->assertRedirect();
     expect(OauthProvider::query()->withoutGlobalScopes()->where('id', $row->id)->whereNull('deleted_at')->exists())->toBeFalse();
+});
+
+it('PATCH /configure/oauth-providers/{id} emits oauthProvider.updated', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+    $row = OauthProvider::query()->withoutGlobalScopes()
+        ->where('environment_id', $env->id)->where('provider_key', 'google')->firstOrFail();
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/oauth-providers/'.$row->id, [
+            'name' => 'Renamed via Dashboard',
+        ]);
+
+    $r->assertRedirect();
+    $types = WebhookEvent::query()->withoutGlobalScopes()
+        ->where('environment_id', $env->id)
+        ->pluck('type')
+        ->all();
+    expect($types)->toContain('oauthProvider.updated');
+});
+
+it('GET /audit-log surfaces recent WebhookEvent rows for the environment', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+    WebhookEvent::query()->withoutGlobalScopes()->create([
+        'environment_id' => $env->id,
+        'type' => 'phoneNumber.created',
+        'data' => ['object' => 'phone_number', 'id' => 'phn_test'],
+        'was_test' => false,
+    ]);
+    WebhookEvent::query()->withoutGlobalScopes()->create([
+        'environment_id' => $env->id,
+        'type' => 'oauthProvider.created',
+        'data' => ['object' => 'oauth_provider', 'id' => 'oauthp_test'],
+        'was_test' => false,
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/audit-log');
+
+    $r->assertOk()->assertJsonPath('component', 'Dashboard/AuditLog');
+    $types = collect($r->json('props.entries'))->pluck('type')->all();
+    expect($types)->toContain('phoneNumber.created')
+        ->and($types)->toContain('oauthProvider.created');
+
+    // Filter narrows to one type prefix.
+    $r2 = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/audit-log?type=oauthProvider');
+    $types2 = collect($r2->json('props.entries'))->pluck('type')->all();
+    expect($types2)->toContain('oauthProvider.created')
+        ->and($types2)->not->toContain('phoneNumber.created');
 });

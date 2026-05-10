@@ -13,6 +13,7 @@ use App\Http\Resources\OauthProviderResource;
 use App\Models\Environment;
 use App\Models\ExternalAccount;
 use App\Models\OauthProvider;
+use App\Webhooks\Emitter;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -83,6 +84,8 @@ final class OauthProviderController
             'provider_key' => $provider->provider_key,
         ]);
 
+        app(Emitter::class)->emit('oauthProvider.created', OauthProviderResource::from($provider), $env);
+
         return response()->json(OauthProviderResource::from($provider), 201);
     }
 
@@ -141,7 +144,10 @@ final class OauthProviderController
             'oauth_provider_id' => $row->id,
         ]);
 
-        return response()->json(OauthProviderResource::from($row->refresh()));
+        $fresh = $row->refresh();
+        app(Emitter::class)->emit('oauthProvider.updated', OauthProviderResource::from($fresh), $env);
+
+        return response()->json(OauthProviderResource::from($fresh));
     }
 
     public function destroy(string $oauthProviderId): JsonResponse
@@ -160,12 +166,15 @@ final class OauthProviderController
             return $this->error(409, 'oauth_provider_in_use', 'Cannot delete: ExternalAccount rows still link to this provider.');
         }
 
+        $snapshot = OauthProviderResource::from($row);
         $row->delete();
 
         Log::info('audit:bapi.oauth_provider.deleted', [
             'environment_id' => $env->id,
             'oauth_provider_id' => $row->id,
         ]);
+
+        app(Emitter::class)->emit('oauthProvider.deleted', $snapshot, $env);
 
         return response()->json([
             'object' => 'deleted_object',

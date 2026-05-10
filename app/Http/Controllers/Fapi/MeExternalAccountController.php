@@ -7,10 +7,12 @@ namespace App\Http\Controllers\Fapi;
 use App\Auth\ErrorCodes;
 use App\Http\Resources\ExternalAccountResource;
 use App\Models\EmailAddress;
+use App\Models\Environment;
 use App\Models\ExternalAccount;
 use App\Models\OauthProvider;
 use App\Models\Session;
 use App\Models\User;
+use App\Webhooks\Emitter;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\JsonResponse;
@@ -80,7 +82,11 @@ final class MeExternalAccountController
                 ->update(['linked_to_external_account_id' => null]);
         }
 
+        $snapshot = ExternalAccountResource::from($row, $provider);
         $row->delete();
+
+        $env = app()->bound(Environment::class) ? app(Environment::class) : null;
+        app(Emitter::class)->emit('externalAccount.unlinked', $snapshot, $env);
 
         return response()->json(null, 204);
     }

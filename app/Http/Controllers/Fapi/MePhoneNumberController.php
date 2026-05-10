@@ -12,6 +12,7 @@ use App\Models\Environment;
 use App\Models\PhoneNumber;
 use App\Models\Session;
 use App\Models\User;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -72,7 +73,10 @@ final class MePhoneNumberController
             'is_primary' => false,
         ]);
 
-        return $this->clientEnvelope(PhoneNumberResource::from($row->fresh()), 201);
+        $fresh = $row->fresh();
+        app(Emitter::class)->emit('phoneNumber.created', PhoneNumberResource::from($fresh), $env);
+
+        return $this->clientEnvelope(PhoneNumberResource::from($fresh), 201);
     }
 
     public function show(Request $request): JsonResponse
@@ -132,7 +136,11 @@ final class MePhoneNumberController
             return $this->error(409, ErrorCodes::PHONE_RESERVED_FOR_SECOND_FACTOR, 'Phone is reserved for second-factor MFA. Toggle reserved_for_second_factor off first.');
         }
 
+        $snapshot = PhoneNumberResource::from($row);
         $row->delete();
+
+        $env = app()->bound(Environment::class) ? app(Environment::class) : null;
+        app(Emitter::class)->emit('phoneNumber.removed', $snapshot, $env);
 
         return response()->json(null, 204);
     }

@@ -6,7 +6,9 @@ namespace App\Models;
 
 use App\Concerns\HasPrefixedUlid;
 use App\Database\Scopes\EnvironmentScope;
+use App\Http\Resources\PhoneNumberResource;
 use App\Observers\PhoneNumberObserver;
+use App\Webhooks\Emitter;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -104,5 +106,8 @@ class PhoneNumber extends Model
             ->withoutGlobalScopes()
             ->whereKey($this->user_id)
             ->update(['phone_number_enabled' => true]);
+
+        $env = Environment::query()->withoutGlobalScopes()->whereKey($this->environment_id)->first();
+        app(Emitter::class)->emit('phoneNumber.verified', PhoneNumberResource::from($this->fresh() ?? $this), $env);
     }
 }

@@ -8,6 +8,7 @@ use App\Auth\Oauth\Exceptions\OauthDiscoveryFailedException;
 use App\Auth\Oauth\OauthProviderResolver;
 use App\Auth\Oauth\ResolvedProvider;
 use App\Auth\Oauth\StateToken;
+use App\Http\Resources\ExternalAccountResource;
 use App\Models\Challenge;
 use App\Models\EmailAddress;
 use App\Models\Environment;
@@ -17,6 +18,7 @@ use App\Models\Session;
 use App\Models\SignInAttempt;
 use App\Models\User;
 use App\Models\Verification;
+use App\Webhooks\Emitter;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\RedirectResponse;
@@ -113,6 +115,10 @@ final class OauthCallbackController
             return $this->fail($state['ru'] ?? null, $verification, 'oauth_token_exchange_failed', 'Token endpoint returned no access_token.');
         }
 
+        // TODO(AU-6.1): for preset providers (Google/Apple/Microsoft) the
+        // id_token is the authoritative source of `sub` + `email_verified`.
+        // Validate the JWS signature against the provider's JWKS before
+        // trusting userinfo. Tracked for v0.4.0-stable.
         $userinfo = $this->fetchUserinfo($resolved, $tokenBody);
         if ($userinfo === null) {
             return $this->fail($state['ru'] ?? null, $verification, 'oauth_userinfo_failed', 'userinfo lookup returned no data.');
@@ -255,6 +261,14 @@ final class OauthCallbackController
             'external_account_id' => $result['external_account']?->id,
             'created' => $result['created'] ?? false,
         ]);
+
+        if (($result['created'] ?? false) === true && $result['external_account'] instanceof ExternalAccount) {
+            app(Emitter::class)->emit(
+                'externalAccount.connected',
+                ExternalAccountResource::from($result['external_account'], $provider),
+                $env,
+            );
+        }
 
         $redirect = (string) ($state['ruc'] ?? $state['ru'] ?? '/');
 
