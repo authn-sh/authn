@@ -4,23 +4,29 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Bapi;
 
+use App\Auth\ErrorCodes;
 use App\Http\Requests\Bapi\Users\CreateUserRequest;
 use App\Http\Requests\Bapi\Users\ProfileImageRequest;
 use App\Http\Requests\Bapi\Users\UpdateMetadataRequest;
 use App\Http\Requests\Bapi\Users\UpdateUserRequest;
 use App\Http\Requests\Bapi\Users\VerifyPasswordRequest;
+use App\Http\Requests\Bapi\Users\VerifyTotpRequest;
 use App\Http\Resources\UserResource;
+use App\Models\BackupCode;
 use App\Models\EmailAddress;
 use App\Models\Environment;
 use App\Models\Session;
+use App\Models\TotpSecret;
 use App\Models\User;
 use App\Services\Sessions\SessionLifecycle;
+use App\Settings\MultiFactorSettings;
 use App\Support\Idempotency;
 use App\Support\IdempotencyMismatch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use PragmaRX\Google2FA\Google2FA;
 
 /**
  * BAPI users surface (PLAN §3.1, OA-2). Server-to-server CRUD plus the
@@ -196,6 +202,82 @@ final class UsersController
         $verified = $user->password_hash !== null && Hash::check((string) $request->input('password'), $user->password_hash);
 
         return response()->json(['object' => 'verify_password', 'verified' => $verified]);
+    }
+
+    /**
+     * Server-side TOTP check against the user's enrolled `TotpSecret`.
+     * Read-only — does not stamp `verified_at` or advance the replay
+     * step counter. Used by support tooling to confirm a user has
+     * access to their authenticator without forcing them through the
+     * FAPI sign-in flow.
+     */
+    public function verifyTotp(VerifyTotpRequest $request, string $id): JsonResponse
+    {
+        $user = $this->find($id);
+        if ($user === null) {
+            return $this->error(404, 'user_not_found', 'No user matches that id in this environment.');
+        }
+
+        $env = app(Environment::class);
+        $settings = MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : []);
+        if (! $settings->totpEnabled) {
+            return $this->error(422, ErrorCodes::MFA_NOT_ENABLED, 'TOTP is disabled for this environment.');
+        }
+
+        $secret = TotpSecret::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->first();
+        if ($secret === null) {
+            return $this->error(404, ErrorCodes::TOTP_NOT_FOUND, 'No verified TOTP secret on this user.');
+        }
+
+        $code = (string) $request->input('code');
+        $google2fa = new Google2FA;
+        $google2fa->setWindow(1);
+        $verified = $google2fa->verifyKey($secret->secret, $code);
+
+        return response()->json(['verified' => (bool) $verified]);
+    }
+
+    /**
+     * Operator MFA reset. Drops the user's `TotpSecret` plus every
+     * unconsumed `BackupCode`, flips the User MFA flags off, and stamps
+     * `mfa_disabled_at`. Idempotent — safe to call on a user who's not
+     * enrolled.
+     */
+    public function deleteMfa(string $id): JsonResponse
+    {
+        $user = $this->find($id);
+        if ($user === null) {
+            return $this->error(404, 'user_not_found', 'No user matches that id in this environment.');
+        }
+
+        $hadTotp = TotpSecret::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->exists();
+        $hadBackup = BackupCode::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNull('consumed_at')
+            ->exists();
+
+        TotpSecret::query()->withoutGlobalScopes()->where('user_id', $user->id)->delete();
+        BackupCode::query()->withoutGlobalScopes()->where('user_id', $user->id)->whereNull('consumed_at')->delete();
+
+        if ($hadTotp || $hadBackup || $user->two_factor_enabled) {
+            $user->forceFill([
+                'totp_enabled' => false,
+                'backup_code_enabled' => false,
+                'two_factor_enabled' => false,
+                'mfa_disabled_at' => now(),
+            ])->save();
+        }
+
+        return response()->json(UserResource::from($user->fresh(), includePrivate: true))
+            ->header('Cache-Control', 'no-store');
     }
 
     public function uploadProfileImage(ProfileImageRequest $request, string $id): JsonResponse

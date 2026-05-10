@@ -53,6 +53,8 @@ Route::post('/users/{id}/profile-image', [UsersController::class, 'uploadProfile
 Route::delete('/users/{id}/profile-image', [UsersController::class, 'deleteProfileImage'])->middleware(RateLimit::class.':users.image,30,60')->name('bapi.users.profile_image.delete');
 Route::patch('/users/{id}/metadata', [UsersController::class, 'updateMetadata'])->middleware(RateLimit::class.':users.update,60,60')->name('bapi.users.metadata');
 Route::post('/users/{id}/verify-password', [UsersController::class, 'verifyPassword'])->middleware(RateLimit::class.':users.verify,60,60')->name('bapi.users.verify_password');
+Route::post('/users/{id}/verify-totp', [UsersController::class, 'verifyTotp'])->middleware(RateLimit::class.':users.verify,60,60')->name('bapi.users.verify_totp');
+Route::delete('/users/{id}/mfa', [UsersController::class, 'deleteMfa'])->middleware(RateLimit::class.':users.action,60,60')->name('bapi.users.mfa.destroy');
 
 // Sessions
 Route::get('/sessions', [SessionsController::class, 'index'])->middleware(RateLimit::class.':sessions.list,300,60')->name('bapi.sessions.index');
