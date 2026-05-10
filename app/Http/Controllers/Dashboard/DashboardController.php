@@ -23,6 +23,7 @@ use App\Models\User;
 use App\Models\WebhookDelivery;
 use App\Models\WebhookEndpoint;
 use App\Services\Keys\KeyGenerator;
+use App\Settings\MultiFactorSettings;
 use App\Support\RoutingLabel;
 use App\Support\Url;
 use Illuminate\Http\RedirectResponse;
@@ -252,7 +253,40 @@ final class DashboardController
             'allowed_origins' => is_array($env->allowed_origins) ? $env->allowed_origins : [],
             'appearance' => is_array($env->appearance) ? $env->appearance : [],
             'signup_mode' => $env->signup_mode,
+            'multi_factor' => MultiFactorSettings::fromUserSettings(is_array($env->user_settings) ? $env->user_settings : [])->toArray(),
         ]);
+    }
+
+    public function updateMultiFactor(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $request->validate([
+            'totp.enabled' => ['required', 'boolean'],
+            'backup_codes.enabled' => ['required', 'boolean'],
+            'backup_codes.default_count' => [
+                'required', 'integer',
+                'between:'.MultiFactorSettings::MIN_BACKUP_CODE_COUNT.','.MultiFactorSettings::MAX_BACKUP_CODE_COUNT,
+            ],
+        ]);
+
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $previous = MultiFactorSettings::fromUserSettings($userSettings);
+        $next = $previous->withPatch([
+            'totp' => ['enabled' => $request->boolean('totp.enabled')],
+            'backup_codes' => [
+                'enabled' => $request->boolean('backup_codes.enabled'),
+                'default_count' => (int) $request->input('backup_codes.default_count'),
+            ],
+        ]);
+        $userSettings['multi_factor'] = $next->toArray();
+        $env->forceFill(['user_settings' => $userSettings])->save();
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/multi-factor")
+            ->with('multi_factor_saved', true);
     }
 
     public function emailTemplates(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse

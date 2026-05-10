@@ -39,6 +39,7 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::get('/allowlist', [DashboardController::class, 'allowlist'])->name('dashboard.allowlist');
     Route::get('/blocklist', [DashboardController::class, 'blocklist'])->name('dashboard.blocklist');
     Route::get('/configure/{section?}', [DashboardController::class, 'configure'])->name('dashboard.configure');
+    Route::patch('/configure/multi-factor', [DashboardController::class, 'updateMultiFactor'])->name('dashboard.configure.multi_factor.update');
     Route::get('/email-templates', [DashboardController::class, 'emailTemplates'])->name('dashboard.email_templates');
 
     Route::get('/api-keys', [DashboardController::class, 'apiKeys'])->name('dashboard.api_keys');
