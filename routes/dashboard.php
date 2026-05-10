@@ -44,6 +44,10 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::patch('/configure/sms', [DashboardController::class, 'updateSms'])->name('dashboard.configure.sms.update');
     Route::post('/configure/sms/test', [DashboardController::class, 'sendTestSms'])->name('dashboard.configure.sms.test');
     Route::patch('/configure/sms-templates/{slug}', [DashboardController::class, 'updateSmsTemplate'])->name('dashboard.configure.sms_templates.update');
+    Route::post('/configure/oauth-providers', [DashboardController::class, 'storeOauthProvider'])->name('dashboard.configure.oauth_providers.store');
+    Route::patch('/configure/oauth-providers/{oauth_provider_id}', [DashboardController::class, 'updateOauthProvider'])->name('dashboard.configure.oauth_providers.update');
+    Route::delete('/configure/oauth-providers/{oauth_provider_id}', [DashboardController::class, 'destroyOauthProvider'])->name('dashboard.configure.oauth_providers.destroy');
+    Route::post('/configure/oauth-providers/{oauth_provider_id}/test', [DashboardController::class, 'testOauthProvider'])->name('dashboard.configure.oauth_providers.test');
     Route::get('/email-templates', [DashboardController::class, 'emailTemplates'])->name('dashboard.email_templates');
 
     Route::get('/api-keys', [DashboardController::class, 'apiKeys'])->name('dashboard.api_keys');

@@ -7,6 +7,7 @@ use App\Models\ApiKey;
 use App\Models\Client;
 use App\Models\EmailAddress;
 use App\Models\Environment;
+use App\Models\OauthProvider;
 use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Project;
@@ -18,6 +19,7 @@ use App\Models\WebhookEndpoint;
 use App\Services\Keys\SigningKeyGenerator;
 use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Routing\RouteCollection;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 
@@ -562,4 +564,173 @@ it('Configure renders the sms section with seeded templates + null driver defaul
         ->assertJsonPath('props.section', 'sms')
         ->assertJsonPath('props.sms.driver', null)
         ->assertJsonCount(3, 'props.sms_templates');
+});
+
+it('Configure renders the social-providers section with the seeded preset rows + preset keys', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/configure/social-providers');
+
+    $r->assertOk()
+        ->assertJsonPath('component', 'Dashboard/Configure')
+        ->assertJsonPath('props.section', 'social-providers');
+    $keys = collect($r->json('props.oauth_providers'))->pluck('provider_key')->sort()->values()->all();
+    expect($keys)->toBe(['apple', 'github', 'google', 'microsoft']);
+    expect($r->json('props.oauth_preset_keys'))->toBe(['google', 'github', 'apple', 'microsoft']);
+});
+
+it('PATCH /configure/oauth-providers/{id} flips enabled + rotates client_secret', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+    $row = OauthProvider::query()->withoutGlobalScopes()
+        ->where('environment_id', $env->id)->where('provider_key', 'google')->firstOrFail();
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/oauth-providers/'.$row->id, [
+            'enabled' => true,
+            'client_id' => 'gid-real',
+            'client_secret' => 'rotated',
+        ]);
+
+    $r->assertRedirect();
+    $row->refresh();
+    expect($row->enabled)->toBeTrue();
+    expect($row->client_id)->toBe('gid-real');
+    expect($row->encrypted_client_secret)->toBe('rotated');
+});
+
+it('PATCH /configure/oauth-providers/{id} leaves client_secret untouched on empty input', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+    $row = OauthProvider::query()->withoutGlobalScopes()
+        ->where('environment_id', $env->id)->where('provider_key', 'google')->firstOrFail();
+    $row->forceFill(['encrypted_client_secret' => 'kept'])->save();
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/oauth-providers/'.$row->id, [
+            'enabled' => true,
+            'client_secret' => '',
+        ]);
+
+    $r->assertRedirect();
+    expect($row->fresh()->encrypted_client_secret)->toBe('kept');
+});
+
+it('POST /configure/oauth-providers creates a custom OAuth2 row', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->post('http://dashboard.authn.local/acme/production/configure/oauth-providers', [
+            'provider_kind' => 'custom_oauth2',
+            'provider_key' => 'acmecorp',
+            'name' => 'Acme Corp',
+            'client_id' => 'cid',
+            'client_secret' => 'sec',
+            'authorization_endpoint' => 'https://acme.test/authorize',
+            'token_endpoint' => 'https://acme.test/token',
+            'userinfo_endpoint' => 'https://acme.test/userinfo',
+            'userinfo_method' => 'GET',
+            'userinfo_auth' => 'bearer',
+        ]);
+
+    $r->assertRedirect();
+    $row = OauthProvider::query()->withoutGlobalScopes()
+        ->where('environment_id', $env->id)->where('provider_key', 'acmecorp')->first();
+    expect($row)->not->toBeNull();
+    expect($row->authorization_endpoint)->toBe('https://acme.test/authorize');
+});
+
+it('POST /configure/oauth-providers runs OIDC discovery for custom_oidc', function (): void {
+    Http::fake([
+        'https://idp.acme.test/.well-known/openid-configuration' => Http::response([
+            'authorization_endpoint' => 'https://idp.acme.test/authorize',
+            'token_endpoint' => 'https://idp.acme.test/token',
+            'userinfo_endpoint' => 'https://idp.acme.test/userinfo',
+            'jwks_uri' => 'https://idp.acme.test/jwks',
+            'id_token_signing_alg_values_supported' => ['RS256'],
+        ], 200),
+    ]);
+
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->post('http://dashboard.authn.local/acme/production/configure/oauth-providers', [
+            'provider_kind' => 'custom_oidc',
+            'provider_key' => 'acmeoidc',
+            'name' => 'Acme OIDC',
+            'client_id' => 'cid',
+            'client_secret' => 'sec',
+            'issuer' => 'https://idp.acme.test',
+        ]);
+
+    $r->assertRedirect();
+    $row = OauthProvider::query()->withoutGlobalScopes()
+        ->where('environment_id', $env->id)->where('provider_key', 'acmeoidc')->first();
+    expect($row)->not->toBeNull();
+    expect($row->authorization_endpoint)->toBe('https://idp.acme.test/authorize');
+});
+
+it('DELETE /configure/oauth-providers/{id} removes the row when no ExternalAccounts link', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+    $row = OauthProvider::query()->withoutGlobalScopes()
+        ->where('environment_id', $env->id)->where('provider_key', 'google')->firstOrFail();
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->delete('http://dashboard.authn.local/acme/production/configure/oauth-providers/'.$row->id);
+
+    $r->assertRedirect();
+    expect(OauthProvider::query()->withoutGlobalScopes()->where('id', $row->id)->whereNull('deleted_at')->exists())->toBeFalse();
 });
