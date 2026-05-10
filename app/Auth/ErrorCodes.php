@@ -63,6 +63,8 @@ final class ErrorCodes
 
     public const TOTP_NOT_FOUND = 'totp_not_found';
 
+    public const MFA_PRIMARY_FACTOR_REQUIRED = 'mfa_primary_factor_required';
+
     public const STRATEGY_NOT_SUPPORTED = 'strategy_not_supported';
 
     public const PREPARE_NOT_REQUIRED = 'prepare_not_required';
