@@ -34,6 +34,7 @@ final class ChallengeResource
             'expire_at' => $challenge->expire_at->getTimestampMs(),
             'nonce' => $challenge->nonce,
             'external_verification_redirect_url' => $challenge->external_verification_redirect_url,
+            'enterprise_connection_id' => $metadata['enterprise_connection_id'] ?? null,
             'error' => $challenge->error_code !== null ? [
                 'code' => $challenge->error_code,
                 'message' => (string) $challenge->error_message,
