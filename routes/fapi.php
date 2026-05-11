@@ -17,6 +17,7 @@ use App\Http\Controllers\Fapi\MePhoneNumberController;
 use App\Http\Controllers\Fapi\MeTotpController;
 use App\Http\Controllers\Fapi\OauthCallbackController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
+use App\Http\Controllers\Fapi\OrganizationEnterpriseConnectionController;
 use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
 use App\Http\Controllers\Fapi\OrganizationMembershipController as FapiOrganizationMembershipController;
 use App\Http\Controllers\Fapi\OrganizationMembershipRequestController as FapiOrganizationMembershipRequestController;
@@ -206,6 +207,27 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/organizations/{organization_id}/membership-requests/{request_id}/reject', [FapiOrganizationMembershipRequestController::class, 'reject'])
             ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
             ->name('fapi.organizations.membership_requests.reject');
+
+        // Per-org enterprise SSO connections (AU-6 / OA-5). Drives the
+        // <OrganizationProfile /> SSO section in sdk-react.
+        Route::get('/organizations/{organization_id}/enterprise-connections', [OrganizationEnterpriseConnectionController::class, 'index'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->name('fapi.organizations.enterprise_connections.index');
+        Route::post('/organizations/{organization_id}/enterprise-connections', [OrganizationEnterpriseConnectionController::class, 'store'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->name('fapi.organizations.enterprise_connections.store');
+        Route::get('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}', [OrganizationEnterpriseConnectionController::class, 'show'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->name('fapi.organizations.enterprise_connections.show');
+        Route::patch('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}', [OrganizationEnterpriseConnectionController::class, 'update'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->name('fapi.organizations.enterprise_connections.update');
+        Route::delete('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}', [OrganizationEnterpriseConnectionController::class, 'destroy'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->name('fapi.organizations.enterprise_connections.destroy');
+        Route::post('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}/test', [OrganizationEnterpriseConnectionController::class, 'test'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->name('fapi.organizations.enterprise_connections.test');
 
         // /v1/me org-related collections + active-org switching (AU-7).
         Route::get('/me/organization-memberships', [MeOrganizationController::class, 'listMemberships'])->name('fapi.me.organization_memberships');
