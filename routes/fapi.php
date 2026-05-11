@@ -6,6 +6,7 @@ use App\Http\Controllers\AccountPortal\AccountPortalController;
 use App\Http\Controllers\Fapi\ChallengeController;
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnvironmentController;
+use App\Http\Controllers\Fapi\LocalizationController;
 use App\Http\Controllers\Fapi\MagicLinkController;
 use App\Http\Controllers\Fapi\MeBackupCodesController;
 use App\Http\Controllers\Fapi\MeController;
@@ -64,6 +65,7 @@ Route::prefix('v1')->group(function (): void {
     // authenticated by the JWT it carries.
     Route::withoutMiddleware([EnforceFapiOrigin::class])->group(function (): void {
         Route::get('/environment', [EnvironmentController::class, 'show'])->name('fapi.environment');
+        Route::get('/localization/{locale}', [LocalizationController::class, 'show'])->name('fapi.localization.show');
         Route::get('/client', [ClientController::class, 'show'])->name('fapi.client.show');
         Route::put('/client', [ClientController::class, 'store'])->name('fapi.client.store');
         Route::delete('/client', [ClientController::class, 'destroy'])->name('fapi.client.destroy');

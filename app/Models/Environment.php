@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array $appearance
  * @property array $localization
  * @property-read string $appearance_etag
+ * @property-read string $localization_override_etag
  */
 class Environment extends Model
 {
@@ -103,6 +104,23 @@ class Environment extends Model
     }
 
     /**
+     * Default localization blob. Mirrored by the column default — kept in
+     * code so the observer + reset-to-defaults path agree on the canonical
+     * shape.
+     *
+     * @return array{default_locale: string, fallback_locale: string, supported_locales: list<string>, overrides: array<string, array<string, string>>}
+     */
+    public static function defaultLocalization(): array
+    {
+        return [
+            'default_locale' => 'en-US',
+            'fallback_locale' => 'en-US',
+            'supported_locales' => ['en-US', 'pt-BR', 'es-ES', 'fr-FR', 'de-DE'],
+            'overrides' => [],
+        ];
+    }
+
+    /**
      * Stable etag for the current `appearance` blob. SDKs use it as a
      * cheap "did the appearance change since last render?" gate.
      */
@@ -112,6 +130,25 @@ class Environment extends Model
             $blob = is_array($this->appearance) ? $this->appearance : [];
             $canonical = json_encode(
                 $blob,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+            );
+
+            return 'sha256:'.hash('sha256', (string) $canonical);
+        });
+    }
+
+    /**
+     * Stable etag for the `overrides` sub-blob. The public localization
+     * catalog endpoint returns this as the response `ETag` so SDKs can
+     * skip re-fetching when nothing changed.
+     */
+    protected function localizationOverrideEtag(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $localization = is_array($this->localization) ? $this->localization : [];
+            $overrides = is_array($localization['overrides'] ?? null) ? $localization['overrides'] : [];
+            $canonical = json_encode(
+                $overrides,
                 JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             );
 
@@ -136,6 +173,11 @@ class Environment extends Model
             $appearance = is_array($env->appearance) ? $env->appearance : [];
             if ($appearance === []) {
                 $env->appearance = self::defaultAppearance();
+            }
+
+            $localization = is_array($env->localization) ? $env->localization : [];
+            if ($localization === []) {
+                $env->localization = self::defaultLocalization();
             }
         });
     }

@@ -7,6 +7,7 @@ use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
 use App\Http\Controllers\Bapi\ExternalAccountController;
 use App\Http\Controllers\Bapi\InstanceAppearanceController;
 use App\Http\Controllers\Bapi\InstanceController;
+use App\Http\Controllers\Bapi\InstanceLocalizationController;
 use App\Http\Controllers\Bapi\InvitationsController;
 use App\Http\Controllers\Bapi\OauthProviderController;
 use App\Http\Controllers\Bapi\OrganizationController;
@@ -173,3 +174,7 @@ Route::patch('/instance/organization-settings', [InstanceController::class, 'upd
 Route::get('/instance/appearance', [InstanceAppearanceController::class, 'show'])->middleware(RateLimit::class.':instance.read,300,60')->name('bapi.instance.appearance.show');
 Route::put('/instance/appearance', [InstanceAppearanceController::class, 'replace'])->middleware(RateLimit::class.':instance.update,30,60')->name('bapi.instance.appearance.replace');
 Route::patch('/instance/appearance', [InstanceAppearanceController::class, 'patch'])->middleware(RateLimit::class.':instance.update,30,60')->name('bapi.instance.appearance.patch');
+
+Route::get('/instance/localization', [InstanceLocalizationController::class, 'show'])->middleware(RateLimit::class.':instance.read,300,60')->name('bapi.instance.localization.show');
+Route::put('/instance/localization', [InstanceLocalizationController::class, 'replace'])->middleware(RateLimit::class.':instance.update,30,60')->name('bapi.instance.localization.replace');
+Route::patch('/instance/localization', [InstanceLocalizationController::class, 'patch'])->middleware(RateLimit::class.':instance.update,30,60')->name('bapi.instance.localization.patch');
