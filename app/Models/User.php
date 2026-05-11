@@ -149,6 +149,11 @@ class User extends Model implements AuthenticatableContract
         return $this->hasMany(ExternalAccount::class);
     }
 
+    public function enterpriseAccounts(): HasMany
+    {
+        return $this->hasMany(EnterpriseAccount::class);
+    }
+
     public function passkeys(): HasMany
     {
         return $this->hasMany(Passkey::class);
