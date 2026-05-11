@@ -25,6 +25,8 @@ use App\Http\Controllers\Fapi\SessionsController;
 use App\Http\Controllers\Fapi\SessionTokenController;
 use App\Http\Controllers\Fapi\SignInController;
 use App\Http\Controllers\Fapi\SignUpController;
+use App\Http\Controllers\Scim\GroupsController as ScimGroupsController;
+use App\Http\Controllers\Scim\UsersController as ScimUsersController;
 use App\Http\Controllers\WellKnown\JwksController;
 use App\Http\Controllers\WellKnown\OpenIdConfigurationController;
 use App\Http\Middleware\AuthenticateSessionToken;
@@ -32,6 +34,7 @@ use App\Http\Middleware\EnforceFapiOrigin;
 use App\Http\Middleware\EnsureOrgPermission;
 use App\Http\Middleware\HandleAccountPortalInertia;
 use App\Http\Middleware\ResolveClientFromCookie;
+use App\Http\Middleware\ScimAuth;
 use App\Models\Environment;
 use App\Support\Url;
 use Illuminate\Support\Facades\Route;
@@ -53,6 +56,19 @@ use Illuminate\Support\Facades\Route;
 Route::withoutMiddleware([EnforceFapiOrigin::class])->group(function (): void {
     Route::get('/.well-known/jwks.json', JwksController::class)->name('fapi.jwks');
     Route::get('/.well-known/openid-configuration', OpenIdConfigurationController::class)->name('fapi.openid_configuration');
+});
+
+// SCIM 2.0 server (RFC 7644). Bearer-authenticated; the SCIM client is the
+// IdP, not the SDK, so Origin enforcement is skipped and the routes sit
+// outside the /v1 prefix to match the SCIM convention IdPs expect.
+Route::withoutMiddleware([EnforceFapiOrigin::class])->prefix('scim/v2')->middleware(ScimAuth::class)->group(function (): void {
+    Route::get('/Users', [ScimUsersController::class, 'index'])->name('scim.users.index');
+    Route::post('/Users', [ScimUsersController::class, 'store'])->name('scim.users.store');
+    Route::get('/Users/{id}', [ScimUsersController::class, 'show'])->name('scim.users.show');
+    Route::delete('/Users/{id}', [ScimUsersController::class, 'destroy'])->name('scim.users.destroy');
+
+    Route::get('/Groups', [ScimGroupsController::class, 'index'])->name('scim.groups.index');
+    Route::get('/Groups/{id}', [ScimGroupsController::class, 'show'])->name('scim.groups.show');
 });
 
 Route::prefix('v1')->group(function (): void {
