@@ -27,6 +27,8 @@ final class SignInResource
             return null;
         }
 
+        $transferable = $attempt->status === SignInAttempt::STATUS_TRANSFERABLE;
+
         return [
             'object' => 'sign_in_attempt',
             'id' => $attempt->id,
@@ -38,6 +40,8 @@ final class SignInResource
             'user_data' => self::userDataPreview($attempt),
             'created_session_id' => $attempt->created_session_id,
             'abandon_at' => $attempt->abandon_at->getTimestampMs(),
+            'transferable_to_signup' => $transferable,
+            'target_flow' => $transferable ? 'sign_up' : null,
         ];
     }
 
@@ -148,10 +152,13 @@ final class SignInResource
         return User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
     }
 
-    private static function userDataPreview(SignInAttempt $attempt): ?array
+    /**
+     * @return array<string, mixed>
+     */
+    private static function userDataPreview(SignInAttempt $attempt): array
     {
         if ($attempt->identifier === null) {
-            return null;
+            return [];
         }
 
         $email = EmailAddress::query()
@@ -160,11 +167,11 @@ final class SignInResource
             ->where('email_address', strtolower($attempt->identifier))
             ->first();
         if ($email === null) {
-            return null;
+            return [];
         }
         $user = User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
         if ($user === null) {
-            return null;
+            return [];
         }
 
         return [

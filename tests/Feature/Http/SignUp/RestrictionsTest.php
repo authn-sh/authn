@@ -103,7 +103,7 @@ it('detects subaddress collisions when block_email_subaddresses is on', function
             'email_address' => 'foo+anything@example.com',
             'password' => 'super-secret-password',
         ]);
-    $r->assertStatus(422)->assertJsonPath('errors.0.code', 'form_identifier_exists');
+    $r->assertOk()->assertJsonPath('response.status', 'transferable')->assertJsonPath('response.target_flow', 'sign_in');
 });
 
 it('treats gmail dot variants as the same identifier', function (): void {
@@ -127,5 +127,5 @@ it('treats gmail dot variants as the same identifier', function (): void {
             'email_address' => 'f.o.o@gmail.com',
             'password' => 'super-secret-password',
         ]);
-    $r->assertStatus(422)->assertJsonPath('errors.0.code', 'form_identifier_exists');
+    $r->assertOk()->assertJsonPath('response.status', 'transferable')->assertJsonPath('response.target_flow', 'sign_in');
 });
