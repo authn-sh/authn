@@ -45,6 +45,11 @@ final class ApplePreset implements PresetContract
         return 'https://appleid.apple.com/auth/keys';
     }
 
+    public function issuer(): ?string
+    {
+        return 'https://appleid.apple.com';
+    }
+
     public function defaultScopes(): array
     {
         return ['name', 'email'];

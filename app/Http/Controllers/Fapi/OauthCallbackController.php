@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Fapi;
 
 use App\Auth\Oauth\Exceptions\OauthDiscoveryFailedException;
+use App\Auth\Oauth\IdTokenValidator;
 use App\Auth\Oauth\OauthProviderResolver;
 use App\Auth\Oauth\ResolvedProvider;
 use App\Auth\Oauth\StateToken;
@@ -43,6 +44,7 @@ final class OauthCallbackController
 {
     public function __construct(
         private readonly OauthProviderResolver $resolver,
+        private readonly IdTokenValidator $idTokenValidator,
     ) {}
 
     public function __invoke(Request $request): RedirectResponse
@@ -115,21 +117,40 @@ final class OauthCallbackController
             return $this->fail($state['ru'] ?? null, $verification, 'oauth_token_exchange_failed', 'Token endpoint returned no access_token.');
         }
 
-        // TODO(AU-6.1): for preset providers (Google/Apple/Microsoft) the
-        // id_token is the authoritative source of `sub` + `email_verified`.
-        // Validate the JWS signature against the provider's JWKS before
-        // trusting userinfo. Tracked for v0.4.0-stable.
+        // For preset / OIDC providers the id_token is the authoritative
+        // source of `sub` + `email` + `email_verified`. Validate the JWS
+        // against the provider's JWKS before trusting userinfo.
+        $idTokenClaims = null;
+        if (is_string($tokenBody['id_token'] ?? null) && $resolved->jwksUri !== null) {
+            $idTokenClaims = $this->idTokenValidator->validate($provider, $resolved, (string) $tokenBody['id_token']);
+            if ($idTokenClaims === null) {
+                return $this->fail($state['ru'] ?? null, $verification, 'oauth_id_token_invalid', 'id_token JWS validation failed.');
+            }
+        }
+
         $userinfo = $this->fetchUserinfo($resolved, $tokenBody);
         if ($userinfo === null) {
             return $this->fail($state['ru'] ?? null, $verification, 'oauth_userinfo_failed', 'userinfo lookup returned no data.');
         }
 
-        $providerUserId = (string) ($userinfo['sub'] ?? $userinfo['id'] ?? '');
+        // Security-critical claims come from the validated id_token when
+        // available — userinfo can be tampered with by a network attacker.
+        // Display claims (picture / first_name / last_name) keep coming
+        // from userinfo since they're not load-bearing for auth.
+        $providerUserId = (string) ($idTokenClaims['sub'] ?? $userinfo['sub'] ?? $userinfo['id'] ?? '');
         if ($providerUserId === '') {
-            return $this->fail($state['ru'] ?? null, $verification, 'oauth_provider_user_id_missing', 'userinfo response had no sub/id.');
+            return $this->fail($state['ru'] ?? null, $verification, 'oauth_provider_user_id_missing', 'No sub on id_token or userinfo.');
         }
 
-        $mapped = $this->applyAttributeMapping($resolved->attributeMapping, $userinfo);
+        $mergedClaims = $userinfo;
+        if ($idTokenClaims !== null) {
+            foreach (['sub', 'email', 'email_verified'] as $authoritative) {
+                if (array_key_exists($authoritative, $idTokenClaims)) {
+                    $mergedClaims[$authoritative] = $idTokenClaims[$authoritative];
+                }
+            }
+        }
+        $mapped = $this->applyAttributeMapping($resolved->attributeMapping, $mergedClaims);
         $emailAddress = isset($mapped['email']) ? strtolower((string) $mapped['email']) : null;
         $emailVerified = (bool) ($mapped['email_verified'] ?? false);
 

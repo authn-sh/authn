@@ -33,6 +33,13 @@ interface PresetContract
     public function jwksUri(): ?string;
 
     /**
+     * The expected `iss` claim on id_tokens this IdP issues. Used by the
+     * id_token validator to reject tokens replayed from a different IdP.
+     * Returns `null` for presets that don't issue an id_token (e.g. GitHub).
+     */
+    public function issuer(): ?string;
+
+    /**
      * Default OAuth scopes requested when the operator hasn't
      * overridden them. Always includes `openid` for OIDC presets.
      *
