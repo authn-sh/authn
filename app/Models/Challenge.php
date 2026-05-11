@@ -38,6 +38,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ?string $external_verification_redirect_url
  * @property ?string $error_code
  * @property ?string $error_message
+ * @property array<string, mixed> $metadata
  * @property \DateTimeInterface $expire_at
  */
 class Challenge extends Model
@@ -116,6 +117,7 @@ class Challenge extends Model
         'external_verification_redirect_url',
         'error_code',
         'error_message',
+        'metadata',
         'expire_at',
     ];
 
@@ -124,6 +126,7 @@ class Challenge extends Model
         return [
             'attempts' => 'int',
             'expire_at' => 'immutable_datetime',
+            'metadata' => 'array',
         ];
     }
 

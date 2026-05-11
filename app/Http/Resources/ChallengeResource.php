@@ -19,7 +19,8 @@ final class ChallengeResource
             return null;
         }
 
-        return [
+        $metadata = is_array($challenge->metadata) ? $challenge->metadata : [];
+        $shape = [
             'object' => 'challenge',
             'id' => $challenge->id,
             'sign_in_id' => $challenge->parent_type === Challenge::PARENT_SIGN_IN ? $challenge->parent_id : null,
@@ -40,5 +41,32 @@ final class ChallengeResource
             'created_at' => $challenge->created_at?->getTimestampMs(),
             'updated_at' => $challenge->updated_at?->getTimestampMs(),
         ];
+
+        if (isset($metadata['passkey_request_options']) && is_array($metadata['passkey_request_options'])) {
+            $shape['request_options'] = self::optionsToSnake($metadata['passkey_request_options']);
+        }
+
+        return $shape;
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     * @return array<string, mixed>
+     */
+    private static function optionsToSnake(array $options): array
+    {
+        $rename = [
+            'rpId' => 'rp_id',
+            'allowCredentials' => 'allow_credentials',
+            'userVerification' => 'user_verification',
+        ];
+        foreach ($rename as $camel => $snake) {
+            if (array_key_exists($camel, $options)) {
+                $options[$snake] = $options[$camel];
+                unset($options[$camel]);
+            }
+        }
+
+        return $options;
     }
 }

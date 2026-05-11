@@ -145,6 +145,10 @@ return new class extends Migration
             $table->string('external_verification_redirect_url', 2048)->nullable();
             $table->string('error_code', 64)->nullable();
             $table->string('error_message')->nullable();
+            // Strategy-specific blob (e.g. passkey ceremony request_options
+            // or the begin-time nickname). Free-form per strategy; the SDK
+            // shouldn't depend on its shape.
+            $table->jsonb('metadata')->default(json_encode((object) []));
 
             $table->timestamp('expire_at');
             $table->timestamps();

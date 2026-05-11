@@ -99,11 +99,7 @@ final class MePasskeysController
                 'status' => Challenge::STATUS_PENDING,
                 'verification_id' => $verification->id,
                 'expire_at' => now()->addMinutes(10),
-                // The begin-time nickname is stashed on `error_message` —
-                // an unused-otherwise text column on this row's lifecycle —
-                // so complete-registration can apply it as a fallback if
-                // the SDK doesn't supply one. Cleared once consumed.
-                'error_message' => is_string($nickname) ? $nickname : null,
+                'metadata' => is_string($nickname) ? ['passkey_nickname' => $nickname] : [],
             ]);
         });
 
@@ -146,9 +142,10 @@ final class MePasskeysController
         if ($completeNickname !== null && (! is_string($completeNickname) || strlen($completeNickname) > 100)) {
             return $this->error(422, 'form_param_format_invalid', 'nickname must be a string up to 100 characters.');
         }
+        $beginNickname = is_array($challenge->metadata) ? ($challenge->metadata['passkey_nickname'] ?? null) : null;
         $resolvedNickname = is_string($completeNickname) && $completeNickname !== ''
             ? $completeNickname
-            : (is_string($challenge->error_message) && $challenge->error_message !== '' ? $challenge->error_message : null);
+            : (is_string($beginNickname) && $beginNickname !== '' ? $beginNickname : null);
 
         try {
             $passkey = $this->passkeys->verifyAttestation($env, $user, $challenge, $attestation, $resolvedNickname);
@@ -165,7 +162,9 @@ final class MePasskeysController
             ->where('id', $challenge->verification_id)
             ->update(['status' => Verification::STATUS_VERIFIED, 'verified_at' => now()]);
 
-        $challenge->forceFill(['error_message' => null])->save();
+        $metadata = is_array($challenge->metadata) ? $challenge->metadata : [];
+        unset($metadata['passkey_nickname']);
+        $challenge->forceFill(['metadata' => $metadata])->save();
 
         Log::info('auth.passkey.registered', [
             'user_id' => $user->id,
