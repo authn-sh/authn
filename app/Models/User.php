@@ -54,6 +54,7 @@ use Illuminate\Support\Facades\Hash;
  * @property array $private_metadata
  * @property array $unsafe_metadata
  * @property ?string $locale
+ * @property-read int $passkey_count
  */
 #[ObservedBy([UserObserver::class])]
 class User extends Model implements AuthenticatableContract
@@ -146,6 +147,16 @@ class User extends Model implements AuthenticatableContract
     public function externalAccounts(): HasMany
     {
         return $this->hasMany(ExternalAccount::class);
+    }
+
+    public function passkeys(): HasMany
+    {
+        return $this->hasMany(Passkey::class);
+    }
+
+    protected function passkeyCount(): Attribute
+    {
+        return Attribute::get(fn (): int => $this->passkeys()->whereNotNull('verified_at')->count());
     }
 
     public function primaryEmailAddress(): BelongsTo
