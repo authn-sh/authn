@@ -49,11 +49,31 @@ type OauthProvider = {
     redirect_uri: string
 }
 
+type AppearanceShape = {
+    variables?: Record<string, string>
+    elements?: Record<string, string>
+    layout?: Record<string, unknown>
+}
+
+type LocalizationShape = {
+    default_locale: string
+    fallback_locale: string
+    supported_locales: string[]
+    overrides: Record<string, Record<string, string>>
+}
+
+type LocalizationCanonical = {
+    shipped_locales: string[]
+    fallback_locale: string
+    keys: string[]
+    en_us_catalog: Record<string, string>
+}
+
 type Props = {
     section: string
     user_settings: Record<string, unknown>
     allowed_origins: string[]
-    appearance: Record<string, unknown>
+    appearance: AppearanceShape
     signup_mode: string
     multi_factor: MultiFactorSettings
     attributes: AttributesSettings
@@ -61,6 +81,8 @@ type Props = {
     sms_templates: SmsTemplate[]
     oauth_providers: OauthProvider[]
     oauth_preset_keys: string[]
+    localization: LocalizationShape
+    localization_canonical: LocalizationCanonical
 }
 
 const SECTIONS = [
@@ -68,6 +90,8 @@ const SECTIONS = [
     { slug: 'multi-factor', label: 'Multi-factor' },
     { slug: 'sms', label: 'SMS' },
     { slug: 'social-providers', label: 'Social providers' },
+    { slug: 'appearance', label: 'Appearance' },
+    { slug: 'localization', label: 'Localization' },
 ] as const
 
 export default function Configure(props: Props) {
@@ -101,7 +125,14 @@ export default function Configure(props: Props) {
             {props.section === 'multi-factor' && <MultiFactorSection multiFactor={props.multi_factor} />}
             {props.section === 'sms' && <SmsSection sms={props.sms} smsTemplates={props.sms_templates} />}
             {props.section === 'social-providers' && <SocialProvidersSection providers={props.oauth_providers} presetKeys={props.oauth_preset_keys} />}
-            {!['attributes', 'multi-factor', 'sms', 'social-providers'].includes(props.section) && (
+            {props.section === 'appearance' && <AppearanceSection appearance={props.appearance} />}
+            {props.section === 'localization' && (
+                <LocalizationSection
+                    localization={props.localization}
+                    canonical={props.localization_canonical}
+                />
+            )}
+            {!['attributes', 'multi-factor', 'sms', 'social-providers', 'appearance', 'localization'].includes(props.section) && (
                 <pre style={{ background: '#f1f5f9', padding: 12, borderRadius: 6 }}>
                     {JSON.stringify(props.user_settings, null, 2)}
                 </pre>
@@ -742,5 +773,328 @@ function CustomOauth2Wizard({ base, url }: { base: string; url: (s: string) => s
                 </button>
             </form>
         </details>
+    )
+}
+
+const VARIABLE_KEYS = [
+    'colorPrimary',
+    'colorBackground',
+    'colorText',
+    'colorTextOnPrimary',
+    'colorInputBackground',
+    'colorInputText',
+    'colorDanger',
+    'colorSuccess',
+    'colorWarning',
+    'colorNeutral',
+    'fontFamily',
+    'fontFamilyButtons',
+    'fontSize',
+    'borderRadius',
+    'spacingUnit',
+] as const
+
+const LAYOUT_KEYS = [
+    'logoImageUrl',
+    'logoLinkUrl',
+    'socialButtonsPlacement',
+    'socialButtonsVariant',
+    'showOptionalFields',
+    'privacyPageUrl',
+    'termsPageUrl',
+    'helpPageUrl',
+    'animations',
+] as const
+
+function AppearanceSection({ appearance }: { appearance: AppearanceShape }) {
+    const url = useDashboardUrl()
+    const { active_project, active_environment } = useDashboard()
+    const { props: pageProps } = usePage<{ flash?: { appearance_saved?: boolean } }>()
+
+    const initial = {
+        variables: { ...(appearance.variables ?? {}) } as Record<string, string>,
+        elements: JSON.stringify(appearance.elements ?? {}, null, 2),
+        layout: { ...((appearance.layout ?? {}) as Record<string, unknown>) },
+    }
+    const form = useForm(initial)
+
+    if (!active_project || !active_environment) {
+        return <p>No active environment.</p>
+    }
+    const base = `/${active_project.slug}/${active_environment.slug}/configure`
+
+    const onSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+        let elementsParsed: Record<string, string> = {}
+        try {
+            elementsParsed = JSON.parse(form.data.elements || '{}')
+        } catch {
+            form.setError('elements', 'Elements must be a JSON object.')
+            return
+        }
+        form.transform(() => ({
+            variables: form.data.variables,
+            elements: elementsParsed,
+            layout: form.data.layout,
+        })).patch(url(`${base}/appearance`), { preserveScroll: true })
+    }
+
+    return (
+        <div>
+            <h2>Appearance</h2>
+            <p style={{ color: '#475569', marginBottom: 16 }}>
+                Operator-configured visual customisation. Values flow to <code>GET /v1/environment</code>
+                and into the bundled component visuals.
+            </p>
+            {pageProps.flash?.appearance_saved && (
+                <p style={{ color: '#15803d', marginBottom: 12 }}>Appearance saved.</p>
+            )}
+            <form onSubmit={onSubmit}>
+                <details open style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                    <summary><strong>Variables</strong> (CSS design tokens)</summary>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 8 }}>
+                        {VARIABLE_KEYS.map(k => (
+                            <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ flexBasis: 180, color: '#475569' }}>{k}</span>
+                                <input
+                                    type={k.startsWith('color') ? 'text' : 'text'}
+                                    value={form.data.variables[k] ?? ''}
+                                    onChange={e => form.setData('variables', { ...form.data.variables, [k]: e.target.value })}
+                                    placeholder={k.startsWith('color') ? '#0a84ff or rgb(...)' : ''}
+                                    style={{ flex: 1, padding: 6 }}
+                                />
+                            </label>
+                        ))}
+                    </div>
+                </details>
+
+                <details style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                    <summary><strong>Elements</strong> (className override map, JSON)</summary>
+                    <textarea
+                        value={form.data.elements}
+                        onChange={e => form.setData('elements', e.target.value)}
+                        rows={10}
+                        style={{ width: '100%', fontFamily: 'monospace', padding: 8, marginTop: 8 }}
+                    />
+                    {form.errors.elements && <p style={{ color: '#b91c1c' }}>{form.errors.elements}</p>}
+                </details>
+
+                <details style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                    <summary><strong>Layout</strong></summary>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 8 }}>
+                        {LAYOUT_KEYS.map(k => {
+                            const isBool = k === 'showOptionalFields' || k === 'animations'
+                            const isSelect = k === 'socialButtonsPlacement' || k === 'socialButtonsVariant'
+                            const value = form.data.layout[k]
+                            if (isBool) {
+                                return (
+                                    <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(value)}
+                                            onChange={e => form.setData('layout', { ...form.data.layout, [k]: e.target.checked })}
+                                        />
+                                        <span>{k}</span>
+                                    </label>
+                                )
+                            }
+                            if (isSelect && k === 'socialButtonsPlacement') {
+                                return (
+                                    <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ flexBasis: 180, color: '#475569' }}>{k}</span>
+                                        <select
+                                            value={typeof value === 'string' ? value : ''}
+                                            onChange={e => form.setData('layout', { ...form.data.layout, [k]: e.target.value })}
+                                            style={{ flex: 1, padding: 6 }}
+                                        >
+                                            <option value="">(default)</option>
+                                            <option value="top">top</option>
+                                            <option value="bottom">bottom</option>
+                                        </select>
+                                    </label>
+                                )
+                            }
+                            if (isSelect && k === 'socialButtonsVariant') {
+                                return (
+                                    <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span style={{ flexBasis: 180, color: '#475569' }}>{k}</span>
+                                        <select
+                                            value={typeof value === 'string' ? value : ''}
+                                            onChange={e => form.setData('layout', { ...form.data.layout, [k]: e.target.value })}
+                                            style={{ flex: 1, padding: 6 }}
+                                        >
+                                            <option value="">(default)</option>
+                                            <option value="iconButton">iconButton</option>
+                                            <option value="blockButton">blockButton</option>
+                                        </select>
+                                    </label>
+                                )
+                            }
+                            return (
+                                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ flexBasis: 180, color: '#475569' }}>{k}</span>
+                                    <input
+                                        type={k.endsWith('Url') ? 'url' : 'text'}
+                                        value={typeof value === 'string' ? value : ''}
+                                        onChange={e => form.setData('layout', { ...form.data.layout, [k]: e.target.value })}
+                                        style={{ flex: 1, padding: 6 }}
+                                    />
+                                </label>
+                            )
+                        })}
+                    </div>
+                </details>
+
+                <button type="submit" disabled={form.processing}>
+                    {form.processing ? 'Saving…' : 'Save appearance'}
+                </button>
+            </form>
+        </div>
+    )
+}
+
+function LocalizationSection({
+    localization,
+    canonical,
+}: {
+    localization: LocalizationShape
+    canonical: LocalizationCanonical
+}) {
+    const url = useDashboardUrl()
+    const { active_project, active_environment } = useDashboard()
+    const { props: pageProps } = usePage<{ flash?: { localization_saved?: boolean } }>()
+
+    const form = useForm({
+        default_locale: localization.default_locale,
+        fallback_locale: localization.fallback_locale,
+        supported_locales: [...localization.supported_locales],
+        overrides: { ...localization.overrides } as Record<string, Record<string, string>>,
+    })
+
+    if (!active_project || !active_environment) {
+        return <p>No active environment.</p>
+    }
+    const base = `/${active_project.slug}/${active_environment.slug}/configure`
+
+    const toggleSupported = (locale: string) => {
+        const has = form.data.supported_locales.includes(locale)
+        const next = has
+            ? form.data.supported_locales.filter(l => l !== locale)
+            : [...form.data.supported_locales, locale]
+        form.setData('supported_locales', next)
+    }
+
+    const setOverride = (locale: string, key: string, value: string) => {
+        const localeOverrides = { ...(form.data.overrides[locale] ?? {}) }
+        if (value === '') {
+            delete localeOverrides[key]
+        } else {
+            localeOverrides[key] = value
+        }
+        form.setData('overrides', { ...form.data.overrides, [locale]: localeOverrides })
+    }
+
+    const onSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+        form.patch(url(`${base}/localization`), { preserveScroll: true })
+    }
+
+    return (
+        <div>
+            <h2>Localization</h2>
+            <p style={{ color: '#475569', marginBottom: 16 }}>
+                Per-environment locale set + operator string overrides. Defaults ship with the SDK;
+                this surface stores overrides only.
+            </p>
+            {pageProps.flash?.localization_saved && (
+                <p style={{ color: '#15803d', marginBottom: 12 }}>Localization saved.</p>
+            )}
+            <form onSubmit={onSubmit}>
+                <div style={{ marginBottom: 16, display: 'flex', gap: 24 }}>
+                    <label>
+                        <strong>Default locale</strong>
+                        <select
+                            value={form.data.default_locale}
+                            onChange={e => form.setData('default_locale', e.target.value)}
+                            style={{ display: 'block', marginTop: 4, padding: 6, minWidth: 160 }}
+                        >
+                            {form.data.supported_locales.map(l => (
+                                <option key={l} value={l}>{l}</option>
+                            ))}
+                        </select>
+                    </label>
+                    <label>
+                        <strong>Fallback locale</strong>
+                        <select
+                            value={form.data.fallback_locale}
+                            onChange={e => form.setData('fallback_locale', e.target.value)}
+                            style={{ display: 'block', marginTop: 4, padding: 6, minWidth: 160 }}
+                        >
+                            {form.data.supported_locales.map(l => (
+                                <option key={l} value={l}>{l}</option>
+                            ))}
+                        </select>
+                    </label>
+                </div>
+
+                <details open style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                    <summary><strong>Supported locales</strong></summary>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
+                        {canonical.shipped_locales.map(l => (
+                            <label key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={form.data.supported_locales.includes(l)}
+                                    onChange={() => toggleSupported(l)}
+                                />
+                                <span>{l}</span>
+                            </label>
+                        ))}
+                    </div>
+                </details>
+
+                <details style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                    <summary><strong>Overrides</strong> ({canonical.keys.length} canonical keys; only filled cells are persisted)</summary>
+                    {form.errors.overrides && <p style={{ color: '#b91c1c' }}>{form.errors.overrides}</p>}
+                    <div style={{ marginTop: 8, maxHeight: 600, overflow: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                            <thead>
+                                <tr>
+                                    <th style={{ textAlign: 'left', padding: 6, borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, background: '#fff' }}>Key</th>
+                                    <th style={{ textAlign: 'left', padding: 6, borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, background: '#fff' }}>en-US (default)</th>
+                                    {form.data.supported_locales.filter(l => l !== 'en-US').map(l => (
+                                        <th key={l} style={{ textAlign: 'left', padding: 6, borderBottom: '1px solid #e5e7eb', position: 'sticky', top: 0, background: '#fff' }}>{l}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {canonical.keys.map(key => (
+                                    <tr key={key}>
+                                        <td style={{ padding: 6, fontFamily: 'monospace', color: '#475569', verticalAlign: 'top' }}>{key}</td>
+                                        <td style={{ padding: 6, color: '#0f172a', verticalAlign: 'top' }}>
+                                            {canonical.en_us_catalog[key]}
+                                        </td>
+                                        {form.data.supported_locales.filter(l => l !== 'en-US').map(l => (
+                                            <td key={l} style={{ padding: 6, verticalAlign: 'top' }}>
+                                                <input
+                                                    type="text"
+                                                    value={form.data.overrides[l]?.[key] ?? ''}
+                                                    onChange={e => setOverride(l, key, e.target.value)}
+                                                    style={{ width: '100%', padding: 4 }}
+                                                />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </details>
+
+                <button type="submit" disabled={form.processing}>
+                    {form.processing ? 'Saving…' : 'Save localization'}
+                </button>
+            </form>
+        </div>
     )
 }
