@@ -3,6 +3,7 @@ import '@authn-sh/ui/styles.css'
 import { createInertiaApp, router } from '@inertiajs/react'
 import { createRoot } from 'react-dom/client'
 import { AppearanceProvider } from './AppearanceProvider'
+import { type Appearance, type Localization } from './bootstrap'
 import { AccountPortalLayout } from './layouts/AccountPortalLayout'
 import { LocaleProvider } from './LocaleProvider'
 
@@ -47,8 +48,8 @@ type SharedProps = {
     environment: {
         publishable_key: string
         fapi_url: string
-        appearance: Record<string, unknown>
-        localization?: { default_locale?: string; supported_locales?: string[]; fallback_locale?: string }
+        appearance: Appearance
+        localization: Localization
         paths?: { sign_in_url?: string; sign_up_url?: string; after_sign_in_url?: string; after_sign_up_url?: string; after_sign_out_url?: string }
     } | null
 }
@@ -83,8 +84,8 @@ createInertiaApp({
                 routerPush={(url) => navigate(url)}
                 routerReplace={(url) => navigate(url, true)}
             >
-                <AppearanceProvider>
-                    <LocaleProvider>
+                <AppearanceProvider appearance={env?.appearance ?? {}}>
+                    <LocaleProvider localization={env?.localization ?? { default_locale: 'en-US', fallback_locale: 'en-US', supported_locales: ['en-US'] }}>
                         <App {...props} />
                     </LocaleProvider>
                 </AppearanceProvider>

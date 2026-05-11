@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useBootstrap, type Localization } from './bootstrap'
+import { type Localization } from './bootstrap'
 
 type LocaleContextValue = {
     locale: string
@@ -22,13 +22,13 @@ const LocaleContext = createContext<LocaleContextValue | null>(null)
  * wins after that). Translation lookups consult the catalog the server
  * pre-rendered into the bootstrap envelope (single round-trip) and fall
  * through per the strict-semantic spec.
+ *
+ * Caller passes `localization` explicitly (read from
+ * `props.initialPage.props` in `main.tsx`) instead of going through
+ * `useBootstrap()` — the provider mounts above `<App>` so the Inertia
+ * page context isn't available yet.
  */
-export function LocaleProvider({ children }: { children: ReactNode }) {
-    const { ready, env } = useBootstrap()
-    const localization: Localization = ready && env
-        ? env.localization
-        : { default_locale: 'en-US', fallback_locale: 'en-US', supported_locales: ['en-US'] }
-
+export function LocaleProvider({ localization, children }: { localization: Localization; children: ReactNode }) {
     const [locale, setLocale] = useState<string>(localization.default_locale)
 
     useEffect(() => {

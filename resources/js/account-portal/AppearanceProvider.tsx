@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
-import { useBootstrap, type Appearance } from './bootstrap'
+import { type Appearance } from './bootstrap'
 
 type AppearanceContextValue = {
     appearance: Appearance
@@ -18,11 +18,13 @@ const AppearanceContext = createContext<AppearanceContextValue | null>(null)
  * properties on the component root + exposes an `elementClass(key)`
  * helper for non-SDK pages (the bundled components consume the
  * `appearance` prop directly).
+ *
+ * Caller passes `appearance` explicitly (read from
+ * `props.initialPage.props` in `main.tsx`) instead of going through
+ * `useBootstrap()` — the provider mounts above `<App>` so the Inertia
+ * page context isn't available yet.
  */
-export function AppearanceProvider({ children }: { children: ReactNode }) {
-    const { ready, env } = useBootstrap()
-    const appearance: Appearance = ready && env ? env.appearance : {}
-
+export function AppearanceProvider({ appearance, children }: { appearance: Appearance; children: ReactNode }) {
     const variables = (appearance.variables ?? {}) as Record<string, string>
     const elements = (appearance.elements ?? {}) as Record<string, string>
 
