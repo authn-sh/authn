@@ -586,8 +586,14 @@ it('Configure renders the social-providers section with the seeded preset rows +
         ->assertJsonPath('component', 'Dashboard/Configure')
         ->assertJsonPath('props.section', 'social-providers');
     $keys = collect($r->json('props.oauth_providers'))->pluck('provider_key')->sort()->values()->all();
-    expect($keys)->toBe(['apple', 'github', 'google', 'microsoft']);
-    expect($r->json('props.oauth_preset_keys'))->toBe(['google', 'github', 'apple', 'microsoft']);
+    expect($keys)->toBe([
+        'apple', 'discord', 'facebook', 'github', 'gitlab',
+        'google', 'linkedin', 'microsoft', 'slack', 'x',
+    ]);
+    expect($r->json('props.oauth_preset_keys'))->toBe([
+        'google', 'github', 'apple', 'microsoft',
+        'discord', 'facebook', 'linkedin', 'x', 'gitlab', 'slack',
+    ]);
 });
 
 it('PATCH /configure/oauth-providers/{id} flips enabled + rotates client_secret', function (): void {

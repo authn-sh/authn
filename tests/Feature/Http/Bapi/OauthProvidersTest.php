@@ -22,7 +22,10 @@ final class OauthProvidersTest extends TestCase
 
         $resp->assertOk();
         $keys = collect($resp->json('data'))->pluck('provider_key')->sort()->values()->all();
-        $this->assertSame(['apple', 'github', 'google', 'microsoft'], $keys);
+        $this->assertSame([
+            'apple', 'discord', 'facebook', 'github', 'gitlab',
+            'google', 'linkedin', 'microsoft', 'slack', 'x',
+        ], $keys);
     }
 
     public function test_show_returns_one_provider_with_redirect_uri(): void

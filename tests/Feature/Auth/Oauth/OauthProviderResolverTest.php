@@ -240,7 +240,7 @@ it('applies the default OIDC attribute mapping when none is stored', function ()
     expect($resolved->attributeMapping)->toBe(OauthProviderResolver::DEFAULT_OIDC_ATTRIBUTE_MAPPING);
 });
 
-it('seeds the four preset rows on environment creation, all disabled', function (): void {
+it('seeds every preset row on environment creation, all disabled', function (): void {
     $env = makeEnvForResolver('seedme');
 
     $rows = OauthProvider::query()->withoutGlobalScopes()
@@ -248,7 +248,10 @@ it('seeds the four preset rows on environment creation, all disabled', function 
         ->orderBy('provider_key')
         ->get();
 
-    expect($rows->pluck('provider_key')->all())->toBe(['apple', 'github', 'google', 'microsoft']);
+    expect($rows->pluck('provider_key')->all())->toBe([
+        'apple', 'discord', 'facebook', 'github', 'gitlab',
+        'google', 'linkedin', 'microsoft', 'slack', 'x',
+    ]);
     foreach ($rows as $row) {
         expect($row->enabled)->toBeFalse();
         expect($row->client_id)->toBe('');
@@ -269,7 +272,10 @@ it('OauthProvider::computeRedirectUri() builds the canonical callback URL', func
     expect($row->redirect_uri)->toBe('https://acme.authn.sh/v1/oauth-callback/google');
 });
 
-it('PresetRegistry exposes all four canonical preset keys', function (): void {
+it('PresetRegistry exposes the canonical preset keys in registration order', function (): void {
     $registry = app(PresetRegistry::class);
-    expect($registry->keys())->toBe(['google', 'github', 'apple', 'microsoft']);
+    expect($registry->keys())->toBe([
+        'google', 'github', 'apple', 'microsoft',
+        'discord', 'facebook', 'linkedin', 'x', 'gitlab', 'slack',
+    ]);
 });
