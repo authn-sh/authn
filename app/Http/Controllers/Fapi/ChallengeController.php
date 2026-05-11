@@ -20,6 +20,7 @@ use App\Models\EmailAddress;
 use App\Models\EmailTemplate;
 use App\Models\Environment;
 use App\Models\OauthProvider;
+use App\Models\Passkey;
 use App\Models\PhoneNumber;
 use App\Models\Session;
 use App\Models\SignInAttempt;
@@ -128,6 +129,46 @@ final class ChallengeController
             return $this->signInEnvelope($client, $attempt->fresh(), $challenge);
         }
 
+        // Passkey: the ceremony needs a live Challenge row so the strategy
+        // can stash `request_options` on `metadata` before the response goes
+        // out. Pre-create the Verification + Challenge, hand both into
+        // prepare, then return the challenge with the ceremony parameters.
+        if ($strategyName === Verification::STRATEGY_PASSKEY) {
+            $verification = Verification::query()->withoutGlobalScopes()->create([
+                'environment_id' => $attempt->environment_id,
+                'verifiable_type' => $attempt->getMorphClass(),
+                'verifiable_id' => $attempt->id,
+                'strategy' => $strategyName,
+                'status' => Verification::STATUS_UNVERIFIED,
+                'attempts' => 0,
+                'expire_at' => now()->addMinutes(10),
+            ]);
+            $challenge = $this->createChallenge($attempt, Challenge::PARENT_SIGN_IN, $step, $strategyName, $verification);
+
+            $result = $strategy->prepare($attempt, [
+                'challenge' => $challenge,
+                'verification' => $verification,
+            ]);
+
+            if (! $result->success) {
+                $challenge->forceFill([
+                    'status' => Challenge::STATUS_FAILED,
+                    'error_code' => $result->errorCode,
+                ])->save();
+
+                return $this->errorWithSignIn(
+                    $result->httpStatus,
+                    $result->errorCode ?? ErrorCodes::VERIFICATION_FAILED,
+                    $result->errorMessage ?? '',
+                    $client,
+                    $attempt->fresh(),
+                    $challenge->fresh(),
+                );
+            }
+
+            return $this->signInEnvelope($client, $attempt->fresh(), $challenge->fresh());
+        }
+
         $providerKey = preg_match(Verification::OAUTH_STRATEGY_PATTERN, $strategyName) === 1
             ? substr($strategyName, strlen('oauth_'))
             : null;
@@ -179,6 +220,7 @@ final class ChallengeController
             'password' => $request->input('password'),
             'code' => $request->input('code'),
             'ticket' => $request->input('ticket'),
+            'assertion' => $request->input('assertion'),
         ], $client);
     }
 
@@ -192,6 +234,7 @@ final class ChallengeController
         $strategy = $this->strategies->resolve($challenge->strategy);
 
         $params['verification'] = $verification;
+        $params['challenge'] = $challenge;
         $result = $strategy->attempt($attempt, $params);
 
         if (! $result->success) {
@@ -820,10 +863,39 @@ final class ChallengeController
                     Verification::STRATEGY_TICKET,
                 ],
                 $this->enabledOauthStrategies($attempt->environment_id, allowSignIn: true),
+                $this->signInPasskeyStrategies($attempt),
             ),
             SignInAttempt::STATUS_NEEDS_SECOND_FACTOR => $this->signInSecondFactorStrategies($attempt),
             default => [],
         };
+    }
+
+    /**
+     * `passkey` shows up in `supported_strategies` only when the resolved
+     * user holds at least one verified passkey — strict-semantic per AU-13
+     * (toggle gates enrolment, not enforcement of existing credentials).
+     *
+     * @return list<string>
+     */
+    private function signInPasskeyStrategies(SignInAttempt $attempt): array
+    {
+        if ($attempt->identifier === null) {
+            return [];
+        }
+        $email = EmailAddress::query()
+            ->withoutGlobalScopes()
+            ->where('environment_id', $attempt->environment_id)
+            ->where('email_address', strtolower((string) $attempt->identifier))
+            ->first();
+        if ($email === null) {
+            return [];
+        }
+        $hasPasskey = Passkey::query()
+            ->where('user_id', $email->user_id)
+            ->whereNotNull('verified_at')
+            ->exists();
+
+        return $hasPasskey ? [Verification::STRATEGY_PASSKEY] : [];
     }
 
     /**

@@ -6,6 +6,7 @@ namespace App\Http\Resources;
 
 use App\Models\BackupCode;
 use App\Models\EmailAddress;
+use App\Models\Passkey;
 use App\Models\PhoneNumber;
 use App\Models\SignInAttempt;
 use App\Models\TotpSecret;
@@ -72,6 +73,14 @@ final class SignInResource
         $strategies[] = Verification::STRATEGY_EMAIL_CODE;
         $strategies[] = Verification::STRATEGY_EMAIL_LINK;
         $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
+
+        $hasPasskey = Passkey::query()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->exists();
+        if ($hasPasskey) {
+            $strategies[] = Verification::STRATEGY_PASSKEY;
+        }
 
         return $strategies;
     }
