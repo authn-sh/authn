@@ -6,10 +6,13 @@ namespace App\Services\Sessions;
 
 use App\Models\Environment;
 use App\Models\OrganizationMembership;
+use App\Models\Passkey;
 use App\Models\PhoneNumber;
 use App\Models\Session;
+use App\Models\SignInAttempt;
 use App\Models\SigningKey;
 use App\Models\TotpSecret;
+use App\Models\Verification;
 use App\Support\Url;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
@@ -85,6 +88,8 @@ final class SessionTokenIssuer
         }
 
         $builder = $builder->withClaim('pnv', $this->phoneNumberVerified($session));
+        $builder = $builder->withClaim('pkv', $this->passkeyVerified($session));
+        $builder = $builder->withClaim('pkc', $this->passkeyCount($session));
 
         $dsf = $this->defaultSecondFactor($session);
         if ($dsf !== null) {
@@ -202,6 +207,42 @@ final class SessionTokenIssuer
             ->where('user_id', $session->user_id)
             ->whereNotNull('verified_at')
             ->exists();
+    }
+
+    /**
+     * Whether the SignInAttempt that produced this Session was verified via
+     * the `passkey` first-factor strategy. SDK consumers (sdk-php SP-3 /
+     * sdk-php-laravel SPL-1) use this to gate "require a passkey for this
+     * resource" middleware without an extra /v1/me round-trip.
+     */
+    private function passkeyVerified(Session $session): bool
+    {
+        $attempt = SignInAttempt::query()
+            ->withoutGlobalScopes()
+            ->where('created_session_id', $session->id)
+            ->first();
+        if ($attempt === null) {
+            return false;
+        }
+
+        return Verification::query()
+            ->withoutGlobalScopes()
+            ->where('verifiable_type', $attempt->getMorphClass())
+            ->where('verifiable_id', $attempt->id)
+            ->where('strategy', Verification::STRATEGY_PASSKEY)
+            ->where('status', Verification::STATUS_VERIFIED)
+            ->exists();
+    }
+
+    /**
+     * Snapshot of the user's verified passkey count at JWT mint time.
+     */
+    private function passkeyCount(Session $session): int
+    {
+        return Passkey::query()
+            ->where('user_id', $session->user_id)
+            ->whereNotNull('verified_at')
+            ->count();
     }
 
     /**
