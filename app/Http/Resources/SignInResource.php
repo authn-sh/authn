@@ -152,10 +152,13 @@ final class SignInResource
         return User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
     }
 
-    private static function userDataPreview(SignInAttempt $attempt): ?array
+    /**
+     * @return array<string, mixed>
+     */
+    private static function userDataPreview(SignInAttempt $attempt): array
     {
         if ($attempt->identifier === null) {
-            return null;
+            return [];
         }
 
         $email = EmailAddress::query()
@@ -164,11 +167,11 @@ final class SignInResource
             ->where('email_address', strtolower($attempt->identifier))
             ->first();
         if ($email === null) {
-            return null;
+            return [];
         }
         $user = User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
         if ($user === null) {
-            return null;
+            return [];
         }
 
         return [
