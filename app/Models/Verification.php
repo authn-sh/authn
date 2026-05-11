@@ -85,6 +85,10 @@ class Verification extends Model
 
     public const STRATEGY_PASSKEY = 'passkey';
 
+    public const STRATEGY_ENTERPRISE_SSO = 'enterprise_sso';
+
+    public const STRATEGY_SAML = 'saml';
+
     public const STRATEGIES = [
         self::STRATEGY_PASSWORD,
         self::STRATEGY_EMAIL_CODE,
@@ -96,6 +100,8 @@ class Verification extends Model
         self::STRATEGY_BACKUP_CODE,
         self::STRATEGY_PHONE_CODE,
         self::STRATEGY_PASSKEY,
+        self::STRATEGY_ENTERPRISE_SSO,
+        self::STRATEGY_SAML,
     ];
 
     /**

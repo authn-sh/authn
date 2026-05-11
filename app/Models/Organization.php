@@ -99,6 +99,11 @@ class Organization extends Model
         return $this->hasMany(OrganizationDomain::class);
     }
 
+    public function enterpriseConnections(): HasMany
+    {
+        return $this->hasMany(EnterpriseConnection::class);
+    }
+
     public function membershipRequests(): HasMany
     {
         return $this->hasMany(OrganizationMembershipRequest::class);
