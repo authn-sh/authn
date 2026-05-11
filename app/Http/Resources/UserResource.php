@@ -37,6 +37,7 @@ final class UserResource
             'external_accounts' => [],
             'enterprise_accounts' => [],
             'passkeys' => [],
+            'passkey_count' => $user->passkey_count,
             'password_enabled' => $user->password_hash !== null,
             'two_factor_enabled' => (bool) $user->two_factor_enabled,
             'totp_enabled' => (bool) $user->totp_enabled,
