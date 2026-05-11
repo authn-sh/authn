@@ -41,8 +41,7 @@
     },
     "dependencies": {
         "@authn-sh/sdk-js": "^0.5.0-alpha.6",
-        "@authn-sh/sdk-react": "^0.5.0-alpha.6",
-        "@authn-sh/types": "^0.5.0-alpha.6",
+        "@authn-sh/sdk-react": "^0.5.0-alpha.7",
         "@authn-sh/ui": "^0.5.0-alpha.6"
     }
 }
