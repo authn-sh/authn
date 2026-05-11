@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.5.0] — 2026-05-11
+
+Account Portal v1: Passkeys + Theming + Localization + six new OAuth presets.
+
+### Added
+
+- **Passkeys (WebAuthn)** — full enrollment + sign-in.
+  - `Passkey` model (`pkey_` prefix), `Verification::STRATEGY_PASSKEY`, `User.passkey_count` accessor, `User.passkeys` relation.
+  - `web-auth/webauthn-lib` integration. `PasskeyService` builds registration/authentication options + verifies attestation/assertion. RP-ID derived from the env's FAPI host; origin allowlist from `Environment.allowed_origins`.
+  - FAPI `/v1/me/passkeys` — list / begin-registration (Challenge with `creationOptions`) / complete-registration (consumes attestation) / rename / delete.
+  - FAPI sign-in passkey path — `PasskeyStrategy` registered on `StrategyResolver`. `SignIn.supported_strategies` lists `passkey` for users with ≥1 verified passkey. Challenge carries `requestOptions`; answer consumes the assertion + bumps `sign_count` + `last_used_at`. Cross-flow `transferable` handoff deferred to v0.6.
+  - BAPI `/v1/passkeys` admin surface — instance-scoped list / get / update-nickname / delete. Bearer-secret auth.
+  - Account Portal `<UserProfile />` Security section: Passkeys panel (`<PasskeysPanel />` mounts `@authn-sh/sdk-react`'s `<UserProfilePasskeysPanel />`). Sign-in passkey button via `<SignIn />` auto-include.
+  - Session JWTs carry two new compact claims: `pkv` (bool, true when first-factor was passkey + UV required) and `pkc` (int, snapshot of `User.passkey_count`).
+- **Six new preset OAuth providers** — Discord, Facebook, LinkedIn (OIDC discovery), X, GitLab (OIDC), Slack (OIDC). Registered in `OauthProviderResolver` + seeded configured-but-disabled by `OauthProviderSeeder`. Each ships default scopes, `attribute_mapping`, and any per-provider `additional_authorization_params`.
+- **Theming engine** — `Environment.appearance` JSONB column with `variables` / `elements` / `layout`. BAPI `/v1/instance/appearance` (GET / PUT / PATCH — deep merge). `EnvironmentResource` surfaces `appearance.etag` (sha256 cache key) on `GET /v1/environment`. Account Portal `AppearanceProvider` consumes via Inertia bootstrap.
+- **Localization engine** — `Environment.localization` JSONB column with `default_locale`, `fallback_locale`, `supported_locales[]`, sparse `overrides` map.
+  - BAPI `/v1/instance/localization` (GET / PUT / PATCH — sparse per-key override merge; `null` removes).
+  - Public `GET /v1/localization/{locale}` returns the merged catalog (default ⊕ overrides) with `Cache-Control: public, max-age=300, stale-while-revalidate=3600` + `ETag: "<override_etag>"`. CORS-open, no auth.
+  - Canonical default catalogs (`app/Localization/Defaults/<locale>.php`) for `en-US` / `pt-BR` / `es-ES` / `fr-FR` / `de-DE`. `CanonicalSchema` source-of-truth for override-key validation (`unknown_localization_key`) + placeholder validation. `Localizer` ICU MessageFormat renderer for Account Portal pages.
+  - `LocaleProvider` resolves the active locale from URL / setLocale / `User.locale` / `navigator.languages` / env default and exposes `t(key, vars?)` to Inertia pages.
+- **Dashboard Configure → Customization** — minimum-viable CRUD editors for Appearance + Localization, both writing through the new BAPI surfaces. The richer editor surface (Monaco JSON editor, live preview iframe, placeholder validation warnings, diff view) deferred to v0.6 — see authn-sh/authn#187.
+- **InstanceSetting** — `authentication_strategies.passkey.enabled` toggle (per-env, strict-semantic — gates *enrollment* only; existing passkeys stay usable). `multi_factor.passkey_counts_as_mfa` toggle — when `true` and a session's first-factor was passkey with UV-required, the session is marked second-factor-satisfied without a separate Challenge.
+- **Audit log + webhook events** — `passkey.added` / `passkey.removed` (`event.data: PasskeyResource`), `instance.config.appearance_updated` / `localization.updated` (carry `{previous, current, diff}`). Audit-log entries `auth.mfa.passkey_added` / `auth.mfa.passkey_removed`.
+- **Pest end-to-end coverage** — passkey registration/sign-in fixture flows (with mocked navigator), six new OAuth preset registrations, appearance PATCH round-trip, localization sparse merge + unknown-key rejection, public localization endpoint cache-header correctness, dev-mode missing-key fallthrough.
+
+### Changed
+
+- `Environment` model gains `appearance` + `localization` JSONB columns. `EnvironmentObserver` seeds the defaults on env creation.
+- `StrategyResolver` registers `passkey` alongside the v0.4 strategies.
+- Session token issuer (`SessionTokenIssuer`) now emits `pkv` + `pkc` claims when the parent SignIn was authenticated by passkey.
+
 ## [0.4.0] — 2026-05-11
 
 ### Added
