@@ -27,6 +27,8 @@ final class SignInResource
             return null;
         }
 
+        $transferable = $attempt->status === SignInAttempt::STATUS_TRANSFERABLE;
+
         return [
             'object' => 'sign_in_attempt',
             'id' => $attempt->id,
@@ -38,6 +40,8 @@ final class SignInResource
             'user_data' => self::userDataPreview($attempt),
             'created_session_id' => $attempt->created_session_id,
             'abandon_at' => $attempt->abandon_at->getTimestampMs(),
+            'transferable_to_signup' => $transferable,
+            'target_flow' => $transferable ? 'sign_up' : null,
         ];
     }
 

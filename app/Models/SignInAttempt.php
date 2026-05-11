@@ -58,6 +58,8 @@ class SignInAttempt extends Model
 
     public const STATUS_ABANDONED = 'abandoned';
 
+    public const STATUS_TRANSFERABLE = 'transferable';
+
     public const STATUSES = [
         self::STATUS_NEEDS_IDENTIFIER,
         self::STATUS_NEEDS_FIRST_FACTOR,
@@ -66,6 +68,7 @@ class SignInAttempt extends Model
         self::STATUS_NEEDS_CLIENT_TRUST,
         self::STATUS_COMPLETE,
         self::STATUS_ABANDONED,
+        self::STATUS_TRANSFERABLE,
     ];
 
     /**
@@ -79,6 +82,7 @@ class SignInAttempt extends Model
         self::STATUS_NEEDS_IDENTIFIER => [
             self::STATUS_NEEDS_FIRST_FACTOR,
             self::STATUS_COMPLETE,            // ticket strategy short-circuits
+            self::STATUS_TRANSFERABLE,        // unknown identifier + open sign-up
             self::STATUS_ABANDONED,
         ],
         self::STATUS_NEEDS_FIRST_FACTOR => [
@@ -86,6 +90,7 @@ class SignInAttempt extends Model
             self::STATUS_NEEDS_NEW_PASSWORD,
             self::STATUS_NEEDS_CLIENT_TRUST,
             self::STATUS_COMPLETE,
+            self::STATUS_TRANSFERABLE,
             self::STATUS_ABANDONED,
         ],
         self::STATUS_NEEDS_SECOND_FACTOR => [
@@ -98,6 +103,11 @@ class SignInAttempt extends Model
             self::STATUS_ABANDONED,
         ],
         self::STATUS_NEEDS_CLIENT_TRUST => [
+            self::STATUS_COMPLETE,
+            self::STATUS_ABANDONED,
+        ],
+        self::STATUS_TRANSFERABLE => [
+            self::STATUS_NEEDS_FIRST_FACTOR,
             self::STATUS_COMPLETE,
             self::STATUS_ABANDONED,
         ],

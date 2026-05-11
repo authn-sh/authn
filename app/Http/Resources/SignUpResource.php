@@ -21,6 +21,8 @@ final class SignUpResource
             return null;
         }
 
+        $transferable = $attempt->status === SignUpAttempt::STATUS_TRANSFERABLE;
+
         return [
             'object' => 'sign_up_attempt',
             'id' => $attempt->id,
@@ -42,6 +44,8 @@ final class SignUpResource
             'created_session_id' => $attempt->created_session_id,
             'created_user_id' => $attempt->created_user_id,
             'abandon_at' => $attempt->abandon_at->getTimestampMs(),
+            'transferable_to_signin' => $transferable,
+            'target_flow' => $transferable ? 'sign_in' : null,
         ];
     }
 

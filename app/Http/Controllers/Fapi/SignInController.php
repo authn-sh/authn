@@ -116,12 +116,43 @@ final class SignInController
             }
 
             if (is_string($attempt->identifier)) {
-                $attempt->status = SignInAttempt::STATUS_NEEDS_FIRST_FACTOR;
+                if ($this->shouldTransferToSignUp($env, $attempt->identifier)) {
+                    $attempt->status = SignInAttempt::STATUS_TRANSFERABLE;
+                } else {
+                    $attempt->status = SignInAttempt::STATUS_NEEDS_FIRST_FACTOR;
+                }
                 $attempt->save();
             }
 
             return $this->envelope($client, $attempt->fresh(), 200, null, $createdClient);
         });
+    }
+
+    /**
+     * Whether a SignIn for `$identifier` should flip to `transferable` so
+     * the SDK can bounce to sign-up. True when the identifier does not
+     * match any existing User in the env AND the environment's
+     * `signup_mode` is open (`public` or `restricted`).
+     *
+     * Sign-up `restricted` mode still emits a transferable: the SignUp
+     * controller will gate the actual creation on the invitation policy.
+     */
+    private function shouldTransferToSignUp(Environment $env, string $identifier): bool
+    {
+        $email = EmailAddress::query()
+            ->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('email_address', strtolower($identifier))
+            ->exists();
+        if ($email) {
+            return false;
+        }
+
+        return in_array(
+            $env->signup_mode,
+            [Environment::SIGNUP_MODE_PUBLIC, Environment::SIGNUP_MODE_RESTRICTED],
+            true,
+        );
     }
 
     public function show(Request $request): JsonResponse

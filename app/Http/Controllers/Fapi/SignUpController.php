@@ -154,6 +154,7 @@ final class SignUpController
             return $this->error(422, ErrorCodes::LEGAL_ACCEPTED_REQUIRED, 'You must accept the legal terms to sign up.', $client);
         }
 
+        $alreadyTakenCanonical = null;
         if (isset($supplied['email_address'])) {
             $reason = $this->applyIdentifierGuards($env, $supplied['email_address']);
             if ($reason !== null) {
@@ -161,7 +162,7 @@ final class SignUpController
             }
             $canonical = $this->normalizer->canonicalize($supplied['email_address'], $userSettings);
             if ($this->emailAlreadyTaken($env, $canonical)) {
-                return $this->error(422, ErrorCodes::FORM_IDENTIFIER_EXISTS, 'That email is already in use.', $client);
+                $alreadyTakenCanonical = $canonical;
             }
             $supplied['email_address'] = $canonical;
         }
@@ -172,6 +173,16 @@ final class SignUpController
             'client_id' => $client->id,
             'was_test' => $isTest,
         ]);
+
+        if ($alreadyTakenCanonical !== null) {
+            $attempt->email_address = $alreadyTakenCanonical;
+            $attempt->status = SignUpAttempt::STATUS_TRANSFERABLE;
+            $attempt->save();
+            $client->forceFill(['current_sign_up_attempt_id' => $attempt->id])->saveQuietly();
+
+            return $this->envelope($client, $attempt->fresh(), 200, null, $createdClient);
+        }
+
         $this->stageOnto($attempt, $supplied, $eval);
         $attempt->save();
 
