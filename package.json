@@ -18,7 +18,7 @@
         {
             "name": "Shared React/Inertia vendor chunk",
             "path": "public/build/assets/dist-*.js",
-            "limit": "200 KB",
+            "limit": "220 KB",
             "gzip": true,
             "brotli": false
         }
@@ -40,9 +40,8 @@
         "vite": "^8.0.0"
     },
     "dependencies": {
-        "@authn-sh/sdk-js": "^0.4.0-alpha.0",
-        "@authn-sh/sdk-react": "^0.4.0-alpha.0",
-        "@authn-sh/types": "^0.4.0-alpha.0",
-        "@authn-sh/ui": "^0.4.0-alpha.0"
+        "@authn-sh/sdk-js": "^0.5.0-alpha.6",
+        "@authn-sh/sdk-react": "^0.5.0-alpha.7",
+        "@authn-sh/ui": "^0.5.0-alpha.6"
     }
 }

@@ -9,6 +9,10 @@ export type Appearance = {
     brand_color?: string
     logo_url?: string
     favicon_url?: string
+    variables?: Record<string, string>
+    elements?: Record<string, string>
+    layout?: Record<string, unknown>
+    etag?: string
     [key: string]: unknown
 }
 
@@ -16,6 +20,8 @@ export type Localization = {
     default_locale: string
     supported_locales: string[]
     fallback_locale: string
+    override_etag?: string
+    catalog?: Record<string, string>
 }
 
 export type Paths = {
@@ -79,5 +85,6 @@ export function useBootstrap() {
             fapiUrl: environment.fapi_url,
             appearance: environment.appearance,
         },
+        localization: environment.localization,
     }
 }

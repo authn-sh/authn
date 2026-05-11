@@ -71,6 +71,12 @@ final class AccountPortalController
             return redirect('/sign-in');
         }
 
+        if ($section === 'passkeys') {
+            return Inertia::render('AccountPortal/UserProfile/Security/PasskeysPanel', [
+                'section' => $section,
+            ]);
+        }
+
         return Inertia::render('AccountPortal/UserProfile', [
             'section' => $section,
         ]);
