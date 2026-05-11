@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Bapi;
 use App\Http\Resources\PasskeyResource;
 use App\Models\Environment;
 use App\Models\Passkey;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -105,14 +106,18 @@ final class PasskeyController
         }
 
         $shape = PasskeyResource::from($passkey);
+        $userId = $passkey->user_id;
         $passkey->delete();
 
-        Log::info('auth.passkey.admin_removed', [
+        Log::info('auth.mfa.passkey_removed', [
             'environment_id' => $env->id,
-            'passkey_id' => $passkey->id,
-            'user_id' => $passkey->user_id,
+            'user_id' => $userId,
             'surface' => 'bapi',
+            'actor_type' => 'operator',
+            'passkey_id' => $passkey->id,
         ]);
+
+        app(Emitter::class)->emit('passkey.removed', $shape, $env);
 
         return response()->json($shape)->header('Cache-Control', 'no-store');
     }

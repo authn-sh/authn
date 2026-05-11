@@ -17,6 +17,7 @@ use App\Models\Session;
 use App\Models\User;
 use App\Models\Verification;
 use App\Settings\PasskeySettings;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -166,14 +167,22 @@ final class MePasskeysController
         unset($metadata['passkey_nickname']);
         $challenge->forceFill(['metadata' => $metadata])->save();
 
-        Log::info('auth.passkey.registered', [
+        $shape = PasskeyResource::from($passkey->fresh());
+
+        Log::info('auth.mfa.passkey_added', [
             'user_id' => $user->id,
             'environment_id' => $env->id,
-            'passkey_id' => $passkey->id,
             'surface' => 'fapi',
+            'actor_type' => 'user',
+            'actor_id' => $user->id,
+            'passkey_id' => $passkey->id,
+            'transports' => $shape['transports'],
+            'aaguid' => $shape['aaguid'],
         ]);
 
-        return $this->clientEnvelope(PasskeyResource::from($passkey->fresh()), 201);
+        app(Emitter::class)->emit('passkey.added', $shape, $env);
+
+        return $this->clientEnvelope($shape, 201);
     }
 
     public function update(Request $request): JsonResponse
@@ -204,15 +213,20 @@ final class MePasskeysController
             return $this->error(404, 'resource_not_found', 'Passkey not found.');
         }
 
+        $env = app(Environment::class);
         $shape = PasskeyResource::from($passkey);
         $passkey->delete();
 
-        Log::info('auth.passkey.removed', [
+        Log::info('auth.mfa.passkey_removed', [
             'user_id' => $user->id,
-            'environment_id' => app(Environment::class)->id,
-            'passkey_id' => $passkey->id,
+            'environment_id' => $env->id,
             'surface' => 'fapi',
+            'actor_type' => 'user',
+            'actor_id' => $user->id,
+            'passkey_id' => $passkey->id,
         ]);
+
+        app(Emitter::class)->emit('passkey.removed', $shape, $env);
 
         return $this->clientEnvelope($shape);
     }

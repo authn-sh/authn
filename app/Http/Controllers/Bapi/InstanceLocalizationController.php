@@ -6,8 +6,10 @@ namespace App\Http\Controllers\Bapi;
 
 use App\Localization\CanonicalSchema;
 use App\Models\Environment;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -30,12 +32,14 @@ final class InstanceLocalizationController
     public function replace(Request $request): JsonResponse
     {
         $env = app(Environment::class);
+        $before = $this->normalise($env->localization);
         $next = $this->validateBlob($request, isPatch: false);
         $warnings = $this->collectPlaceholderWarnings($next['overrides']);
 
         $env->forceFill(['localization' => $next])->save();
+        $this->emitUpdated($env->refresh(), $before, $next);
 
-        $response = response()->json($this->payload($env->refresh()));
+        $response = response()->json($this->payload($env));
         foreach ($warnings as $warning) {
             $response->headers->set('Warning', $warning, false);
         }
@@ -74,6 +78,7 @@ final class InstanceLocalizationController
 
         $warnings = $this->collectPlaceholderWarnings($next['overrides']);
         $env->forceFill(['localization' => $next])->save();
+        $this->emitUpdated($env->refresh(), $stored, $next);
 
         $response = response()->json($this->payload($env->refresh()));
         foreach ($warnings as $warning) {
@@ -280,5 +285,80 @@ final class InstanceLocalizationController
             'supported_locales' => $blob['supported_locales'],
             'overrides' => empty($payloadOverrides) ? (object) [] : $payloadOverrides,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     */
+    private function emitUpdated(Environment $env, array $before, array $after): void
+    {
+        if ($before == $after) {
+            return;
+        }
+
+        Log::info('localization.updated', [
+            'environment_id' => $env->id,
+        ]);
+
+        app(Emitter::class)->emit(
+            'localization.updated',
+            [
+                'environment_id' => $env->id,
+                'previous' => $before,
+                'current' => $after,
+                'diff' => self::diff($before, $after),
+                'override_etag' => $env->localization_override_etag,
+            ],
+            $env,
+        );
+    }
+
+    /**
+     * Per-locale + top-level key diff. Captures changes to
+     * default_locale / fallback_locale / supported_locales and a
+     * per-locale `overrides` diff (added / removed / changed keys).
+     *
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     * @return array<string, mixed>
+     */
+    private static function diff(array $before, array $after): array
+    {
+        $out = [];
+        foreach (['default_locale', 'fallback_locale', 'supported_locales'] as $field) {
+            if (($before[$field] ?? null) !== ($after[$field] ?? null)) {
+                $out[$field] = ['from' => $before[$field] ?? null, 'to' => $after[$field] ?? null];
+            }
+        }
+        $overridesBefore = is_array($before['overrides'] ?? null) ? $before['overrides'] : [];
+        $overridesAfter = is_array($after['overrides'] ?? null) ? $after['overrides'] : [];
+        $locales = array_unique(array_merge(array_keys($overridesBefore), array_keys($overridesAfter)));
+        $overrideDiff = [];
+        foreach ($locales as $locale) {
+            $b = is_array($overridesBefore[$locale] ?? null) ? $overridesBefore[$locale] : [];
+            $a = is_array($overridesAfter[$locale] ?? null) ? $overridesAfter[$locale] : [];
+            $added = array_diff_key($a, $b);
+            $removed = array_values(array_keys(array_diff_key($b, $a)));
+            $changed = [];
+            foreach ($a as $k => $v) {
+                if (array_key_exists($k, $b) && $b[$k] !== $v) {
+                    $changed[$k] = ['from' => $b[$k], 'to' => $v];
+                }
+            }
+            if ($added === [] && $removed === [] && $changed === []) {
+                continue;
+            }
+            $overrideDiff[$locale] = [
+                'added' => (object) $added,
+                'removed' => $removed,
+                'changed' => (object) $changed,
+            ];
+        }
+        if ($overrideDiff !== []) {
+            $out['overrides'] = $overrideDiff;
+        }
+
+        return $out;
     }
 }
