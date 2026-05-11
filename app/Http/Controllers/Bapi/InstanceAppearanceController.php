@@ -140,10 +140,43 @@ final class InstanceAppearanceController
             'instance.config.appearance_updated',
             [
                 'environment_id' => $env->id,
-                'before' => $before,
-                'after' => $after,
+                'previous' => $before,
+                'current' => $after,
+                'diff' => self::diff($before, $after),
             ],
             $env,
         );
+    }
+
+    /**
+     * Per-axis key-level diff. Output shape:
+     *   { variables: { added: {...}, removed: [...], changed: { key: {from, to} } }, elements: {...}, layout: {...} }
+     *
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     * @return array<string, array<string, mixed>>
+     */
+    private static function diff(array $before, array $after): array
+    {
+        $out = [];
+        foreach (self::TOP_LEVEL_KEYS as $axis) {
+            $b = is_array($before[$axis] ?? null) ? $before[$axis] : [];
+            $a = is_array($after[$axis] ?? null) ? $after[$axis] : [];
+            $added = array_diff_key($a, $b);
+            $removed = array_values(array_keys(array_diff_key($b, $a)));
+            $changed = [];
+            foreach ($a as $k => $v) {
+                if (array_key_exists($k, $b) && $b[$k] !== $v) {
+                    $changed[$k] = ['from' => $b[$k], 'to' => $v];
+                }
+            }
+            $out[$axis] = [
+                'added' => (object) $added,
+                'removed' => $removed,
+                'changed' => (object) $changed,
+            ];
+        }
+
+        return $out;
     }
 }
