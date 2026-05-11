@@ -440,6 +440,90 @@ it('PATCH /configure/attributes rejects unknown phone_number values', function (
     $r->assertStatus(422);
 });
 
+it('PATCH /configure/appearance writes the three axes through to Environment.appearance', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/appearance', [
+            'variables' => ['colorPrimary' => '#0a84ff'],
+            'elements' => ['card' => 'shadow-xl'],
+            'layout' => ['socialButtonsPlacement' => 'top'],
+        ]);
+
+    $r->assertRedirect();
+    $appearance = $env->fresh()->appearance;
+    expect($appearance['variables']['colorPrimary'])->toBe('#0a84ff');
+    expect($appearance['elements']['card'])->toBe('shadow-xl');
+    expect($appearance['layout']['socialButtonsPlacement'])->toBe('top');
+    expect(session('appearance_saved'))->toBeTrue();
+});
+
+it('PATCH /configure/localization writes locale set + per-locale overrides through', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    $env = Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/localization', [
+            'default_locale' => 'pt-BR',
+            'fallback_locale' => 'en-US',
+            'supported_locales' => ['en-US', 'pt-BR'],
+            'overrides' => [
+                'pt-BR' => ['signIn.start.title' => 'Bem-vindo à {applicationName}'],
+            ],
+        ]);
+
+    $r->assertRedirect();
+    $localization = $env->fresh()->localization;
+    expect($localization['default_locale'])->toBe('pt-BR');
+    expect($localization['fallback_locale'])->toBe('en-US');
+    expect($localization['supported_locales'])->toBe(['en-US', 'pt-BR']);
+    expect($localization['overrides']['pt-BR']['signIn.start.title'])->toBe('Bem-vindo à {applicationName}');
+    expect(session('localization_saved'))->toBeTrue();
+});
+
+it('PATCH /configure/localization rejects an override key not in CanonicalSchema', function (): void {
+    $f = bootAdminEnv();
+    $bs = operatorWithMembership($f['env']);
+    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
+    Environment::create([
+        'project_id' => $project->id,
+        'kind' => Environment::KIND_PRODUCTION,
+        'slug' => 'production',
+        'routing_label' => 'acme',
+        'allowed_origins' => [],
+    ]);
+
+    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->patch('http://dashboard.authn.local/acme/production/configure/localization', [
+            'default_locale' => 'en-US',
+            'fallback_locale' => 'en-US',
+            'supported_locales' => ['en-US'],
+            'overrides' => [
+                'en-US' => ['signIn.no.such.key' => 'oops'],
+            ],
+        ]);
+
+    $r->assertRedirect();
+    expect(session('errors')->get('overrides'))->not->toBeEmpty();
+});
+
 it('PATCH /configure/sms writes driver + from_number + credentials through with rotate semantics', function (): void {
     $f = bootAdminEnv();
     $bs = operatorWithMembership($f['env']);

@@ -41,6 +41,8 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::get('/configure/{section?}', [DashboardController::class, 'configure'])->name('dashboard.configure');
     Route::patch('/configure/multi-factor', [DashboardController::class, 'updateMultiFactor'])->name('dashboard.configure.multi_factor.update');
     Route::patch('/configure/attributes', [DashboardController::class, 'updateAttributes'])->name('dashboard.configure.attributes.update');
+    Route::patch('/configure/appearance', [DashboardController::class, 'updateAppearance'])->name('dashboard.configure.appearance.update');
+    Route::patch('/configure/localization', [DashboardController::class, 'updateLocalization'])->name('dashboard.configure.localization.update');
     Route::patch('/configure/sms', [DashboardController::class, 'updateSms'])->name('dashboard.configure.sms.update');
     Route::post('/configure/sms/test', [DashboardController::class, 'sendTestSms'])->name('dashboard.configure.sms.test');
     Route::patch('/configure/sms-templates/{slug}', [DashboardController::class, 'updateSmsTemplate'])->name('dashboard.configure.sms_templates.update');
