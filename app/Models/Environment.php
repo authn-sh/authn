@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property array $allowed_origins
  * @property array $appearance
  * @property array $localization
+ * @property-read string $appearance_etag
  */
 class Environment extends Model
 {
@@ -86,6 +87,38 @@ class Environment extends Model
 
     public const TEST_MODES = [self::TEST_MODE_ENABLED, self::TEST_MODE_DISABLED, self::TEST_MODE_REJECTED];
 
+    /**
+     * Default appearance blob. Mirrored by the column default — kept here so
+     * the seeder, observer, and BAPI controller agree on the empty shape.
+     *
+     * @return array{variables: array<string,string>, elements: array<string,string>, layout: array<string,mixed>}
+     */
+    public static function defaultAppearance(): array
+    {
+        return [
+            'variables' => [],
+            'elements' => [],
+            'layout' => [],
+        ];
+    }
+
+    /**
+     * Stable etag for the current `appearance` blob. SDKs use it as a
+     * cheap "did the appearance change since last render?" gate.
+     */
+    protected function appearanceEtag(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $blob = is_array($this->appearance) ? $this->appearance : [];
+            $canonical = json_encode(
+                $blob,
+                JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
+            );
+
+            return 'sha256:'.hash('sha256', (string) $canonical);
+        });
+    }
+
     protected static function booted(): void
     {
         static::creating(function (self $env): void {
@@ -98,6 +131,11 @@ class Environment extends Model
                     ? self::TEST_MODE_REJECTED
                     : self::TEST_MODE_ENABLED;
                 $env->user_settings = $userSettings;
+            }
+
+            $appearance = is_array($env->appearance) ? $env->appearance : [];
+            if ($appearance === []) {
+                $env->appearance = self::defaultAppearance();
             }
         });
     }

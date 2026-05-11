@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\Bapi\AllowlistIdentifiersController;
 use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
 use App\Http\Controllers\Bapi\ExternalAccountController;
+use App\Http\Controllers\Bapi\InstanceAppearanceController;
 use App\Http\Controllers\Bapi\InstanceController;
 use App\Http\Controllers\Bapi\InvitationsController;
 use App\Http\Controllers\Bapi\OauthProviderController;
@@ -168,3 +169,7 @@ Route::get('/instance', [InstanceController::class, 'show'])->middleware(RateLim
 Route::patch('/instance', [InstanceController::class, 'update'])->middleware(RateLimit::class.':instance.update,30,60');
 Route::patch('/instance/restrictions', [InstanceController::class, 'updateRestrictions'])->middleware(RateLimit::class.':instance.update,30,60');
 Route::patch('/instance/organization-settings', [InstanceController::class, 'updateOrganizationSettings'])->middleware(RateLimit::class.':instance.update,30,60');
+
+Route::get('/instance/appearance', [InstanceAppearanceController::class, 'show'])->middleware(RateLimit::class.':instance.read,300,60')->name('bapi.instance.appearance.show');
+Route::put('/instance/appearance', [InstanceAppearanceController::class, 'replace'])->middleware(RateLimit::class.':instance.update,30,60')->name('bapi.instance.appearance.replace');
+Route::patch('/instance/appearance', [InstanceAppearanceController::class, 'patch'])->middleware(RateLimit::class.':instance.update,30,60')->name('bapi.instance.appearance.patch');
