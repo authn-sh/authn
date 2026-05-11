@@ -258,10 +258,20 @@ final class ChallengeController
             return true;
         }
 
-        return (bool) $user->backup_code_enabled && BackupCode::query()
+        $hasBackupCodes = (bool) $user->backup_code_enabled && BackupCode::query()
             ->withoutGlobalScopes()
             ->where('user_id', $user->id)
             ->whereNull('consumed_at')
+            ->exists();
+        if ($hasBackupCodes) {
+            return true;
+        }
+
+        return PhoneNumber::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->whereNotNull('verified_at')
+            ->where('reserved_for_second_factor', true)
             ->exists();
     }
 

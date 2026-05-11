@@ -45,6 +45,23 @@ function au16PhoneSignInAnswer(string $sid, string $cid, array $f, array $body, 
         ->postJson("https://acme.authn.local/v1/client/sign-ins/{$sid}/challenges/{$cid}/answer", $body);
 }
 
+function au16BootUserWithPhoneOnly(array $f): array
+{
+    $bundle = SignInTestSupport::makeUser($f['env']);
+    PhoneNumber::query()->withoutGlobalScopes()->create([
+        'environment_id' => $f['env']->id,
+        'user_id' => $bundle['user']->id,
+        'phone_number' => '+15555550199',
+        'verified_at' => now(),
+        'reserved_for_second_factor' => true,
+        'default_second_factor' => true,
+        'is_primary' => false,
+    ]);
+    $bundle['user']->forceFill(['two_factor_enabled' => true])->save();
+
+    return $bundle;
+}
+
 function au16BootUserWithTotpAndPhone(array $f): array
 {
     $bundle = SignInTestSupport::makeUser($f['env']);
@@ -67,6 +84,23 @@ function au16BootUserWithTotpAndPhone(array $f): array
 
     return $bundle;
 }
+
+it('pivots to needs_second_factor when the user only has a verified+reserved phone (no TOTP, no backup codes)', function (): void {
+    $f = SignInTestSupport::bootEnv();
+    app()->instance(Environment::class, $f['env']);
+    au16BootUserWithPhoneOnly($f);
+
+    $r = au16PhoneSignInPost($f, [
+        'identifier' => 'alice@example.com',
+        'strategy' => 'password',
+        'password' => 'super-secret-password',
+    ]);
+
+    $r->assertOk()->assertJsonPath('response.status', 'needs_second_factor');
+    expect($r->json('response.supported_strategies'))->toContain('phone_code')
+        ->and($r->json('response.supported_strategies'))->not->toContain('totp')
+        ->and($r->json('response.supported_strategies'))->not->toContain('backup_code');
+});
 
 it('phone_code is offered alongside totp once a verified+reserved phone is enrolled', function (): void {
     $f = SignInTestSupport::bootEnv();
