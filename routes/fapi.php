@@ -12,6 +12,7 @@ use App\Http\Controllers\Fapi\MeBackupCodesController;
 use App\Http\Controllers\Fapi\MeController;
 use App\Http\Controllers\Fapi\MeExternalAccountController;
 use App\Http\Controllers\Fapi\MeOrganizationController;
+use App\Http\Controllers\Fapi\MePasskeysController;
 use App\Http\Controllers\Fapi\MePhoneNumberController;
 use App\Http\Controllers\Fapi\MeTotpController;
 use App\Http\Controllers\Fapi\OauthCallbackController;
@@ -148,6 +149,12 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/me/backup-codes', [MeBackupCodesController::class, 'regenerate'])->name('fapi.me.backup_codes.regenerate');
         Route::get('/me/backup-codes', [MeBackupCodesController::class, 'show'])->name('fapi.me.backup_codes.show');
         Route::delete('/me/backup-codes', [MeBackupCodesController::class, 'destroy'])->name('fapi.me.backup_codes.destroy');
+
+        Route::get('/me/passkeys', [MePasskeysController::class, 'index'])->name('fapi.me.passkeys.list');
+        Route::post('/me/passkeys/begin-registration', [MePasskeysController::class, 'beginRegistration'])->name('fapi.me.passkeys.begin');
+        Route::post('/me/passkeys/complete-registration/{challenge_id}', [MePasskeysController::class, 'completeRegistration'])->name('fapi.me.passkeys.complete');
+        Route::patch('/me/passkeys/{passkey_id}', [MePasskeysController::class, 'update'])->name('fapi.me.passkeys.update');
+        Route::delete('/me/passkeys/{passkey_id}', [MePasskeysController::class, 'destroy'])->name('fapi.me.passkeys.destroy');
 
         // Organizations — user-scoped CRUD (PLAN §4.4 / OA-3 / AU-6).
         Route::post('/organizations', [FapiOrganizationController::class, 'store'])->name('fapi.organizations.store');

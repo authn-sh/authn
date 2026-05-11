@@ -15,6 +15,7 @@ use App\Http\Controllers\Bapi\OrganizationDomainChallengeController;
 use App\Http\Controllers\Bapi\OrganizationDomainController;
 use App\Http\Controllers\Bapi\OrganizationInvitationController;
 use App\Http\Controllers\Bapi\OrganizationMembershipController;
+use App\Http\Controllers\Bapi\PasskeyController;
 use App\Http\Controllers\Bapi\PermissionController;
 use App\Http\Controllers\Bapi\PhoneNumberController;
 use App\Http\Controllers\Bapi\PingController;
@@ -115,6 +116,12 @@ Route::get('/oauth-providers/{oauth_provider_id}', [OauthProviderController::cla
 Route::patch('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'update'])->middleware(RateLimit::class.':oauth_providers.update,60,60')->name('bapi.oauth_providers.update');
 Route::delete('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'destroy'])->middleware(RateLimit::class.':oauth_providers.destroy,30,60')->name('bapi.oauth_providers.destroy');
 Route::post('/oauth-providers/{oauth_provider_id}/test', [OauthProviderController::class, 'test'])->middleware(RateLimit::class.':oauth_providers.test,30,60')->name('bapi.oauth_providers.test');
+
+// Passkeys (admin) — sdk-php SP-1 wraps this.
+Route::get('/passkeys', [PasskeyController::class, 'index'])->middleware(RateLimit::class.':passkeys.list,300,60')->name('bapi.passkeys.index');
+Route::get('/passkeys/{passkey_id}', [PasskeyController::class, 'show'])->middleware(RateLimit::class.':passkeys.read,300,60')->name('bapi.passkeys.show');
+Route::patch('/passkeys/{passkey_id}', [PasskeyController::class, 'update'])->middleware(RateLimit::class.':passkeys.update,60,60')->name('bapi.passkeys.update');
+Route::delete('/passkeys/{passkey_id}', [PasskeyController::class, 'destroy'])->middleware(RateLimit::class.':passkeys.destroy,30,60')->name('bapi.passkeys.destroy');
 
 // Phone numbers (admin)
 Route::get('/phone-numbers', [PhoneNumberController::class, 'index'])->middleware(RateLimit::class.':phone_numbers.list,300,60')->name('bapi.phone_numbers.index');
