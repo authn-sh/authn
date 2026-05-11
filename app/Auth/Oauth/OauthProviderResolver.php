@@ -173,6 +173,7 @@ final class OauthProviderResolver
             idTokenSigningAlgs: array_values($idTokenAlgs),
             userinfoMethod: $provider->userinfo_method ?: $preset->userinfoMethod(),
             userinfoAuth: $provider->userinfo_auth ?: $preset->userinfoAuth(),
+            issuer: $provider->issuer ?: $preset->issuer(),
         );
     }
 
@@ -219,6 +220,7 @@ final class OauthProviderResolver
             idTokenSigningAlgs: array_values($endpoints['id_token_signing_algs']),
             userinfoMethod: $provider->userinfo_method ?: 'GET',
             userinfoAuth: $provider->userinfo_auth ?: 'bearer',
+            issuer: $provider->issuer,
         );
     }
 

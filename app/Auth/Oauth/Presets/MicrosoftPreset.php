@@ -42,6 +42,16 @@ final class MicrosoftPreset implements PresetContract
         return 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
     }
 
+    public function issuer(): ?string
+    {
+        // Microsoft's v2 issuer carries the tenant id. The "common"
+        // endpoint accepts multiple tenants — we skip strict-issuer
+        // validation since the operator's tenant choice would have to
+        // be configurable, and the JWS signature + audience check are
+        // already sufficient.
+        return null;
+    }
+
     public function defaultScopes(): array
     {
         return ['openid', 'email', 'profile'];

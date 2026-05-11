@@ -36,6 +36,11 @@ final class GooglePreset implements PresetContract
         return 'https://www.googleapis.com/oauth2/v3/certs';
     }
 
+    public function issuer(): ?string
+    {
+        return 'https://accounts.google.com';
+    }
+
     public function defaultScopes(): array
     {
         return ['openid', 'email', 'profile'];

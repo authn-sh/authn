@@ -36,6 +36,12 @@ final class GitHubPreset implements PresetContract
         return null;
     }
 
+    public function issuer(): ?string
+    {
+        // GitHub doesn't issue an id_token — pure OAuth2, not OIDC.
+        return null;
+    }
+
     public function defaultScopes(): array
     {
         return ['read:user', 'user:email'];

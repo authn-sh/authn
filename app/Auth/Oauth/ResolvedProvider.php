@@ -32,5 +32,6 @@ final class ResolvedProvider
         public readonly array $idTokenSigningAlgs,
         public readonly string $userinfoMethod,
         public readonly string $userinfoAuth,
+        public readonly ?string $issuer = null,
     ) {}
 }
