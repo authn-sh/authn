@@ -168,6 +168,13 @@ final class EnvironmentResource
 
             'paths' => $appearance['paths'] ?? [],
 
+            'appearance' => [
+                'variables' => (object) (is_array($appearance['variables'] ?? null) ? $appearance['variables'] : []),
+                'elements' => (object) (is_array($appearance['elements'] ?? null) ? $appearance['elements'] : []),
+                'layout' => (object) (is_array($appearance['layout'] ?? null) ? $appearance['layout'] : []),
+                'etag' => $environment->appearance_etag,
+            ],
+
             'sessions' => [
                 'session_token_lifetime_seconds' => $sessions['lifetime_seconds'] ?? 60,
                 'multi_session' => (bool) ($sessions['multi_session'] ?? true),

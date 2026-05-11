@@ -45,7 +45,11 @@ return new class extends Migration
             $table->boolean('is_satellite')->default(false);
             $table->string('proxy_url')->nullable();
             $table->jsonb('allowed_origins')->default(json_encode([]));
-            $table->jsonb('appearance')->default(json_encode((object) []));
+            $table->jsonb('appearance')->default(json_encode([
+                'variables' => (object) [],
+                'elements' => (object) [],
+                'layout' => (object) [],
+            ]));
             $table->jsonb('localization')->default(json_encode([
                 'default_locale' => 'en-US',
                 'supported_locales' => ['en-US'],
