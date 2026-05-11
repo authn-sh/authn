@@ -52,8 +52,8 @@ return new class extends Migration
             ]));
             $table->jsonb('localization')->default(json_encode([
                 'default_locale' => 'en-US',
-                'supported_locales' => ['en-US'],
                 'fallback_locale' => 'en-US',
+                'supported_locales' => ['en-US', 'pt-BR', 'es-ES', 'fr-FR', 'de-DE'],
                 'overrides' => (object) [],
             ]));
             $table->timestamps();

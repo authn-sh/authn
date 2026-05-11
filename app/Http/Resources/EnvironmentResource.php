@@ -152,7 +152,9 @@ final class EnvironmentResource
 
             'localization' => [
                 'default_locale' => $localization['default_locale'] ?? 'en-US',
+                'fallback_locale' => $localization['fallback_locale'] ?? 'en-US',
                 'supported_locales' => $localization['supported_locales'] ?? ['en-US'],
+                'override_etag' => $environment->localization_override_etag,
             ],
 
             'oauth_providers' => $oauthRows->map(fn (OauthProvider $p): array => [
