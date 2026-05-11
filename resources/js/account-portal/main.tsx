@@ -2,7 +2,9 @@ import { AuthnProvider } from '@authn-sh/sdk-react'
 import '@authn-sh/ui/styles.css'
 import { createInertiaApp, router } from '@inertiajs/react'
 import { createRoot } from 'react-dom/client'
+import { AppearanceProvider } from './AppearanceProvider'
 import { AccountPortalLayout } from './layouts/AccountPortalLayout'
+import { LocaleProvider } from './LocaleProvider'
 
 // The SDK stores the injected `fetch` and calls it through that reference.
 // Passing `window.fetch` directly loses the `this=window` binding and the
@@ -51,7 +53,7 @@ type SharedProps = {
     } | null
 }
 
-const pages = import.meta.glob<PageModule>('./pages/*.tsx')
+const pages = import.meta.glob<PageModule>('./pages/**/*.tsx')
 
 createInertiaApp({
     resolve: async (name) => {
@@ -81,7 +83,11 @@ createInertiaApp({
                 routerPush={(url) => navigate(url)}
                 routerReplace={(url) => navigate(url, true)}
             >
-                <App {...props} />
+                <AppearanceProvider>
+                    <LocaleProvider>
+                        <App {...props} />
+                    </LocaleProvider>
+                </AppearanceProvider>
             </AuthnProvider>
         )
         createRoot(el).render(tree)

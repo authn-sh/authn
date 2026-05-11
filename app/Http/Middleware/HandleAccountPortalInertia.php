@@ -62,12 +62,16 @@ final class HandleAccountPortalInertia
         return [
             'publishable_key' => 'pk_'.$env->keyEnvironmentSegment().'_'.substr($env->id, 4, 16),
             'fapi_url' => Url::fapi($env),
-            'appearance' => $appearance,
+            'appearance' => array_merge($appearance, [
+                'etag' => $env->appearance_etag,
+            ]),
             'localization' => array_merge([
                 'default_locale' => 'en-US',
                 'supported_locales' => ['en-US'],
                 'fallback_locale' => 'en-US',
-            ], $localization),
+            ], $localization, [
+                'override_etag' => $env->localization_override_etag,
+            ]),
             'paths' => array_merge([
                 'sign_in_url' => Url::accountPortal($env, '/sign-in'),
                 'sign_up_url' => Url::accountPortal($env, '/sign-up'),
