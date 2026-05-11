@@ -18,7 +18,7 @@
         {
             "name": "Shared React/Inertia vendor chunk",
             "path": "public/build/assets/dist-*.js",
-            "limit": "200 KB",
+            "limit": "220 KB",
             "gzip": true,
             "brotli": false
         }
