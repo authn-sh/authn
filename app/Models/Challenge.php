@@ -83,11 +83,14 @@ class Challenge extends Model
 
     public const PARENT_ORGANIZATION_DOMAIN = 'organization_domain';
 
+    public const PARENT_USER = 'user';
+
     public const PARENT_TYPES = [
         self::PARENT_SIGN_IN,
         self::PARENT_SIGN_UP,
         self::PARENT_EMAIL_ADDRESS,
         self::PARENT_ORGANIZATION_DOMAIN,
+        self::PARENT_USER,
     ];
 
     public const MORPH_MAP = [
@@ -95,6 +98,7 @@ class Challenge extends Model
         self::PARENT_SIGN_UP => SignUpAttempt::class,
         self::PARENT_EMAIL_ADDRESS => EmailAddress::class,
         self::PARENT_ORGANIZATION_DOMAIN => OrganizationDomain::class,
+        self::PARENT_USER => User::class,
     ];
 
     protected string $idPrefix = 'chal_';
