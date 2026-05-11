@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Bapi\AllowlistIdentifiersController;
 use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
+use App\Http\Controllers\Bapi\ExternalAccountController;
 use App\Http\Controllers\Bapi\InstanceController;
 use App\Http\Controllers\Bapi\InvitationsController;
 use App\Http\Controllers\Bapi\OauthProviderController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Bapi\OrganizationDomainController;
 use App\Http\Controllers\Bapi\OrganizationInvitationController;
 use App\Http\Controllers\Bapi\OrganizationMembershipController;
 use App\Http\Controllers\Bapi\PermissionController;
+use App\Http\Controllers\Bapi\PhoneNumberController;
 use App\Http\Controllers\Bapi\PingController;
 use App\Http\Controllers\Bapi\RedirectUrlsController;
 use App\Http\Controllers\Bapi\RoleController;
@@ -111,6 +113,18 @@ Route::get('/oauth-providers/{oauth_provider_id}', [OauthProviderController::cla
 Route::patch('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'update'])->middleware(RateLimit::class.':oauth_providers.update,60,60')->name('bapi.oauth_providers.update');
 Route::delete('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'destroy'])->middleware(RateLimit::class.':oauth_providers.destroy,30,60')->name('bapi.oauth_providers.destroy');
 Route::post('/oauth-providers/{oauth_provider_id}/test', [OauthProviderController::class, 'test'])->middleware(RateLimit::class.':oauth_providers.test,30,60')->name('bapi.oauth_providers.test');
+
+// Phone numbers (admin)
+Route::get('/phone-numbers', [PhoneNumberController::class, 'index'])->middleware(RateLimit::class.':phone_numbers.list,300,60')->name('bapi.phone_numbers.index');
+Route::post('/phone-numbers', [PhoneNumberController::class, 'store'])->middleware(RateLimit::class.':phone_numbers.create,60,60')->name('bapi.phone_numbers.store');
+Route::get('/phone-numbers/{phone_number_id}', [PhoneNumberController::class, 'show'])->middleware(RateLimit::class.':phone_numbers.read,300,60')->name('bapi.phone_numbers.show');
+Route::patch('/phone-numbers/{phone_number_id}', [PhoneNumberController::class, 'update'])->middleware(RateLimit::class.':phone_numbers.update,60,60')->name('bapi.phone_numbers.update');
+Route::delete('/phone-numbers/{phone_number_id}', [PhoneNumberController::class, 'destroy'])->middleware(RateLimit::class.':phone_numbers.destroy,30,60')->name('bapi.phone_numbers.destroy');
+
+// External accounts (admin)
+Route::get('/external-accounts', [ExternalAccountController::class, 'index'])->middleware(RateLimit::class.':external_accounts.list,300,60')->name('bapi.external_accounts.index');
+Route::get('/external-accounts/{external_account_id}', [ExternalAccountController::class, 'show'])->middleware(RateLimit::class.':external_accounts.read,300,60')->name('bapi.external_accounts.read');
+Route::delete('/external-accounts/{external_account_id}', [ExternalAccountController::class, 'destroy'])->middleware(RateLimit::class.':external_accounts.destroy,30,60')->name('bapi.external_accounts.destroy');
 
 // Organizations
 Route::get('/organizations', [OrganizationController::class, 'index'])->middleware(RateLimit::class.':orgs.list,300,60')->name('bapi.organizations.index');
