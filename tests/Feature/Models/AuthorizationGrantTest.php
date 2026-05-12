@@ -111,7 +111,7 @@ it('allows re-granting once an old grant has been revoked', function (): void {
 
     expect($second->id)->not->toBe($first->id);
     expect($second->isActive())->toBeTrue();
-})->skip(DB::connection()->getDriverName() !== 'pgsql', 'partial unique index only enforced on pgsql');
+})->skip(fn () => DB::connection()->getDriverName() !== 'pgsql', 'partial unique index only enforced on pgsql');
 
 it('exposes oauthApplication + user relations', function (): void {
     $env = makeEnvForAuthGrant();
