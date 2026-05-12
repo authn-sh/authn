@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Controllers\AccountPortal\AccountPortalController;
 use App\Http\Controllers\Fapi\ChallengeController;
 use App\Http\Controllers\Fapi\ClientController;
+use App\Http\Controllers\Fapi\EnterpriseSsoCallbackController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\LocalizationController;
 use App\Http\Controllers\Fapi\MagicLinkController;
@@ -81,6 +82,14 @@ Route::prefix('v1')->group(function (): void {
         // fresh navigation context); state token in the query string is
         // the integrity check.
         Route::get('/oauth-callback/{provider_key}', OauthCallbackController::class)->name('fapi.oauth_callback');
+
+        // Enterprise SSO callbacks (AU-7). OIDC = GET redirect; SAML = POST ACS.
+        Route::get('/enterprise-sso-callback', [EnterpriseSsoCallbackController::class, 'oidcCallback'])
+            ->name('fapi.enterprise_sso.oidc_callback');
+        Route::get('/enterprise-sso-callback/{connection_id}', [EnterpriseSsoCallbackController::class, 'oidcCallback'])
+            ->name('fapi.enterprise_sso.oidc_callback_with_connection');
+        Route::post('/saml/{connection_id}/acs', [EnterpriseSsoCallbackController::class, 'samlAcs'])
+            ->name('fapi.enterprise_sso.saml_acs');
     });
 
     // Sign-in: POST creates the attempt (and, if needed, the Client). The
