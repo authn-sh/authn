@@ -74,6 +74,10 @@ final class SessionTokenIssuer
                 $session,
                 $this->orgForSession($session),
             );
+            // Stamp last_used_at so AU-4's BAPI DELETE can enforce the
+            // grace window before this template name vanishes from a
+            // long-lived verifier cache.
+            $row->forceFill(['last_used_at' => now()])->save();
             $expiresAt = now()->addSeconds($row->lifetime > 0 ? $row->lifetime : 60)->getTimestamp();
 
             return [

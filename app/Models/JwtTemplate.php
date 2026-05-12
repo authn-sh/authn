@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $allowed_clock_skew
  * @property string $signing_algorithm
  * @property ?string $custom_signing_key
+ * @property ?\DateTimeInterface $last_used_at
  * @property ?\DateTimeInterface $removed_at
  */
 class JwtTemplate extends Model
@@ -51,6 +52,9 @@ class JwtTemplate extends Model
 
     protected string $idPrefix = 'jtmpl_';
 
+    /** Minimum delete-grace window per OA-1 spec — 40h floor on top of `lifetime + allowed_clock_skew`. */
+    public const DELETE_GRACE_FLOOR_SECONDS = 40 * 3600;
+
     protected $fillable = [
         'environment_id',
         'name',
@@ -59,6 +63,7 @@ class JwtTemplate extends Model
         'allowed_clock_skew',
         'signing_algorithm',
         'custom_signing_key',
+        'last_used_at',
     ];
 
     protected $hidden = [
@@ -72,8 +77,19 @@ class JwtTemplate extends Model
             'lifetime' => 'integer',
             'allowed_clock_skew' => 'integer',
             'custom_signing_key' => 'encrypted',
+            'last_used_at' => 'immutable_datetime',
             'removed_at' => 'immutable_datetime',
         ];
+    }
+
+    /**
+     * The window during which delete must be refused with
+     * `jwt_template_in_use` after a recent render. Floors at 40h per
+     * OA-1 spec so long-lived verifier caches always have time to flush.
+     */
+    public function deleteGraceSeconds(): int
+    {
+        return max($this->lifetime + $this->allowed_clock_skew, self::DELETE_GRACE_FLOOR_SECONDS);
     }
 
     protected static function booted(): void
