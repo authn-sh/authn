@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Models\Verification;
 use App\Services\Sessions\SessionLifecycle;
 use App\Settings\EnterpriseSsoSettings;
+use App\Webhooks\Emitter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -234,6 +235,23 @@ final class EnterpriseSsoCallbackController
         $target = $redirectUrlComplete ?? $redirectUrl ?? '/';
         unset($session); // touched so PHPStan is happy
 
+        Log::info('audit:auth.enterprise_sso.signin_succeeded', [
+            'environment_id' => $env->id,
+            'enterprise_connection_id' => $conn->id,
+            'enterprise_account_id' => $provisioned['account']->id,
+            'user_id' => $provisioned['user']->id,
+            'was_created' => $provisioned['was_created'],
+        ]);
+        if ($provisioned['was_created']) {
+            app(Emitter::class)->emit('enterpriseAccount.connected', [
+                'object' => 'enterprise_account',
+                'id' => $provisioned['account']->id,
+                'enterprise_connection_id' => $conn->id,
+                'user_id' => $provisioned['user']->id,
+                'provider_user_id' => $provisioned['account']->provider_user_id,
+            ], $env);
+        }
+
         return redirect()->away($target);
     }
 
@@ -393,6 +411,12 @@ final class EnterpriseSsoCallbackController
             'error_code' => $code,
             'error_message' => $message,
         ])->save();
+
+        Log::info('audit:auth.enterprise_sso.signin_failed', [
+            'environment_id' => $verification->environment_id,
+            'verification_id' => $verification->id,
+            'error_code' => $code,
+        ]);
 
         return $this->renderError($redirectUrl, $code, $message);
     }

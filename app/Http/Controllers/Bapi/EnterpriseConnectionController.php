@@ -10,8 +10,10 @@ use App\Http\Resources\EnterpriseConnectionResource;
 use App\Models\EnterpriseAccount;
 use App\Models\EnterpriseConnection;
 use App\Models\Environment;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
@@ -77,6 +79,13 @@ final class EnterpriseConnectionController
 
         $conn = EnterpriseConnection::query()->withoutGlobalScopes()->create($data);
 
+        Log::info('audit:bapi.enterprise_connection.created', [
+            'environment_id' => $env->id,
+            'enterprise_connection_id' => $conn->id,
+            'protocol' => $conn->protocol,
+        ]);
+        app(Emitter::class)->emit('enterpriseConnection.created', EnterpriseConnectionResource::from($conn->fresh()), $env);
+
         return response()->json(EnterpriseConnectionResource::from($conn->fresh()), 201)
             ->header('Cache-Control', 'no-store');
     }
@@ -117,6 +126,12 @@ final class EnterpriseConnectionController
         ])));
         $conn->save();
 
+        Log::info('audit:bapi.enterprise_connection.updated', [
+            'environment_id' => app(Environment::class)->id,
+            'enterprise_connection_id' => $conn->id,
+        ]);
+        app(Emitter::class)->emit('enterpriseConnection.updated', EnterpriseConnectionResource::from($conn->fresh()));
+
         return response()->json(EnterpriseConnectionResource::from($conn->fresh()))->header('Cache-Control', 'no-store');
     }
 
@@ -134,7 +149,14 @@ final class EnterpriseConnectionController
             return $this->error(409, 'enterprise_connection_in_use', 'Cannot delete — there are still EnterpriseAccount rows linked to this connection.');
         }
 
+        $snapshot = EnterpriseConnectionResource::from($conn);
         $conn->delete();
+
+        Log::info('audit:bapi.enterprise_connection.deleted', [
+            'environment_id' => app(Environment::class)->id,
+            'enterprise_connection_id' => $conn->id,
+        ]);
+        app(Emitter::class)->emit('enterpriseConnection.deleted', $snapshot);
 
         return response()->json(null, 204);
     }

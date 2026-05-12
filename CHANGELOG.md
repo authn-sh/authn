@@ -1,5 +1,30 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- **Enterprise SSO (SAML + OIDC)** — unified `EnterpriseConnection` model (`entcon_`) carries both protocols. `EnterpriseAccount` (`entacc_`) links a User to a connection. BAPI `/v1/enterprise-connections` (instance-wide CRUD + dry-run probe) + FAPI `/v1/organizations/{org_id}/enterprise-connections` (per-org, gated on `org:sys_sso:manage`).
+- **SAML engine** — `litesaml/lightsaml` integration. `SamlConnectionService` emits SP metadata, builds AuthnRequests, verifies SAMLResponses (signature against `saml_idp_certificate`, audience, `NotOnOrAfter` with 60s clock-skew tolerance).
+- **OIDC engine** — `OidcConnectionService` handles discovery (5-min cache), PKCE-S256 authorize URL minting, token exchange, id_token JWS verification against IdP JWKS with `iss` / `aud` / `nonce` / `exp` / `iat` validation.
+- **Enterprise sign-in flow** — `enterprise_sso` + `saml` first-factor strategies on `StrategyResolver`. Callback endpoints `GET /v1/enterprise-sso-callback` (OIDC) + `POST /v1/saml/{connection_id}/acs` (SAML ACS). Auto-joins the org via `OrganizationMembership` when the connection is org-scoped + has a `default_role`. Honours `OrganizationDomain.enrollment_mode` (`automatic_invitation` joins the matching org; `automatic_suggestion` surfaces it for later; `manual_invitation` is opt-in).
+- **Domain-routed sign-in** — `SignIn.supported_strategies` narrows to `["enterprise_sso"]` when the identifier domain matches an enabled `EnterpriseConnection`; `SignIn.enterprise_connection_id` carries the matched id.
+- **SCIM 2.0 server (RFC 7644)** — `/scim/v2/Users` (GET filter/pagination/projection + POST + GET-by-id + DELETE) and `/scim/v2/Groups` (read-only role-aggregated). Bearer-authenticated via `ScimToken` (one-time plaintext at issue).
+- **Per-org SCIM management** — `/v1/organizations/{org_id}/scim/tokens` (list / issue / revoke), `/scim/attribute-mappings` (read / replace), `/scim/endpoint` (URL surface for IdP-side handoff). Gated by `org:sys_provisioning:manage`.
+- **Transferable sign-up <-> sign-in handoff** — carryover from v0.5. `SignUp` for an existing identifier returns `status: "transferable"` with `target_flow: "sign_in"`; `SignIn` for an unknown identifier returns `status: "transferable"` with `target_flow: "sign_up"` (when `Environment.signup_mode` is `public`/`restricted` and there's no enabled OAuth provider). New snapshot booleans `transferable_to_signin` / `transferable_to_signup`.
+- **Compact JWT claims** — session tokens emit `entcon` (`EnterpriseConnection.id`) + `entacc` (`EnterpriseAccount.id`) when the parent SignIn was verified via `enterprise_sso` / `saml`. Absent for every other strategy.
+- **Dashboard Configure → Enterprise SSO** — instance-wide connection list + add-connection form (SAML + OIDC fields). Per-org connections shown read-only.
+- **Dashboard Customization editor polish** — autocomplete + parse validation + unknown-key warnings + diff view on `appearance.elements`; placeholder validation warnings + cell-level diff summary on `localization.overrides`; "Coming soon" chips for planned-but-unshipped locales. (Monaco editor + signed-URL live-preview iframe deferred to v0.7 per authn-sh/authn#187.)
+- **InstanceSetting toggles** — `authentication_strategies.enterprise_sso.enabled` (strict-semantic — gates new enrollments, never breaks existing accounts) + `multi_factor.enterprise_sso_counts_as_mfa` (when on and the IdP advertises MFA via OIDC `amr` or SAML `<AuthnContextClassRef>`, the session is stamped second-factor-satisfied).
+- **Audit log + webhook events** — `enterpriseConnection.{created,updated,deleted}`, `enterpriseAccount.connected`, `scimToken.{issued,revoked}`, `scimUser.{provisioned,deprovisioned}`. Audit-log entries `auth.enterprise_sso.signin_succeeded` / `signin_failed` / `scim_provisioned` / `scim_deprovisioned`.
+
+### Changed
+
+- **SignUp duplicate-identifier handling** — shifted from `422 form_identifier_exists` to `200 status: "transferable" target_flow: "sign_in"`. Consumers should branch on `signUp.status === "transferable"` rather than catching the 422.
+- `Verification::STRATEGIES` extends with `enterprise_sso` + `saml`. `SignInAttempt::STATUS_TRANSFERABLE` is now a valid status (existing transitions allow it from `needs_identifier` and `needs_first_factor`).
+- `Challenge` resource exposes `enterprise_connection_id` (populated by AU-7 callbacks; `null` everywhere else).
+- `SessionTokenIssuer` mints `entcon` + `entacc` claims when applicable.
+
 ## [0.5.0] — 2026-05-11
 
 Account Portal v1: Passkeys + Theming + Localization + six new OAuth presets.

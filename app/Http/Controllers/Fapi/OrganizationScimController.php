@@ -10,8 +10,10 @@ use App\Models\ScimAttributeMapping;
 use App\Models\ScimToken;
 use App\Models\User;
 use App\Support\Url;
+use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 /**
@@ -77,6 +79,14 @@ final class OrganizationScimController
             'expires_at' => $data['expires_at'] ?? null,
         ]);
 
+        Log::info('audit:fapi.scim_token.issued', [
+            'environment_id' => $env->id,
+            'organization_id' => $org->id,
+            'scim_token_id' => $row->id,
+            'created_by_user_id' => $user->id,
+        ]);
+        app(Emitter::class)->emit('scimToken.issued', $this->tokenShape($row->fresh()), $env);
+
         // The plaintext rides on the spec's `token` property of the
         // ScimToken shape (writeOnly, populated only on this endpoint).
         return response()->json(array_merge(
@@ -99,6 +109,13 @@ final class OrganizationScimController
             return $this->error(404, 'scim_token_not_found', "ScimToken {$id} not found.");
         }
         $row->revoke();
+
+        Log::info('audit:fapi.scim_token.revoked', [
+            'environment_id' => $env->id,
+            'organization_id' => $org->id,
+            'scim_token_id' => $row->id,
+        ]);
+        app(Emitter::class)->emit('scimToken.revoked', $this->tokenShape($row->fresh()), $env);
 
         return response()->json($this->tokenShape($row->fresh()))->header('Cache-Control', 'no-store');
     }
