@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.7.0] — 2026-05-12
+
+JWT templates + OAuth provider mode (authn.sh as IdP) + v0.5/v0.6 deferral cleanup.
+
+### Added
+
+- **JWT templates (AU-1, AU-3, AU-4)** — `JwtTemplate` model (`jtmpl_` prefix, env-scoped, JSON `claims` with Liquid-style placeholders, configurable `lifetime` / `allowed_clock_skew` / `signing_algorithm`, optional encrypted `custom_signing_key`). `JwtTemplateRenderer` resolves placeholders against User / Session / Organization snapshots; refuses `{{user.private_metadata.*}}` per PLAN §4.6. `Session::getToken({template})` wraps for SDK consumers. BAPI `/v1/jwt-templates` CRUD with delete-in-use rejection.
+- **OAuth provider mode (AU-2, AU-5–AU-8, AU-9, AU-10, AU-11)** — authn.sh as an IdP:
+  - `OauthApplication` (`oac_` prefix) + `AuthorizationGrant` (`authgrant_` prefix) models.
+  - BAPI `/v1/oauth-applications` CRUD with `POST /{id}/rotate-secret` (one-shot plaintext).
+  - FAPI `GET /oauth/authorize` (RFC 6749 §4.1 + OIDC §3.1.2.1) with PKCE for public clients; redirects to `/sign-in` (unauth), `/oauth/consent/{request_id}` (first-time), or `redirect_uri?code=…&state=…` (silent reuse).
+  - FAPI `POST /oauth/token` (authorization_code + refresh_token grants, Basic / form / PKCE auth) + `POST /oauth/token_info` (RFC 7662 introspection). Access + id_token are RS256 JWTs signed against env's SigningKey, validate via `/.well-known/jwks.json`.
+  - FAPI `GET /oauth/userinfo` (bearer-auth, scope-filtered claims: openid → sub; profile → name/given_name/family_name/preferred_username/picture; email → email/email_verified).
+  - `GET /.well-known/openid-configuration` extended with the IdP-mode endpoints + grant types + PKCE methods.
+  - Account Portal consent screen at `/oauth/consent/{request_id}` with operator brand + scope labels + accept/deny.
+  - Account Portal `<UserProfile />` Authorized Apps panel + FAPI `/v1/me/authorized-apps` (list + revoke).
+  - Dashboard Configure → JWT Templates + OAuth Applications subsections.
+- **BAPI SCIM admin (AU-12, v0.6 carryover)** — `/v1/organizations/{org_id}/scim/{tokens,attribute-mappings,endpoint}` mirroring v0.6's per-org FAPI surface, bearer-secret authenticated. Closes the SP-2 v0.6 scope cut.
+- **BAPI `/v1/enterprise-accounts`** — admin list / get / delete for `EnterpriseAccount` rows; fills the v0.6 implementation gap that sdk-php SP-1 flagged.
+- **Dashboard Customization editor polish (AU-13, v0.5/v0.6 carryover)** — autocomplete + parse validation + unknown-key warnings + diff view on `appearance.elements`; placeholder validation warnings on `localization.overrides`; iframe preview backed by a 5-min-TTL signed-URL endpoint + `appearance_preview_drafts` table. Closes authn-sh/authn#187 (Monaco editor swap deferred to v0.8).
+- **Passkey Dusk smoke suite (AU-14, v0.5 carryover)** — browser-driven WebAuthn enrollment + sign-in tests via Chrome's virtual authenticator (CDP `Authentication.enable`). Complements v0.5's fixture-only Pest coverage.
+- **Audit log + webhook events (AU-15)** — `jwtTemplate.{created,updated,deleted}` (signing_key stripped), `oauthApplication.{created,updated,deleted}` (client_secret stripped, with `client_secret_rotated: true` flag on rotate), `authorizationGrant.{granted,revoked}` (per-row cascade emit on application delete). Audit-log entries `audit:auth.idp.{token_issued,token_introspected,app_revoked,app_secret_rotated}`.
+
+### Changed
+
+- `Verification::STRATEGIES` extended with `authorization_code` (transitional code grant tracker).
+- `SessionTokenIssuer` honours `{template}` argument, validating against `JwtTemplate` row + rendering claims.
+
 ## [0.6.0] — 2026-05-12
 
 ### Added
