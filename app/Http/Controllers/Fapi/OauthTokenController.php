@@ -73,6 +73,12 @@ final class OauthTokenController
             return response()->json(['active' => false])->header('Cache-Control', 'no-store');
         }
 
+        Log::info('audit:auth.idp.token_introspected', [
+            'environment_id' => $env->id,
+            'oauth_application_id' => $parsed['client_id'],
+            'sub' => $parsed['sub'],
+        ]);
+
         return response()->json([
             'active' => true,
             'sub' => $parsed['sub'],
@@ -294,7 +300,7 @@ final class OauthTokenController
             'updated_at' => $now,
         ]);
 
-        Log::info('audit:fapi.oauth.token_issued', [
+        Log::info('audit:auth.idp.token_issued', [
             'environment_id' => $env->id,
             'oauth_application_id' => $app->id,
             'user_id' => $userId,

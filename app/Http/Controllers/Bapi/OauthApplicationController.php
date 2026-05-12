@@ -161,22 +161,35 @@ final class OauthApplicationController
 
         $snapshot = OauthApplicationResource::from($row);
 
-        DB::transaction(function () use ($row): void {
-            // Revoke every active grant for this app in the same tx so
-            // tokens carrying a still-active grant can't survive the
-            // application's soft-delete.
+        $revokedGrantIds = DB::transaction(function () use ($row): array {
+            // Capture the grant ids before revoking so AU-15 can fire a
+            // cascade `authorizationGrant.revoked` event per row.
+            $ids = AuthorizationGrant::query()->withoutGlobalScopes()
+                ->where('oauth_application_id', $row->id)
+                ->whereNull('revoked_at')
+                ->pluck('id')->all();
             AuthorizationGrant::query()->withoutGlobalScopes()
                 ->where('oauth_application_id', $row->id)
                 ->whereNull('revoked_at')
                 ->update(['revoked_at' => now()]);
             $row->delete();
+
+            return $ids;
         });
 
-        Log::info('audit:bapi.oauth_application.deleted', [
+        Log::info('audit:auth.idp.app_revoked', [
             'environment_id' => $env->id,
             'oauth_application_id' => $row->id,
+            'cascade_grant_count' => count($revokedGrantIds),
         ]);
         app(Emitter::class)->emit('oauthApplication.deleted', $snapshot, $env);
+        foreach ($revokedGrantIds as $grantId) {
+            app(Emitter::class)->emit('authorizationGrant.revoked', [
+                'authorization_grant_id' => $grantId,
+                'oauth_application_id' => $row->id,
+                'cascade_from' => 'oauth_application_deleted',
+            ], $env);
+        }
 
         return response()->json(null, 204);
     }
@@ -197,11 +210,16 @@ final class OauthApplicationController
         $minted = OauthApplication::mintClientSecret();
         $row->forceFill(['hashed_client_secret' => $minted['hash']])->save();
 
-        Log::info('audit:bapi.oauth_application.secret_rotated', [
+        Log::info('audit:auth.idp.app_secret_rotated', [
             'environment_id' => $env->id,
             'oauth_application_id' => $row->id,
         ]);
-        app(Emitter::class)->emit('oauthApplication.secret_rotated', OauthApplicationResource::from($row->fresh()), $env);
+        // Surface secret rotation as an `oauthApplication.updated` event with
+        // a `client_secret_rotated: true` flag so subscribers don't need to
+        // listen on a separate type per spec OA-7.
+        $payload = OauthApplicationResource::from($row->fresh());
+        $payload['client_secret_rotated'] = true;
+        app(Emitter::class)->emit('oauthApplication.updated', $payload, $env);
 
         return response()->json(OauthApplicationResource::withSecret($row->fresh(), $minted['plaintext']))
             ->header('Cache-Control', 'no-store');
