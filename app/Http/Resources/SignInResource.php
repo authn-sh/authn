@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Auth\EnterpriseSso\EnterpriseConnectionService;
 use App\Models\BackupCode;
 use App\Models\EmailAddress;
+use App\Models\EnterpriseConnection;
 use App\Models\Passkey;
 use App\Models\PhoneNumber;
 use App\Models\SignInAttempt;
@@ -28,6 +30,7 @@ final class SignInResource
         }
 
         $transferable = $attempt->status === SignInAttempt::STATUS_TRANSFERABLE;
+        $matchedConnection = self::matchedEnterpriseConnection($attempt);
 
         return [
             'object' => 'sign_in_attempt',
@@ -35,29 +38,52 @@ final class SignInResource
             'status' => $attempt->status,
             'identifier' => $attempt->identifier,
             'supported_identifiers' => ['email_address'],
-            'supported_strategies' => self::supportedStrategies($attempt),
+            'supported_strategies' => self::supportedStrategies($attempt, $matchedConnection),
             'current_challenge_id' => $attempt->current_challenge_id,
             'user_data' => self::userDataPreview($attempt),
             'created_session_id' => $attempt->created_session_id,
             'abandon_at' => $attempt->abandon_at->getTimestampMs(),
             'transferable_to_signup' => $transferable,
             'target_flow' => $transferable ? 'sign_up' : null,
+            'enterprise_connection_id' => $matchedConnection?->id,
         ];
     }
 
     /**
      * Strategies the client may issue next via `POST /sign-ins/{sid}/challenges`.
      * Narrowed by the SignIn's current status — terminal states return [].
+     * AU-8: when the identifier domain routes to exactly one enabled
+     * `EnterpriseConnection`, narrow to `[enterprise_sso]` so the SDK
+     * jumps to the IdP without showing other options.
      *
      * @return list<string>
      */
-    private static function supportedStrategies(SignInAttempt $attempt): array
+    private static function supportedStrategies(SignInAttempt $attempt, ?EnterpriseConnection $matchedConnection): array
     {
+        if ($attempt->status === SignInAttempt::STATUS_NEEDS_FIRST_FACTOR && $matchedConnection !== null) {
+            return [Verification::STRATEGY_ENTERPRISE_SSO];
+        }
+
         return match ($attempt->status) {
             SignInAttempt::STATUS_NEEDS_FIRST_FACTOR => self::firstFactorStrategies($attempt),
             SignInAttempt::STATUS_NEEDS_SECOND_FACTOR => self::secondFactorStrategies($attempt),
             default => [],
         };
+    }
+
+    /**
+     * AU-8 domain routing: resolve the env's `EnterpriseConnection` that
+     * covers the identifier domain (prefers org-scoped, falls back to
+     * instance-wide). Returns `null` when no connection matches.
+     */
+    private static function matchedEnterpriseConnection(SignInAttempt $attempt): ?EnterpriseConnection
+    {
+        $env = $attempt->environment;
+        if ($env === null || ! is_string($attempt->identifier) || $attempt->identifier === '') {
+            return null;
+        }
+
+        return app(EnterpriseConnectionService::class)->findByIdentifierDomain($env, $attempt->identifier);
     }
 
     /**

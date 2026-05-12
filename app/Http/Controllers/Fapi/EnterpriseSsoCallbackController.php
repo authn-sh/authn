@@ -12,6 +12,7 @@ use App\Auth\Saml\SamlException;
 use App\Models\Challenge;
 use App\Models\EnterpriseConnection;
 use App\Models\Environment;
+use App\Models\OrganizationDomain;
 use App\Models\OrganizationMembership;
 use App\Models\Role;
 use App\Models\Session;
@@ -198,7 +199,7 @@ final class EnterpriseSsoCallbackController
             return $this->failWithVerification($state['ru'] ?? null, $verification, 'provision_failed', $e->getMessage());
         }
 
-        $session = DB::transaction(function () use ($env, $attempt, $verification, $conn, $provisioned, $authnContextSignal): Session {
+        $session = DB::transaction(function () use ($env, $attempt, $verification, $conn, $provisioned, $authnContextSignal, $identity): Session {
             $verification->forceFill([
                 'status' => Verification::STATUS_VERIFIED,
                 'verified_at' => now(),
@@ -213,7 +214,10 @@ final class EnterpriseSsoCallbackController
                 $challenge->forceFill(['status' => Challenge::STATUS_VERIFIED])->save();
             }
 
-            $this->autojoinOrgIfApplicable($conn, $provisioned['user']);
+            $identifierForAutojoin = is_string($attempt->identifier) && $attempt->identifier !== ''
+                ? $attempt->identifier
+                : $identity['email_address'];
+            $this->autojoinOrgIfApplicable($conn, $provisioned['user'], $identifierForAutojoin);
 
             $attempt->status = SignInAttempt::STATUS_COMPLETE;
             $session = $this->sessions->mint($env, $provisioned['user'], $attempt);
@@ -233,31 +237,72 @@ final class EnterpriseSsoCallbackController
         return redirect()->away($target);
     }
 
-    private function autojoinOrgIfApplicable(EnterpriseConnection $conn, User $user): void
+    private function autojoinOrgIfApplicable(EnterpriseConnection $conn, User $user, ?string $identifier = null): void
     {
-        if ($conn->organization_id === null || $conn->default_role === null || $conn->default_role === '') {
-            return;
+        // Path A — org-scoped connection with a default_role: always auto-join.
+        if ($conn->organization_id !== null && is_string($conn->default_role) && $conn->default_role !== '') {
+            $this->createMembershipIfMissing($conn->environment_id, $conn->organization_id, $conn->default_role, $user);
         }
+
+        // Path B (AU-8) — instance-wide connection but the identifier's
+        // domain matches a verified `OrganizationDomain` with an opt-in
+        // enrollment mode. Honour the org's enrollment_mode:
+        //   automatic_invitation → join immediately
+        //   automatic_suggestion → leave as a suggested org (surfaced via
+        //                          User.suggested_organizations[] at the
+        //                          /v1/me layer; nothing to do here)
+        //   manual_invitation    → no auto-action
+        if ($identifier !== null && $conn->default_role !== null && $conn->default_role !== '') {
+            $domain = $this->extractDomain($identifier);
+            if ($domain !== null) {
+                $orgDomains = OrganizationDomain::query()
+                    ->withoutGlobalScopes()
+                    ->where('environment_id', $conn->environment_id)
+                    ->where('name', $domain)
+                    ->where('verified', true)
+                    ->get();
+                foreach ($orgDomains as $orgDomain) {
+                    if ($orgDomain->enrollment_mode === OrganizationDomain::MODE_AUTOMATIC_INVITATION) {
+                        $this->createMembershipIfMissing($conn->environment_id, $orgDomain->organization_id, $conn->default_role, $user);
+                    }
+                }
+            }
+        }
+    }
+
+    private function createMembershipIfMissing(string $environmentId, string $organizationId, string $roleKey, User $user): void
+    {
         $existing = OrganizationMembership::query()->withoutGlobalScopes()
-            ->where('organization_id', $conn->organization_id)
+            ->where('organization_id', $organizationId)
             ->where('user_id', $user->id)
             ->exists();
         if ($existing) {
             return;
         }
         $role = Role::query()->withoutGlobalScopes()
-            ->where('environment_id', $conn->environment_id)
-            ->where('key', $conn->default_role)
+            ->where('environment_id', $environmentId)
+            ->where('key', $roleKey)
             ->first();
         if ($role === null) {
             return;
         }
         OrganizationMembership::query()->withoutGlobalScopes()->create([
-            'environment_id' => $conn->environment_id,
-            'organization_id' => $conn->organization_id,
+            'environment_id' => $environmentId,
+            'organization_id' => $organizationId,
             'user_id' => $user->id,
             'role_id' => $role->id,
         ]);
+    }
+
+    private function extractDomain(string $identifier): ?string
+    {
+        $at = strrpos($identifier, '@');
+        if ($at === false) {
+            return null;
+        }
+        $domain = strtolower(trim(substr($identifier, $at + 1)));
+
+        return $domain === '' ? null : $domain;
     }
 
     /**
