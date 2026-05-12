@@ -85,6 +85,31 @@ type Props = {
     localization: LocalizationShape
     localization_canonical: LocalizationCanonical
     enterprise_connections: EnterpriseConnection[]
+    jwt_templates?: JwtTemplateRow[]
+    oauth_applications?: OauthApplicationRow[]
+}
+
+type JwtTemplateRow = {
+    id: string
+    name: string
+    claims: Record<string, unknown>
+    lifetime: number
+    allowed_clock_skew: number
+    signing_algorithm: 'RS256' | 'ES256' | 'HS256'
+    has_custom_signing_key: boolean
+    last_used_at: number | null
+    created_at: number | null
+}
+
+type OauthApplicationRow = {
+    id: string
+    name: string
+    client_id: string
+    callback_urls: string[]
+    scopes: string[]
+    is_public: boolean
+    grants_count: number
+    created_at: number | null
 }
 
 const SECTIONS = [
@@ -95,6 +120,8 @@ const SECTIONS = [
     { slug: 'enterprise-sso', label: 'Enterprise SSO' },
     { slug: 'appearance', label: 'Appearance' },
     { slug: 'localization', label: 'Localization' },
+    { slug: 'jwt-templates', label: 'JWT Templates' },
+    { slug: 'oauth-applications', label: 'OAuth Applications' },
 ] as const
 
 type EnterpriseConnection = {
@@ -156,7 +183,13 @@ export default function Configure(props: Props) {
             {props.section === 'enterprise-sso' && (
                 <EnterpriseSsoSection connections={props.enterprise_connections} />
             )}
-            {!['attributes', 'multi-factor', 'sms', 'social-providers', 'enterprise-sso', 'appearance', 'localization'].includes(props.section) && (
+            {props.section === 'jwt-templates' && (
+                <JwtTemplatesSection templates={props.jwt_templates ?? []} />
+            )}
+            {props.section === 'oauth-applications' && (
+                <OauthApplicationsSection applications={props.oauth_applications ?? []} />
+            )}
+            {!['attributes', 'multi-factor', 'sms', 'social-providers', 'enterprise-sso', 'appearance', 'localization', 'jwt-templates', 'oauth-applications'].includes(props.section) && (
                 <pre style={{ background: '#f1f5f9', padding: 12, borderRadius: 6 }}>
                     {JSON.stringify(props.user_settings, null, 2)}
                 </pre>
@@ -1795,6 +1828,476 @@ function DeleteConnectionButton({ id, action, disabled }: { id: string; action: 
             disabled={disabled || form.processing}
             title={disabled ? 'Has linked accounts — unlink users first.' : undefined}
             style={{ padding: '4px 10px', background: disabled ? '#e5e7eb' : '#fee2e2', color: disabled ? '#94a3b8' : '#b91c1c', border: 'none', borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer' }}
+        >
+            Delete
+        </button>
+    )
+}
+
+// ---------------------------------------------------------------------------
+// JWT Templates (AU-11).
+// ---------------------------------------------------------------------------
+
+function JwtTemplatesSection({ templates }: { templates: JwtTemplateRow[] }) {
+    const url = useDashboardUrl()
+    const { active_project, active_environment } = useDashboard()
+    const { props: pageProps } = usePage<{ flash?: { jwt_template_saved?: boolean; jwt_template_deleted?: boolean } }>()
+    const [adding, setAdding] = React.useState(false)
+    const [editing, setEditing] = React.useState<string | null>(null)
+
+    if (!active_project || !active_environment) {
+        return <p>No active environment.</p>
+    }
+    const base = `/${active_project.slug}/${active_environment.slug}/configure`
+
+    return (
+        <section>
+            <h2>JWT Templates</h2>
+            <p style={{ color: '#475569', marginBottom: 16 }}>
+                Named JWT shapes for <code>Session.getToken({'{template}'})</code>. Each template renders
+                Liquid-style <code>{'{{user.id}}'}</code> placeholders against the active user / session / org.
+            </p>
+            {pageProps.flash?.jwt_template_saved && (
+                <p style={{ color: '#15803d', marginBottom: 12 }}>Template saved.</p>
+            )}
+            {pageProps.flash?.jwt_template_deleted && (
+                <p style={{ color: '#15803d', marginBottom: 12 }}>Template deleted.</p>
+            )}
+
+            {templates.length === 0 ? (
+                <p style={{ color: '#64748b' }}>No JWT templates yet.</p>
+            ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
+                    <thead>
+                        <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                            <th style={{ textAlign: 'left', padding: 6 }}>Name</th>
+                            <th style={{ textAlign: 'left', padding: 6 }}>Algorithm</th>
+                            <th style={{ textAlign: 'left', padding: 6 }}>Lifetime</th>
+                            <th style={{ textAlign: 'left', padding: 6 }}>Last used</th>
+                            <th style={{ textAlign: 'right', padding: 6 }}></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {templates.map(t => (
+                            <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: 6 }}><code>{t.name}</code></td>
+                                <td style={{ padding: 6 }}>{t.signing_algorithm}{t.has_custom_signing_key && ' (custom key)'}</td>
+                                <td style={{ padding: 6 }}>{t.lifetime}s</td>
+                                <td style={{ padding: 6, color: '#475569' }}>{t.last_used_at ? new Date(t.last_used_at).toISOString() : '—'}</td>
+                                <td style={{ padding: 6, textAlign: 'right' }}>
+                                    <button type="button" onClick={() => setEditing(editing === t.id ? null : t.id)} style={{ marginRight: 6 }}>
+                                        {editing === t.id ? 'Close' : 'Edit'}
+                                    </button>
+                                    <DeleteJwtTemplateButton id={t.id} action={url(`${base}/jwt-templates/${t.id}`)} />
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+
+            {editing && (
+                <JwtTemplateForm
+                    template={templates.find(t => t.id === editing) ?? null}
+                    saveUrl={url(`${base}/jwt-templates/${editing}`)}
+                    onDone={() => setEditing(null)}
+                />
+            )}
+
+            {adding ? (
+                <JwtTemplateForm
+                    template={null}
+                    saveUrl={url(`${base}/jwt-templates`)}
+                    onDone={() => setAdding(false)}
+                />
+            ) : (
+                <button type="button" onClick={() => setAdding(true)} style={{ marginTop: 8 }}>
+                    Add JWT template
+                </button>
+            )}
+        </section>
+    )
+}
+
+function JwtTemplateForm({ template, saveUrl, onDone }: { template: JwtTemplateRow | null; saveUrl: string; onDone: () => void }) {
+    const isEdit = template !== null
+    const form = useForm({
+        name: template?.name ?? '',
+        claims: JSON.stringify(template?.claims ?? { sub: '{{user.id}}' }, null, 2),
+        lifetime: template?.lifetime ?? 60,
+        allowed_clock_skew: template?.allowed_clock_skew ?? 5,
+        signing_algorithm: template?.signing_algorithm ?? 'RS256',
+        custom_signing_key: '',
+    })
+    const [parseError, setParseError] = React.useState<string | null>(null)
+
+    const onSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+        let parsedClaims: Record<string, unknown>
+        try {
+            const v = JSON.parse(form.data.claims || '{}')
+            if (typeof v !== 'object' || v === null || Array.isArray(v)) {
+                throw new Error('claims must be a JSON object.')
+            }
+            parsedClaims = v
+        } catch (err) {
+            setParseError((err as Error).message)
+            return
+        }
+        setParseError(null)
+        const payload = form.transform(() => ({
+            name: form.data.name,
+            claims: parsedClaims,
+            lifetime: Number(form.data.lifetime) || 60,
+            allowed_clock_skew: Number(form.data.allowed_clock_skew) || 5,
+            signing_algorithm: form.data.signing_algorithm,
+            custom_signing_key: form.data.custom_signing_key === '' ? null : form.data.custom_signing_key,
+        }))
+        if (isEdit) {
+            payload.patch(saveUrl, { preserveScroll: true, onSuccess: onDone })
+        } else {
+            payload.post(saveUrl, { preserveScroll: true, onSuccess: onDone })
+        }
+    }
+
+    return (
+        <form onSubmit={onSubmit} style={{ marginTop: 8, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            <h3 style={{ marginTop: 0 }}>{isEdit ? 'Edit JWT template' : 'New JWT template'}</h3>
+            <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', color: '#475569' }}>Name (slug)</span>
+                <input
+                    type="text"
+                    value={form.data.name}
+                    onChange={e => form.setData('name', e.target.value)}
+                    placeholder="supabase"
+                    disabled={isEdit}
+                    style={{ width: '100%', padding: 6 }}
+                />
+                {form.errors.name && <p style={{ color: '#b91c1c' }}>{form.errors.name}</p>}
+            </label>
+
+            <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', color: '#475569' }}>Claims (JSON with {`{{user.id}}`}-style placeholders)</span>
+                <textarea
+                    value={form.data.claims}
+                    onChange={e => form.setData('claims', e.target.value)}
+                    rows={10}
+                    style={{ width: '100%', fontFamily: 'monospace', padding: 6 }}
+                />
+                {parseError && <p style={{ color: '#b91c1c' }}>{parseError}</p>}
+                {form.errors.claims && <p style={{ color: '#b91c1c' }}>{form.errors.claims}</p>}
+            </label>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 8 }}>
+                <label>
+                    <span style={{ display: 'block', color: '#475569' }}>Lifetime (s)</span>
+                    <input type="number" min={1} max={86400} value={form.data.lifetime} onChange={e => form.setData('lifetime', Number(e.target.value))} style={{ width: '100%', padding: 6 }} />
+                </label>
+                <label>
+                    <span style={{ display: 'block', color: '#475569' }}>Allowed clock skew (s)</span>
+                    <input type="number" min={0} max={300} value={form.data.allowed_clock_skew} onChange={e => form.setData('allowed_clock_skew', Number(e.target.value))} style={{ width: '100%', padding: 6 }} />
+                </label>
+                <label>
+                    <span style={{ display: 'block', color: '#475569' }}>Algorithm</span>
+                    <select
+                        value={form.data.signing_algorithm}
+                        onChange={e => form.setData('signing_algorithm', e.target.value as JwtTemplateRow['signing_algorithm'])}
+                        disabled={isEdit}
+                        style={{ width: '100%', padding: 6 }}
+                    >
+                        <option value="RS256">RS256</option>
+                        <option value="ES256">ES256</option>
+                        <option value="HS256">HS256</option>
+                    </select>
+                </label>
+            </div>
+
+            <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', color: '#475569' }}>
+                    Custom signing key (PEM / base64 secret — leave blank to use the env signing key)
+                </span>
+                <textarea
+                    value={form.data.custom_signing_key}
+                    onChange={e => form.setData('custom_signing_key', e.target.value)}
+                    rows={4}
+                    placeholder="-----BEGIN PRIVATE KEY-----..."
+                    style={{ width: '100%', fontFamily: 'monospace', padding: 6 }}
+                />
+            </label>
+
+            <div style={{ display: 'flex', gap: 8 }}>
+                <button type="submit" disabled={form.processing}>
+                    {form.processing ? 'Saving…' : isEdit ? 'Save changes' : 'Create template'}
+                </button>
+                <button type="button" onClick={onDone}>Cancel</button>
+            </div>
+        </form>
+    )
+}
+
+function DeleteJwtTemplateButton({ id: _id, action }: { id: string; action: string }) {
+    const form = useForm({})
+    const onDelete = () => {
+        if (!window.confirm('Delete this JWT template? Refused if it was used to mint a token within the grace window (40h).')) return
+        form.delete(action, { preserveScroll: true })
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={onDelete}
+            disabled={form.processing}
+            style={{ padding: '4px 10px', background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 4 }}
+        >
+            Delete
+        </button>
+    )
+}
+
+// ---------------------------------------------------------------------------
+// OAuth Applications (AU-11).
+// ---------------------------------------------------------------------------
+
+function OauthApplicationsSection({ applications }: { applications: OauthApplicationRow[] }) {
+    const url = useDashboardUrl()
+    const { active_project, active_environment } = useDashboard()
+    const { props: pageProps } = usePage<{ flash?: {
+        oauth_application_saved?: boolean
+        oauth_application_deleted?: boolean
+        oauth_application_secret?: string
+        oauth_application_id?: string
+    } }>()
+    const [adding, setAdding] = React.useState(false)
+    const [editing, setEditing] = React.useState<string | null>(null)
+
+    if (!active_project || !active_environment) {
+        return <p>No active environment.</p>
+    }
+    const base = `/${active_project.slug}/${active_environment.slug}/configure`
+    const flashedSecret = pageProps.flash?.oauth_application_secret ?? null
+
+    return (
+        <section>
+            <h2>OAuth Applications</h2>
+            <p style={{ color: '#475569', marginBottom: 16 }}>
+                Third-party applications authenticating against this environment as the IdP.
+                Confidential clients hold a server-side secret; public clients use PKCE.
+            </p>
+            {pageProps.flash?.oauth_application_saved && (
+                <p style={{ color: '#15803d', marginBottom: 12 }}>Application saved.</p>
+            )}
+            {pageProps.flash?.oauth_application_deleted && (
+                <p style={{ color: '#15803d', marginBottom: 12 }}>Application deleted — every active AuthorizationGrant was revoked.</p>
+            )}
+            {flashedSecret && (
+                <div style={{ marginBottom: 12, padding: 12, background: '#fef3c7', borderRadius: 6, fontSize: 13 }}>
+                    <strong>Plaintext client secret — capture now, it never appears again:</strong>
+                    <pre style={{ marginTop: 6, padding: 8, background: '#fff', border: '1px solid #e5e7eb' }}>{flashedSecret}</pre>
+                </div>
+            )}
+
+            {applications.length === 0 ? (
+                <p style={{ color: '#64748b' }}>No OAuth applications yet.</p>
+            ) : (
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginBottom: 16 }}>
+                    <thead>
+                        <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                            <th style={{ textAlign: 'left', padding: 6 }}>Name</th>
+                            <th style={{ textAlign: 'left', padding: 6 }}>Client ID</th>
+                            <th style={{ textAlign: 'left', padding: 6 }}>Type</th>
+                            <th style={{ textAlign: 'left', padding: 6 }}>Active grants</th>
+                            <th style={{ textAlign: 'right', padding: 6 }}></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {applications.map(a => (
+                            <tr key={a.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                <td style={{ padding: 6 }}>{a.name}</td>
+                                <td style={{ padding: 6 }}><code style={{ fontSize: 11 }}>{a.client_id}</code></td>
+                                <td style={{ padding: 6 }}>{a.is_public ? 'Public (PKCE)' : 'Confidential'}</td>
+                                <td style={{ padding: 6 }}>{a.grants_count}</td>
+                                <td style={{ padding: 6, textAlign: 'right' }}>
+                                    <button type="button" onClick={() => setEditing(editing === a.id ? null : a.id)} style={{ marginRight: 6 }}>
+                                        {editing === a.id ? 'Close' : 'Edit'}
+                                    </button>
+                                    {!a.is_public && (
+                                        <RotateSecretButton action={url(`${base}/oauth-applications/${a.id}/rotate-secret`)} />
+                                    )}
+                                    <DeleteOauthApplicationButton action={url(`${base}/oauth-applications/${a.id}`)} />
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+
+            {editing && (
+                <OauthApplicationForm
+                    application={applications.find(a => a.id === editing) ?? null}
+                    saveUrl={url(`${base}/oauth-applications/${editing}`)}
+                    onDone={() => setEditing(null)}
+                />
+            )}
+
+            {adding ? (
+                <OauthApplicationForm
+                    application={null}
+                    saveUrl={url(`${base}/oauth-applications`)}
+                    onDone={() => setAdding(false)}
+                />
+            ) : (
+                <button type="button" onClick={() => setAdding(true)} style={{ marginTop: 8 }}>
+                    Add OAuth application
+                </button>
+            )}
+        </section>
+    )
+}
+
+const KNOWN_SCOPES = ['openid', 'profile', 'email'] as const
+
+function OauthApplicationForm({ application, saveUrl, onDone }: { application: OauthApplicationRow | null; saveUrl: string; onDone: () => void }) {
+    const isEdit = application !== null
+    const form = useForm({
+        name: application?.name ?? '',
+        callback_urls_text: (application?.callback_urls ?? []).join('\n'),
+        scopes: application?.scopes ?? ['openid', 'profile', 'email'],
+        is_public: application?.is_public ?? false,
+    })
+    const [customScope, setCustomScope] = React.useState('')
+
+    const toggleScope = (scope: string) => {
+        const set = new Set(form.data.scopes)
+        if (set.has(scope)) set.delete(scope)
+        else set.add(scope)
+        form.setData('scopes', Array.from(set))
+    }
+
+    const onSubmit = (e: React.FormEvent) => {
+        e.preventDefault()
+        const urls = form.data.callback_urls_text.split('\n').map(s => s.trim()).filter(Boolean)
+        const payload = form.transform(() => ({
+            name: form.data.name,
+            callback_urls: urls,
+            scopes: form.data.scopes,
+            ...(isEdit ? {} : { is_public: form.data.is_public }),
+        }))
+        if (isEdit) {
+            payload.patch(saveUrl, { preserveScroll: true, onSuccess: onDone })
+        } else {
+            payload.post(saveUrl, { preserveScroll: true, onSuccess: onDone })
+        }
+    }
+
+    return (
+        <form onSubmit={onSubmit} style={{ marginTop: 8, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+            <h3 style={{ marginTop: 0 }}>{isEdit ? 'Edit OAuth application' : 'New OAuth application'}</h3>
+
+            <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', color: '#475569' }}>Name</span>
+                <input type="text" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ width: '100%', padding: 6 }} />
+                {form.errors.name && <p style={{ color: '#b91c1c' }}>{form.errors.name}</p>}
+            </label>
+
+            <label style={{ display: 'block', marginBottom: 8 }}>
+                <span style={{ display: 'block', color: '#475569' }}>Callback URLs (one per line — must match exactly on /oauth/authorize)</span>
+                <textarea
+                    value={form.data.callback_urls_text}
+                    onChange={e => form.setData('callback_urls_text', e.target.value)}
+                    rows={4}
+                    placeholder="https://app.acme.example/oauth/callback"
+                    style={{ width: '100%', fontFamily: 'monospace', padding: 6 }}
+                />
+            </label>
+
+            <fieldset style={{ marginBottom: 8, padding: 8, border: '1px solid #e5e7eb', borderRadius: 4 }}>
+                <legend style={{ color: '#475569', padding: '0 6px' }}>Scopes</legend>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    {KNOWN_SCOPES.map(s => (
+                        <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <input type="checkbox" checked={form.data.scopes.includes(s)} onChange={() => toggleScope(s)} />
+                            <code>{s}</code>
+                        </label>
+                    ))}
+                </div>
+                {form.data.scopes.filter(s => !KNOWN_SCOPES.includes(s as typeof KNOWN_SCOPES[number])).map(s => (
+                    <div key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 8, marginTop: 6 }}>
+                        <code>{s}</code>
+                        <button type="button" onClick={() => toggleScope(s)} style={{ background: 'transparent', border: 'none', color: '#b91c1c', cursor: 'pointer' }}>×</button>
+                    </div>
+                ))}
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                    <input
+                        type="text"
+                        value={customScope}
+                        onChange={e => setCustomScope(e.target.value)}
+                        placeholder="acme.read_billing"
+                        style={{ flex: 1, padding: 6 }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!customScope.trim()) return
+                            if (!form.data.scopes.includes(customScope.trim())) {
+                                form.setData('scopes', [...form.data.scopes, customScope.trim()])
+                            }
+                            setCustomScope('')
+                        }}
+                    >
+                        Add scope
+                    </button>
+                </div>
+            </fieldset>
+
+            {!isEdit && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <input type="checkbox" checked={form.data.is_public} onChange={e => form.setData('is_public', e.target.checked)} />
+                    Public client (PKCE-only; no client_secret minted)
+                </label>
+            )}
+
+            <div style={{ display: 'flex', gap: 8 }}>
+                <button type="submit" disabled={form.processing}>
+                    {form.processing ? 'Saving…' : isEdit ? 'Save changes' : 'Create application'}
+                </button>
+                <button type="button" onClick={onDone}>Cancel</button>
+            </div>
+        </form>
+    )
+}
+
+function RotateSecretButton({ action }: { action: string }) {
+    const form = useForm({})
+    const onClick = () => {
+        if (!window.confirm('Mint a fresh client secret? The previous secret is invalidated immediately — coordinate with the consumer.')) return
+        form.post(action, { preserveScroll: true })
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={form.processing}
+            style={{ marginRight: 6, padding: '4px 10px', background: '#fef3c7', border: 'none', borderRadius: 4 }}
+        >
+            Rotate secret
+        </button>
+    )
+}
+
+function DeleteOauthApplicationButton({ action }: { action: string }) {
+    const form = useForm({})
+    const onDelete = () => {
+        if (!window.confirm('Delete this OAuth application? Every active AuthorizationGrant will be revoked.')) return
+        form.delete(action, { preserveScroll: true })
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={onDelete}
+            disabled={form.processing}
+            style={{ padding: '4px 10px', background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 4 }}
         >
             Delete
         </button>
