@@ -97,7 +97,14 @@ final class VirtualAuthenticator
         $sessionId = $driver->getSessionID();
         $url = $executor->getAddressOfRemoteServer().'/session/'.$sessionId.'/goog/cdp/execute';
 
-        $payload = json_encode(['cmd' => $cmd, 'params' => $params], JSON_THROW_ON_ERROR);
+        // CDP rejects `params: []` ("invalid argument: params not passed") on
+        // commands that take no arguments — they expect a JSON object literal,
+        // not an array. Cast to (object) so json_encode emits `{}` for the
+        // empty case.
+        $payload = json_encode([
+            'cmd' => $cmd,
+            'params' => (object) $params,
+        ], JSON_THROW_ON_ERROR);
 
         $ch = curl_init($url);
         if ($ch === false) {
