@@ -5,10 +5,11 @@ declare(strict_types=1);
 use App\Models\Environment;
 use App\Models\Project;
 use Illuminate\Support\Facades\DB;
+use Tests\Feature\Http\Dashboard\DashboardTestSupport;
 
 it('mints a 5-minute preview token and returns the signed preview URL', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
+    $f = DashboardTestSupport::bootAdminEnv();
+    $bs = DashboardTestSupport::operatorWithMembership($f['env']);
     $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
     $env = Environment::create([
         'project_id' => $project->id,
@@ -18,7 +19,7 @@ it('mints a 5-minute preview token and returns the signed preview URL', function
         'allowed_origins' => [],
     ]);
 
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+    $r = $this->withHeaders(DashboardTestSupport::headers($bs['jwt']))
         ->postJson('http://dashboard.authn.local/acme/production/configure/appearance/preview', [
             'variables' => ['colorPrimary' => '#ff00aa'],
             'elements' => ['signIn.root' => 'rounded-xl'],
@@ -40,10 +41,10 @@ it('mints a 5-minute preview token and returns the signed preview URL', function
 });
 
 it('refuses preview minting for non-existent envs', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
+    $f = DashboardTestSupport::bootAdminEnv();
+    $bs = DashboardTestSupport::operatorWithMembership($f['env']);
 
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
+    $r = $this->withHeaders(DashboardTestSupport::headers($bs['jwt']))
         ->postJson('http://dashboard.authn.local/nope/none/configure/appearance/preview', [
             'variables' => ['x' => 'y'],
         ]);
@@ -51,8 +52,8 @@ it('refuses preview minting for non-existent envs', function (): void {
 });
 
 it('renders the Account Portal SignIn with the draft appearance applied when the token resolves', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
+    $f = DashboardTestSupport::bootAdminEnv();
+    $bs = DashboardTestSupport::operatorWithMembership($f['env']);
     $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
     $env = Environment::create([
         'project_id' => $project->id,
@@ -67,7 +68,7 @@ it('renders the Account Portal SignIn with the draft appearance applied when the
     // inside the same kernel pass that the subsequent HTTP test request
     // observes — the array cache store doesn't survive between test-host
     // `Cache::put()` and the next `$this->get()` call's kernel boot.
-    $mint = $this->withHeaders(dashHeaders($bs['jwt']))
+    $mint = $this->withHeaders(DashboardTestSupport::headers($bs['jwt']))
         ->postJson('http://dashboard.authn.local/acme/production/configure/appearance/preview', [
             'variables' => ['colorPrimary' => '#ff00aa'],
             'elements' => ['signIn.root' => 'rounded-xl'],
@@ -92,8 +93,8 @@ it('renders the Account Portal SignIn with the draft appearance applied when the
 });
 
 it('rejects an expired or unknown preview token with 404', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
+    $f = DashboardTestSupport::bootAdminEnv();
+    $bs = DashboardTestSupport::operatorWithMembership($f['env']);
     $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
     Environment::create([
         'project_id' => $project->id,
@@ -110,8 +111,8 @@ it('rejects an expired or unknown preview token with 404', function (): void {
 });
 
 it('rejects a preview token issued for a different env (cross-env replay)', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
+    $f = DashboardTestSupport::bootAdminEnv();
+    $bs = DashboardTestSupport::operatorWithMembership($f['env']);
     $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
     Environment::create([
         'project_id' => $project->id,
@@ -130,7 +131,7 @@ it('rejects a preview token issued for a different env (cross-env replay)', func
 
     // Mint a token bound to envA via the dashboard endpoint, then replay it
     // against envB's host.
-    $mint = $this->withHeaders(dashHeaders($bs['jwt']))
+    $mint = $this->withHeaders(DashboardTestSupport::headers($bs['jwt']))
         ->postJson('http://dashboard.authn.local/acme/production/configure/appearance/preview', [
             'variables' => ['colorPrimary' => '#cc0000'],
         ]);
