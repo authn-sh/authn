@@ -54,6 +54,17 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::post('/configure/oauth-providers/{oauth_provider_id}/test', [DashboardController::class, 'testOauthProvider'])->name('dashboard.configure.oauth_providers.test');
     Route::post('/configure/enterprise-connections', [DashboardController::class, 'storeEnterpriseConnection'])->name('dashboard.configure.enterprise_connections.store');
     Route::delete('/configure/enterprise-connections/{enterprise_connection_id}', [DashboardController::class, 'destroyEnterpriseConnection'])->name('dashboard.configure.enterprise_connections.destroy');
+
+    // v0.7 JWT templates + OAuth applications (AU-11).
+    Route::post('/configure/jwt-templates', [DashboardController::class, 'storeJwtTemplate'])->name('dashboard.configure.jwt_templates.store');
+    Route::patch('/configure/jwt-templates/{jwt_template_id}', [DashboardController::class, 'updateJwtTemplate'])->name('dashboard.configure.jwt_templates.update');
+    Route::delete('/configure/jwt-templates/{jwt_template_id}', [DashboardController::class, 'destroyJwtTemplate'])->name('dashboard.configure.jwt_templates.destroy');
+
+    Route::post('/configure/oauth-applications', [DashboardController::class, 'storeOauthApplication'])->name('dashboard.configure.oauth_applications.store');
+    Route::patch('/configure/oauth-applications/{oauth_application_id}', [DashboardController::class, 'updateOauthApplication'])->name('dashboard.configure.oauth_applications.update');
+    Route::delete('/configure/oauth-applications/{oauth_application_id}', [DashboardController::class, 'destroyOauthApplication'])->name('dashboard.configure.oauth_applications.destroy');
+    Route::post('/configure/oauth-applications/{oauth_application_id}/rotate-secret', [DashboardController::class, 'rotateOauthApplicationSecret'])->name('dashboard.configure.oauth_applications.rotate_secret');
+
     Route::get('/email-templates', [DashboardController::class, 'emailTemplates'])->name('dashboard.email_templates');
 
     Route::get('/api-keys', [DashboardController::class, 'apiKeys'])->name('dashboard.api_keys');

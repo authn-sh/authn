@@ -12,6 +12,7 @@ use App\Jobs\Sms\SendSmsTemplate;
 use App\Localization\CanonicalSchema;
 use App\Models\AllowlistIdentifier;
 use App\Models\ApiKey;
+use App\Models\AuthorizationGrant;
 use App\Models\BlocklistIdentifier;
 use App\Models\EmailTemplate;
 use App\Models\EnterpriseAccount;
@@ -19,6 +20,8 @@ use App\Models\EnterpriseConnection;
 use App\Models\Environment;
 use App\Models\ExternalAccount;
 use App\Models\Invitation;
+use App\Models\JwtTemplate;
+use App\Models\OauthApplication;
 use App\Models\OauthProvider;
 use App\Models\Organization;
 use App\Models\OrganizationDomain;
@@ -288,6 +291,24 @@ final class DashboardController
             ->orderBy('name')
             ->get();
 
+        $jwtTemplateRows = JwtTemplate::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->whereNull('removed_at')
+            ->orderBy('name')
+            ->get();
+
+        $oauthAppRows = OauthApplication::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->whereNull('removed_at')
+            ->orderBy('name')
+            ->get();
+        $grantCounts = AuthorizationGrant::query()->withoutGlobalScopes()
+            ->whereIn('oauth_application_id', $oauthAppRows->pluck('id'))
+            ->whereNull('revoked_at')
+            ->selectRaw('oauth_application_id, count(*) as c')
+            ->groupBy('oauth_application_id')
+            ->pluck('c', 'oauth_application_id');
+
         return Inertia::render('Dashboard/Configure', [
             'section' => $section,
             'user_settings' => $userSettings,
@@ -318,6 +339,27 @@ final class DashboardController
             'oauth_providers' => $oauthRows->map(fn (OauthProvider $p) => $this->oauthRowShape($p))->all(),
             'oauth_preset_keys' => $this->oauthPresets->keys(),
             'enterprise_connections' => $enterpriseRows->map(fn (EnterpriseConnection $c) => $this->enterpriseConnectionRowShape($c))->all(),
+            'jwt_templates' => $jwtTemplateRows->map(fn (JwtTemplate $t) => [
+                'id' => $t->id,
+                'name' => $t->name,
+                'claims' => is_array($t->claims) ? $t->claims : [],
+                'lifetime' => $t->lifetime,
+                'allowed_clock_skew' => $t->allowed_clock_skew,
+                'signing_algorithm' => $t->signing_algorithm,
+                'has_custom_signing_key' => $t->custom_signing_key !== null && $t->custom_signing_key !== '',
+                'last_used_at' => $t->last_used_at?->getTimestampMs(),
+                'created_at' => $t->created_at?->getTimestampMs(),
+            ])->all(),
+            'oauth_applications' => $oauthAppRows->map(fn (OauthApplication $a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'client_id' => $a->client_id,
+                'callback_urls' => is_array($a->callback_urls) ? array_values($a->callback_urls) : [],
+                'scopes' => is_array($a->scopes) ? array_values($a->scopes) : [],
+                'is_public' => (bool) $a->is_public,
+                'grants_count' => (int) ($grantCounts[$a->id] ?? 0),
+                'created_at' => $a->created_at?->getTimestampMs(),
+            ])->all(),
             'localization' => $this->localizationShape($env),
             'localization_canonical' => [
                 'shipped_locales' => CanonicalSchema::SHIPPED_LOCALES,
@@ -1355,5 +1397,204 @@ final class DashboardController
 
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/enterprise-sso")
             ->with('enterprise_connection_deleted', true);
+    }
+
+    // --- JWT Templates (AU-11). ---------------------------------------------
+
+    public function storeJwtTemplate(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_-]{0,63}$/'],
+            'claims' => ['required', 'array'],
+            'lifetime' => ['sometimes', 'integer', 'between:1,86400'],
+            'allowed_clock_skew' => ['sometimes', 'integer', 'between:0,300'],
+            'signing_algorithm' => ['sometimes', 'string', 'in:RS256,ES256,HS256'],
+            'custom_signing_key' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        JwtTemplate::query()->withoutGlobalScopes()->create([
+            'environment_id' => $env->id,
+            'name' => $data['name'],
+            'claims' => $data['claims'],
+            'lifetime' => $data['lifetime'] ?? 60,
+            'allowed_clock_skew' => $data['allowed_clock_skew'] ?? 5,
+            'signing_algorithm' => $data['signing_algorithm'] ?? JwtTemplate::ALG_RS256,
+            'custom_signing_key' => $data['custom_signing_key'] ?? null,
+        ]);
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/jwt-templates")
+            ->with('jwt_template_saved', true);
+    }
+
+    public function updateJwtTemplate(Request $request, string $project_slug, string $env_slug, string $jwt_template_id): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $row = JwtTemplate::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('id', $jwt_template_id)
+            ->whereNull('removed_at')
+            ->first();
+        if ($row === null) {
+            return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/jwt-templates");
+        }
+
+        $data = $request->validate([
+            'claims' => ['sometimes', 'array'],
+            'lifetime' => ['sometimes', 'integer', 'between:1,86400'],
+            'allowed_clock_skew' => ['sometimes', 'integer', 'between:0,300'],
+            'custom_signing_key' => ['sometimes', 'nullable', 'string'],
+        ]);
+
+        $row->fill(array_intersect_key($data, array_flip(['claims', 'lifetime', 'allowed_clock_skew'])));
+        if (array_key_exists('custom_signing_key', $data)) {
+            $row->custom_signing_key = $data['custom_signing_key'];
+        }
+        $row->save();
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/jwt-templates")
+            ->with('jwt_template_saved', true);
+    }
+
+    public function destroyJwtTemplate(string $project_slug, string $env_slug, string $jwt_template_id): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $row = JwtTemplate::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('id', $jwt_template_id)
+            ->whereNull('removed_at')
+            ->first();
+        if ($row !== null) {
+            $row->delete();
+        }
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/jwt-templates")
+            ->with('jwt_template_deleted', true);
+    }
+
+    // --- OAuth Applications (AU-11). ---------------------------------------
+
+    public function storeOauthApplication(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'min:1', 'max:100'],
+            'callback_urls' => ['required', 'array', 'min:1'],
+            'callback_urls.*' => ['required', 'string', 'max:2048'],
+            'scopes' => ['sometimes', 'array'],
+            'scopes.*' => ['string', 'max:120'],
+            'is_public' => ['sometimes', 'boolean'],
+        ]);
+        $isPublic = (bool) ($data['is_public'] ?? false);
+        $secret = $isPublic ? null : OauthApplication::mintClientSecret();
+
+        $row = OauthApplication::query()->withoutGlobalScopes()->create([
+            'environment_id' => $env->id,
+            'name' => $data['name'],
+            'hashed_client_secret' => $secret['hash'] ?? null,
+            'callback_urls' => array_values($data['callback_urls']),
+            'scopes' => array_values($data['scopes'] ?? []),
+            'is_public' => $isPublic,
+        ]);
+
+        $redirect = redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/oauth-applications")
+            ->with('oauth_application_saved', true)
+            ->with('oauth_application_id', $row->id);
+        if ($secret !== null) {
+            $redirect = $redirect->with('oauth_application_secret', $secret['plaintext']);
+        }
+
+        return $redirect;
+    }
+
+    public function updateOauthApplication(Request $request, string $project_slug, string $env_slug, string $oauth_application_id): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $row = OauthApplication::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('id', $oauth_application_id)
+            ->whereNull('removed_at')
+            ->first();
+        if ($row === null) {
+            return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/oauth-applications");
+        }
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'min:1', 'max:100'],
+            'callback_urls' => ['sometimes', 'array', 'min:1'],
+            'callback_urls.*' => ['required', 'string', 'max:2048'],
+            'scopes' => ['sometimes', 'array'],
+            'scopes.*' => ['string', 'max:120'],
+        ]);
+
+        $row->fill(array_intersect_key($data, array_flip(['name', 'callback_urls', 'scopes'])));
+        $row->save();
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/oauth-applications")
+            ->with('oauth_application_saved', true);
+    }
+
+    public function destroyOauthApplication(string $project_slug, string $env_slug, string $oauth_application_id): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $row = OauthApplication::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('id', $oauth_application_id)
+            ->whereNull('removed_at')
+            ->first();
+        if ($row !== null) {
+            AuthorizationGrant::query()->withoutGlobalScopes()
+                ->where('oauth_application_id', $row->id)
+                ->whereNull('revoked_at')
+                ->update(['revoked_at' => now()]);
+            $row->delete();
+        }
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/oauth-applications")
+            ->with('oauth_application_deleted', true);
+    }
+
+    public function rotateOauthApplicationSecret(string $project_slug, string $env_slug, string $oauth_application_id): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $row = OauthApplication::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('id', $oauth_application_id)
+            ->whereNull('removed_at')
+            ->first();
+        if ($row === null || $row->is_public) {
+            return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/oauth-applications");
+        }
+
+        $secret = OauthApplication::mintClientSecret();
+        $row->forceFill(['hashed_client_secret' => $secret['hash']])->save();
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/oauth-applications")
+            ->with('oauth_application_saved', true)
+            ->with('oauth_application_id', $row->id)
+            ->with('oauth_application_secret', $secret['plaintext']);
     }
 }
