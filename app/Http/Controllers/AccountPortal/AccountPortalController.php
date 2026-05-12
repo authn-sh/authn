@@ -76,6 +76,11 @@ final class AccountPortalController
                 'section' => $section,
             ]);
         }
+        if ($section === 'authorized-apps') {
+            return Inertia::render('AccountPortal/UserProfile/Security/AuthorizedAppsPanel', [
+                'section' => $section,
+            ]);
+        }
 
         return Inertia::render('AccountPortal/UserProfile', [
             'section' => $section,

@@ -10,6 +10,7 @@ use App\Http\Controllers\Fapi\EnterpriseSsoCallbackController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\LocalizationController;
 use App\Http\Controllers\Fapi\MagicLinkController;
+use App\Http\Controllers\Fapi\MeAuthorizedAppsController;
 use App\Http\Controllers\Fapi\MeBackupCodesController;
 use App\Http\Controllers\Fapi\MeController;
 use App\Http\Controllers\Fapi\MeExternalAccountController;
@@ -190,6 +191,10 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/me/passkeys/complete-registration/{challenge_id}', [MePasskeysController::class, 'completeRegistration'])->name('fapi.me.passkeys.complete');
         Route::patch('/me/passkeys/{passkey_id}', [MePasskeysController::class, 'update'])->name('fapi.me.passkeys.update');
         Route::delete('/me/passkeys/{passkey_id}', [MePasskeysController::class, 'destroy'])->name('fapi.me.passkeys.destroy');
+
+        // Authorized apps — the active user's view of their OAuth consents (AU-10).
+        Route::get('/me/authorized-apps', [MeAuthorizedAppsController::class, 'index'])->name('fapi.me.authorized_apps.list');
+        Route::delete('/me/authorized-apps/{authorization_grant_id}', [MeAuthorizedAppsController::class, 'destroy'])->name('fapi.me.authorized_apps.destroy');
 
         // Organizations — user-scoped CRUD (PLAN §4.4 / OA-3 / AU-6).
         Route::post('/organizations', [FapiOrganizationController::class, 'store'])->name('fapi.organizations.store');
