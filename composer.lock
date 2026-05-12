@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "402b04ff0394d1b1089c2dd07b6e0190",
+    "content-hash": "502fd2987f63be0001ecbe8244fec55b",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2665,6 +2665,114 @@
             "time": "2026-03-08T20:05:35+00:00"
         },
         {
+            "name": "litesaml/lightsaml",
+            "version": "4.6.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/litesaml/lightsaml.git",
+                "reference": "251dc6da0f3bd153213874889b0aedbbe31c60bc"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/litesaml/lightsaml/zipball/251dc6da0f3bd153213874889b0aedbbe31c60bc",
+                "reference": "251dc6da0f3bd153213874889b0aedbbe31c60bc",
+                "shasum": ""
+            },
+            "require": {
+                "litesaml/schemas": "^3.0",
+                "php": "^8.1",
+                "psr/event-dispatcher": "^1.0",
+                "psr/log": "^3.0",
+                "robrichards/xmlseclibs": "^3.1.4",
+                "symfony/http-foundation": "^6.0|^7.0|^8.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "^1.4.4",
+                "php-cs-fixer/shim": "^3.70",
+                "phpstan/phpstan": "^1.8",
+                "phpunit/phpunit": "^10.1",
+                "pimple/pimple": "~3.0",
+                "rector/rector": "^1.2.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "LightSaml\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "William",
+                    "email": "work@suppo.fr",
+                    "homepage": "https://github.com/william-suppo"
+                }
+            ],
+            "description": "SAML 2.0 PHP library",
+            "keywords": [
+                "SAML 2.0",
+                "Single Logout",
+                "Single SignOn",
+                "library",
+                "lightSAML",
+                "php"
+            ],
+            "support": {
+                "docs": "https://litesaml.github.io/cookbook/",
+                "issues": "https://github.com/litesaml/lightsaml/issues",
+                "source": "https://github.com/litesaml/lightsaml"
+            },
+            "time": "2026-02-26T10:47:04+00:00"
+        },
+        {
+            "name": "litesaml/schemas",
+            "version": "3.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/litesaml/schemas.git",
+                "reference": "11f0dec57cd55f7fd2378bf9f55ae6c7c38d15b7"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/litesaml/schemas/zipball/11f0dec57cd55f7fd2378bf9f55ae6c7c38d15b7",
+                "reference": "11f0dec57cd55f7fd2378bf9f55ae6c7c38d15b7",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^2.1.5",
+                "phpunit/phpunit": "^10.1",
+                "squizlabs/php_codesniffer": "^3.10.2"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "LiteSaml\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "William",
+                    "email": "work@suppo.fr"
+                }
+            ],
+            "description": "Deliver schemas for Lite Saml library",
+            "support": {
+                "issues": "https://github.com/litesaml/schemas/issues",
+                "source": "https://github.com/litesaml/schemas/tree/3.1.1"
+            },
+            "time": "2025-02-23T10:38:31+00:00"
+        },
+        {
             "name": "marc-mabe/php-enum",
             "version": "v4.7.2",
             "source": {
@@ -4357,6 +4465,48 @@
             "time": "2025-12-14T04:43:48+00:00"
         },
         {
+            "name": "robrichards/xmlseclibs",
+            "version": "3.1.5",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/robrichards/xmlseclibs.git",
+                "reference": "03062be78178cbb5e8f605cd255dc32a14981f92"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/robrichards/xmlseclibs/zipball/03062be78178cbb5e8f605cd255dc32a14981f92",
+                "reference": "03062be78178cbb5e8f605cd255dc32a14981f92",
+                "shasum": ""
+            },
+            "require": {
+                "ext-openssl": "*",
+                "php": ">= 5.4"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "RobRichards\\XMLSecLibs\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "BSD-3-Clause"
+            ],
+            "description": "A PHP library for XML Security",
+            "homepage": "https://github.com/robrichards/xmlseclibs",
+            "keywords": [
+                "security",
+                "signature",
+                "xml",
+                "xmldsig"
+            ],
+            "support": {
+                "issues": "https://github.com/robrichards/xmlseclibs/issues",
+                "source": "https://github.com/robrichards/xmlseclibs/tree/3.1.5"
+            },
+            "time": "2026-03-13T10:31:56+00:00"
+        },
+        {
             "name": "spomky-labs/cbor-php",
             "version": "3.2.3",
             "source": {
@@ -4775,16 +4925,16 @@
         },
         {
             "name": "symfony/deprecation-contracts",
-            "version": "v3.6.0",
+            "version": "v3.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/deprecation-contracts.git",
-                "reference": "63afe740e99a13ba87ec199bb07bbdee937a5b62"
+                "reference": "50f59d1f3ca46d41ac911f97a78626b6756af35b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/deprecation-contracts/zipball/63afe740e99a13ba87ec199bb07bbdee937a5b62",
-                "reference": "63afe740e99a13ba87ec199bb07bbdee937a5b62",
+                "url": "https://api.github.com/repos/symfony/deprecation-contracts/zipball/50f59d1f3ca46d41ac911f97a78626b6756af35b",
+                "reference": "50f59d1f3ca46d41ac911f97a78626b6756af35b",
                 "shasum": ""
             },
             "require": {
@@ -4797,7 +4947,7 @@
                     "name": "symfony/contracts"
                 },
                 "branch-alias": {
-                    "dev-main": "3.6-dev"
+                    "dev-main": "3.7-dev"
                 }
             },
             "autoload": {
@@ -4822,7 +4972,7 @@
             "description": "A generic function and convention to trigger deprecation notices",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.6.0"
+                "source": "https://github.com/symfony/deprecation-contracts/tree/v3.7.0"
             },
             "funding": [
                 {
@@ -4834,11 +4984,15 @@
                     "type": "github"
                 },
                 {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
                     "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-09-25T14:21:43+00:00"
+            "time": "2026-04-13T15:52:40+00:00"
         },
         {
             "name": "symfony/error-handler",

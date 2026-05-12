@@ -21,6 +21,7 @@
         "lcobucci/clock": "^3.6",
         "lcobucci/jwt": "^5.6",
         "league/oauth2-client": "^2.9",
+        "litesaml/lightsaml": "^4.6",
         "pragmarx/google2fa": "^9.0",
         "web-auth/webauthn-lib": "^5"
     },
