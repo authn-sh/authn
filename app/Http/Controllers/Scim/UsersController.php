@@ -14,10 +14,12 @@ use App\Models\User;
 use App\Scim\ScimFilter;
 use App\Scim\ScimFilterParser;
 use App\Scim\ScimUserMapper;
+use App\Webhooks\Emitter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * SCIM 2.0 Users surface (RFC 7644). Bearer-authenticated via
@@ -88,7 +90,7 @@ final class UsersController
             return $this->scimError(409, 'uniqueness', "A User with email {$primaryEmail} already exists.");
         }
 
-        return DB::transaction(function () use ($token, $mapped, $primaryEmail, $organization): JsonResponse {
+        $result = DB::transaction(function () use ($token, $mapped, $primaryEmail, $organization): array {
             /** @var array<string, mixed> $attrs */
             $attrs = $mapped['user'];
             $attrs['environment_id'] = $token->environment_id;
@@ -132,8 +134,23 @@ final class UsersController
                 }
             }
 
-            return $this->scimResponse($this->mapper->toResource($user->fresh()), 201);
+            return ['user' => $user->fresh(), 'response' => $this->scimResponse($this->mapper->toResource($user->fresh()), 201)];
         });
+
+        Log::info('audit:auth.enterprise_sso.scim_provisioned', [
+            'environment_id' => $token->environment_id,
+            'organization_id' => $organization?->id,
+            'scim_token_id' => $token->id,
+            'user_id' => $result['user']->id,
+        ]);
+        app(Emitter::class)->emit('scimUser.provisioned', [
+            'object' => 'user_minimal',
+            'user_id' => $result['user']->id,
+            'organization_id' => $organization?->id,
+            'enterprise_connection_id' => $token->enterprise_connection_id,
+        ]);
+
+        return $result['response'];
     }
 
     public function show(Request $request): JsonResponse
@@ -158,6 +175,19 @@ final class UsersController
         }
 
         $user->delete();
+
+        Log::info('audit:auth.enterprise_sso.scim_deprovisioned', [
+            'environment_id' => $token->environment_id,
+            'organization_id' => $token->organization_id,
+            'scim_token_id' => $token->id,
+            'user_id' => $user->id,
+        ]);
+        app(Emitter::class)->emit('scimUser.deprovisioned', [
+            'object' => 'user_minimal',
+            'user_id' => $user->id,
+            'organization_id' => $token->organization_id,
+            'enterprise_connection_id' => $token->enterprise_connection_id,
+        ]);
 
         return response()->json(null, 204, ['Content-Type' => 'application/scim+json']);
     }
