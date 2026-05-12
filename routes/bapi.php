@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Bapi\AllowlistIdentifiersController;
 use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
+use App\Http\Controllers\Bapi\EnterpriseConnectionController;
 use App\Http\Controllers\Bapi\ExternalAccountController;
 use App\Http\Controllers\Bapi\InstanceAppearanceController;
 use App\Http\Controllers\Bapi\InstanceController;
@@ -116,6 +117,14 @@ Route::get('/oauth-providers/{oauth_provider_id}', [OauthProviderController::cla
 Route::patch('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'update'])->middleware(RateLimit::class.':oauth_providers.update,60,60')->name('bapi.oauth_providers.update');
 Route::delete('/oauth-providers/{oauth_provider_id}', [OauthProviderController::class, 'destroy'])->middleware(RateLimit::class.':oauth_providers.destroy,30,60')->name('bapi.oauth_providers.destroy');
 Route::post('/oauth-providers/{oauth_provider_id}/test', [OauthProviderController::class, 'test'])->middleware(RateLimit::class.':oauth_providers.test,30,60')->name('bapi.oauth_providers.test');
+
+// Enterprise connections (SAML + OIDC)
+Route::get('/enterprise-connections', [EnterpriseConnectionController::class, 'index'])->middleware(RateLimit::class.':enterprise_connections.list,300,60')->name('bapi.enterprise_connections.index');
+Route::post('/enterprise-connections', [EnterpriseConnectionController::class, 'store'])->middleware(RateLimit::class.':enterprise_connections.create,30,60')->name('bapi.enterprise_connections.store');
+Route::get('/enterprise-connections/{enterprise_connection_id}', [EnterpriseConnectionController::class, 'show'])->middleware(RateLimit::class.':enterprise_connections.read,300,60')->name('bapi.enterprise_connections.show');
+Route::patch('/enterprise-connections/{enterprise_connection_id}', [EnterpriseConnectionController::class, 'update'])->middleware(RateLimit::class.':enterprise_connections.update,60,60')->name('bapi.enterprise_connections.update');
+Route::delete('/enterprise-connections/{enterprise_connection_id}', [EnterpriseConnectionController::class, 'destroy'])->middleware(RateLimit::class.':enterprise_connections.destroy,30,60')->name('bapi.enterprise_connections.destroy');
+Route::post('/enterprise-connections/{enterprise_connection_id}/test', [EnterpriseConnectionController::class, 'test'])->middleware(RateLimit::class.':enterprise_connections.test,30,60')->name('bapi.enterprise_connections.test');
 
 // Passkeys (admin) — sdk-php SP-1 wraps this.
 Route::get('/passkeys', [PasskeyController::class, 'index'])->middleware(RateLimit::class.':passkeys.list,300,60')->name('bapi.passkeys.index');

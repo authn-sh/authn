@@ -34,7 +34,7 @@ class EnterpriseConnectionFactory extends Factory
             'saml_idp_entity_id' => 'https://idp.example.com/saml/metadata',
             'saml_sso_url' => 'https://idp.example.com/saml/sso',
             'saml_idp_certificate' => "-----BEGIN CERTIFICATE-----\nMIIBfake\n-----END CERTIFICATE-----",
-            'saml_signing_algorithm' => 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256',
+            'saml_signing_algorithm' => 'RSA_SHA256',
             'saml_audience_uri' => null,
             'saml_signing_key' => null,
             'oidc_issuer' => null,
