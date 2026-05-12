@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Sessions;
 
+use App\Auth\Jwt\JwtTemplateNotFound;
+use App\Auth\Jwt\JwtTemplateRenderer;
 use App\Models\EnterpriseAccount;
 use App\Models\Environment;
+use App\Models\JwtTemplate;
+use App\Models\Organization;
 use App\Models\OrganizationMembership;
 use App\Models\Passkey;
 use App\Models\PhoneNumber;
@@ -49,6 +53,41 @@ final class SessionTokenIssuer
     {
         $environment = $session->environment;
         $template ??= 'default';
+
+        // v0.7: a non-`default`, non-`flat` template name is a user-defined
+        // JwtTemplate. Look it up by (environment_id, name) and delegate the
+        // render to JwtTemplateRenderer. The "default" + "flat" shapes
+        // continue to ride the legacy session-token path below so v0.1+
+        // consumers don't see any shape change.
+        if ($template !== 'default' && $template !== 'flat') {
+            $row = JwtTemplate::query()
+                ->withoutGlobalScopes()
+                ->where('environment_id', $environment->id)
+                ->where('name', $template)
+                ->first();
+            if ($row === null) {
+                throw new JwtTemplateNotFound($template);
+            }
+            $jwt = (new JwtTemplateRenderer)->render(
+                $row,
+                $session->user,
+                $session,
+                $this->orgForSession($session),
+            );
+            $expiresAt = now()->addSeconds($row->lifetime > 0 ? $row->lifetime : 60)->getTimestamp();
+
+            return [
+                'jwt' => $jwt,
+                'expires_at' => $expiresAt,
+                'kid' => $row->custom_signing_key !== null && $row->custom_signing_key !== ''
+                    ? $row->id
+                    : ($environment->signingKeys()
+                        ->where('status', SigningKey::STATUS_ACTIVE)
+                        ->latest('activated_at')
+                        ->value('id') ?? ''),
+            ];
+        }
+
         $shape = $this->resolveTemplateShape($environment, $template);
 
         $signingKey = $environment->signingKeys()
@@ -134,9 +173,11 @@ final class SessionTokenIssuer
 
     private function resolveTemplateShape(Environment $environment, string $template): string
     {
-        if ($template !== 'default') {
-            // Custom JWT templates land in v0.7; reject everything else for now.
-            throw new InvalidArgumentException("template_not_found:{$template}");
+        // v0.7: the named-JwtTemplate path is resolved upstream in `mint()`.
+        // What lands here is `default` (env-controlled shape) or `flat`
+        // (caller force-overrides via Session::getToken('flat')).
+        if ($template === 'flat') {
+            return 'flat';
         }
 
         $appearance = $environment->appearance ?? [];
@@ -144,6 +185,20 @@ final class SessionTokenIssuer
         $shape = is_array($sessions) ? ($sessions['session_token_template'] ?? 'default') : 'default';
 
         return $shape === 'flat' ? 'flat' : 'default';
+    }
+
+    /**
+     * Resolves the Organization to pin to the JWT-template render snapshot,
+     * if any. Picks `last_active_organization_id` when set; null otherwise.
+     */
+    private function orgForSession(Session $session): ?Organization
+    {
+        $orgId = $session->last_active_organization_id;
+        if (! is_string($orgId) || $orgId === '') {
+            return null;
+        }
+
+        return Organization::query()->withoutGlobalScopes()->find($orgId);
     }
 
     private function configForKey(SigningKey $signingKey): Configuration
