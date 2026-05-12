@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Auth\Jwt\JwtTemplateNotFound;
 use App\Concerns\HasPrefixedUlid;
 use App\Database\Scopes\EnvironmentScope;
+use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -198,5 +200,18 @@ class Session extends Model
     public function isImpersonation(): bool
     {
         return $this->actor !== null;
+    }
+
+    /**
+     * Mint a session JWT. With `$template = null` (or `'default'`), returns
+     * the env-default session token shape. With a custom `$template` name,
+     * resolves the matching `JwtTemplate` row and renders custom claims via
+     * `JwtTemplateRenderer`.
+     *
+     * @throws JwtTemplateNotFound when the supplied template name has no matching JwtTemplate row in this environment.
+     */
+    public function getToken(?string $template = null): string
+    {
+        return app(SessionTokenIssuer::class)->mint($this, $template)['jwt'];
     }
 }

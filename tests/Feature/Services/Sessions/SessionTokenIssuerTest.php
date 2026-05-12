@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Auth\Jwt\JwtTemplateNotFound;
 use App\Models\Client;
 use App\Models\Environment;
 use App\Models\Project;
@@ -89,12 +90,12 @@ it('honours per-environment lifetime override via appearance.sessions.lifetime_s
     expect($minted['expires_at'] - now()->getTimestamp())->toBeLessThanOrEqual(601);
 });
 
-it('throws template_not_found for any template name other than default', function (): void {
+it('throws JwtTemplateNotFound for a custom template name that has no matching row', function (): void {
     $f = tokenFixture();
     $issuer = app(SessionTokenIssuer::class);
 
     expect(fn () => $issuer->mint($f['session'], 'supabase'))
-        ->toThrow(InvalidArgumentException::class, 'template_not_found:supabase');
+        ->toThrow(JwtTemplateNotFound::class);
 });
 
 it('uses the latest active SigningKey for signing', function (): void {
