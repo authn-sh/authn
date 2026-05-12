@@ -25,9 +25,10 @@ class OauthApplicationFactory extends Factory
         $secret = OauthApplication::mintClientSecret();
 
         return [
-            // environment_id supplied by caller.
+            // environment_id supplied by caller. `client_id` is set on
+            // `creating` from the row id — the factory leaves it to the
+            // boot hook so test rows never desync.
             'name' => 'App '.$this->faker->unique()->lexify('????????'),
-            'client_id' => OauthApplication::mintClientId(),
             'hashed_client_secret' => $secret['hash'],
             'callback_urls' => ['https://example.test/oauth/callback'],
             'scopes' => ['openid', 'profile', 'email'],

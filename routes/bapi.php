@@ -12,6 +12,7 @@ use App\Http\Controllers\Bapi\InstanceController;
 use App\Http\Controllers\Bapi\InstanceLocalizationController;
 use App\Http\Controllers\Bapi\InvitationsController;
 use App\Http\Controllers\Bapi\JwtTemplateController;
+use App\Http\Controllers\Bapi\OauthApplicationController;
 use App\Http\Controllers\Bapi\OauthProviderController;
 use App\Http\Controllers\Bapi\OrganizationController;
 use App\Http\Controllers\Bapi\OrganizationDomainChallengeController;
@@ -101,6 +102,15 @@ Route::post('/jwt-templates', [JwtTemplateController::class, 'store'])->middlewa
 Route::get('/jwt-templates/{jwt_template_id}', [JwtTemplateController::class, 'show'])->middleware(RateLimit::class.':jwt_templates.read,300,60')->name('bapi.jwt_templates.show');
 Route::patch('/jwt-templates/{jwt_template_id}', [JwtTemplateController::class, 'update'])->middleware(RateLimit::class.':jwt_templates.update,60,60')->name('bapi.jwt_templates.update');
 Route::delete('/jwt-templates/{jwt_template_id}', [JwtTemplateController::class, 'destroy'])->middleware(RateLimit::class.':jwt_templates.destroy,30,60')->name('bapi.jwt_templates.destroy');
+
+// OAuth applications (OA-2). Confidential clients only see plaintext
+// client_secret on create + rotate-secret; every other read masks it.
+Route::get('/oauth-applications', [OauthApplicationController::class, 'index'])->middleware(RateLimit::class.':oauth_applications.list,300,60')->name('bapi.oauth_applications.index');
+Route::post('/oauth-applications', [OauthApplicationController::class, 'store'])->middleware(RateLimit::class.':oauth_applications.create,30,60')->name('bapi.oauth_applications.store');
+Route::get('/oauth-applications/{oauth_application_id}', [OauthApplicationController::class, 'show'])->middleware(RateLimit::class.':oauth_applications.read,300,60')->name('bapi.oauth_applications.show');
+Route::patch('/oauth-applications/{oauth_application_id}', [OauthApplicationController::class, 'update'])->middleware(RateLimit::class.':oauth_applications.update,60,60')->name('bapi.oauth_applications.update');
+Route::delete('/oauth-applications/{oauth_application_id}', [OauthApplicationController::class, 'destroy'])->middleware(RateLimit::class.':oauth_applications.destroy,30,60')->name('bapi.oauth_applications.destroy');
+Route::post('/oauth-applications/{oauth_application_id}/rotate-secret', [OauthApplicationController::class, 'rotateSecret'])->middleware(RateLimit::class.':oauth_applications.rotate,10,60')->name('bapi.oauth_applications.rotate_secret');
 
 // Webhooks
 Route::get('/webhooks/endpoints', [WebhookEndpointsController::class, 'index'])->middleware(RateLimit::class.':webhooks.list,300,60');

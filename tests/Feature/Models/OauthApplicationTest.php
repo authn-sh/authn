@@ -20,7 +20,7 @@ function makeEnvForOauthApp(string $slug = 'env'): Environment
     ]);
 }
 
-it('mints an oac_ prefixed id and an oac_pub_ prefixed client_id', function (): void {
+it('mints an oac_ prefixed id and derives client_id deterministically', function (): void {
     $env = makeEnvForOauthApp();
 
     $app = OauthApplication::factory()->create([
@@ -29,18 +29,19 @@ it('mints an oac_ prefixed id and an oac_pub_ prefixed client_id', function (): 
     ]);
 
     expect($app->id)->toStartWith('oac_');
-    expect($app->client_id)->toStartWith('oac_pub_');
+    expect($app->client_id)->toBe('oac_pub_'.substr($app->id, strlen('oac_')));
     expect($app->callback_urls)->toBe(['https://example.test/oauth/callback']);
     expect($app->scopes)->toBe(['openid', 'profile', 'email']);
     expect($app->is_public)->toBeFalse();
 });
 
-it('mints a hashed client secret + verifies the plaintext + hides hashed_client_secret', function (): void {
+it('mints an Argon2id-hashed client secret + verifies the plaintext + hides hashed_client_secret', function (): void {
     $env = makeEnvForOauthApp();
     $secret = OauthApplication::mintClientSecret();
 
-    expect($secret['plaintext'])->toStartWith('oac_sec_');
-    expect($secret['hash'])->toBe(hash('sha256', $secret['plaintext']));
+    expect($secret['plaintext'])->toStartWith('osec_');
+    // Argon2id stamps `$argon2id$...` at the start of the encoded hash.
+    expect($secret['hash'])->toStartWith('$argon2id$');
 
     $app = OauthApplication::factory()->create([
         'environment_id' => $env->id,

@@ -40,7 +40,7 @@ class OauthApplication extends Model
 
     public const CLIENT_ID_PREFIX = 'oac_pub_';
 
-    public const SECRET_PREFIX = 'oac_sec_';
+    public const SECRET_PREFIX = 'osec_';
 
     public const SECRET_BYTES = 32;
 
@@ -75,6 +75,15 @@ class OauthApplication extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new EnvironmentScope);
+
+        // `client_id` is deterministic from the row id so it survives any
+        // rotation of credentials or row metadata. Callers can override on
+        // create, but the default flow doesn't need to think about it.
+        static::creating(function (self $app): void {
+            if (empty($app->getAttribute('client_id')) && ! empty($app->getAttribute('id'))) {
+                $app->setAttribute('client_id', self::clientIdFor((string) $app->getAttribute('id')));
+            }
+        });
     }
 
     protected static function newFactory(): OauthApplicationFactory
@@ -93,17 +102,19 @@ class OauthApplication extends Model
     }
 
     /**
-     * Mint a fresh public `client_id`. Always called on create so callers
-     * never have to remember the prefix discipline.
+     * Derive the public `client_id` from an OauthApplication ULID. The
+     * ULID body (the 26 Crockford-base32 chars after `oac_`) is re-prefixed
+     * with `oac_pub_` so the public identifier is visually distinct from
+     * the internal row id while remaining stable across rotations.
      */
-    public static function mintClientId(): string
+    public static function clientIdFor(string $id): string
     {
-        return self::CLIENT_ID_PREFIX.Base64Url::encode(random_bytes(16));
+        return self::CLIENT_ID_PREFIX.substr($id, strlen('oac_'));
     }
 
     /**
      * Mint a fresh plaintext client secret and return both it and its
-     * sha256 hash. Callers persist the hash; the plaintext is shown to
+     * Argon2id hash. Callers persist the hash; the plaintext is shown to
      * the operator exactly once at create / rotate time.
      *
      * @return array{plaintext: string, hash: string}
@@ -111,23 +122,28 @@ class OauthApplication extends Model
     public static function mintClientSecret(): array
     {
         $plaintext = self::SECRET_PREFIX.Base64Url::encode(random_bytes(self::SECRET_BYTES));
+        $hash = password_hash($plaintext, PASSWORD_ARGON2ID);
+        if (! is_string($hash)) {
+            throw new \RuntimeException('password_hash(PASSWORD_ARGON2ID) failed');
+        }
 
         return [
             'plaintext' => $plaintext,
-            'hash' => hash('sha256', $plaintext),
+            'hash' => $hash,
         ];
     }
 
     /**
      * Constant-time check of a plaintext client secret against the stored
-     * hash. Returns false for public clients (no secret on file).
+     * Argon2id hash. Returns false for public clients (no secret on file)
+     * or when the row has been rotated since the secret was issued.
      */
     public function verifyClientSecret(string $plaintext): bool
     {
-        if ($this->is_public || $this->hashed_client_secret === null) {
+        if ($this->is_public || $this->hashed_client_secret === null || $this->hashed_client_secret === '') {
             return false;
         }
 
-        return hash_equals($this->hashed_client_secret, hash('sha256', $plaintext));
+        return password_verify($plaintext, $this->hashed_client_secret);
     }
 }
