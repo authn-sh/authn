@@ -21,6 +21,7 @@ use App\Http\Controllers\Fapi\MeTotpController;
 use App\Http\Controllers\Fapi\OauthAuthorizeController;
 use App\Http\Controllers\Fapi\OauthCallbackController;
 use App\Http\Controllers\Fapi\OauthConsentController;
+use App\Http\Controllers\Fapi\OauthTokenController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
 use App\Http\Controllers\Fapi\OrganizationEnterpriseConnectionController;
 use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
@@ -69,6 +70,11 @@ Route::withoutMiddleware([EnforceFapiOrigin::class])->group(function (): void {
     // is set on every response per RFC 6749 §5.1.
     Route::get('/oauth/authorize', OauthAuthorizeController::class)
         ->name('fapi.oauth.authorize');
+
+    // AU-7: token + introspection. Server-to-server (no Origin); confidential
+    // clients authenticate via Basic auth / post creds, public via PKCE.
+    Route::post('/oauth/token', [OauthTokenController::class, 'token'])->name('fapi.oauth.token');
+    Route::post('/oauth/token_info', [OauthTokenController::class, 'tokenInfo'])->name('fapi.oauth.token_info');
 });
 
 // SCIM 2.0 server (RFC 7644). Bearer-authenticated; the SCIM client is the
