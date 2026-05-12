@@ -11,6 +11,7 @@ use App\Http\Controllers\Bapi\InstanceAppearanceController;
 use App\Http\Controllers\Bapi\InstanceController;
 use App\Http\Controllers\Bapi\InstanceLocalizationController;
 use App\Http\Controllers\Bapi\InvitationsController;
+use App\Http\Controllers\Bapi\JwtTemplateController;
 use App\Http\Controllers\Bapi\OauthProviderController;
 use App\Http\Controllers\Bapi\OrganizationController;
 use App\Http\Controllers\Bapi\OrganizationDomainChallengeController;
@@ -93,6 +94,13 @@ Route::get('/redirect-urls', [RedirectUrlsController::class, 'index'])->middlewa
 Route::post('/redirect-urls', [RedirectUrlsController::class, 'store'])->middleware(RateLimit::class.':redirect_urls.create,60,60');
 Route::get('/redirect-urls/{id}', [RedirectUrlsController::class, 'show'])->middleware(RateLimit::class.':redirect_urls.read,300,60');
 Route::delete('/redirect-urls/{id}', [RedirectUrlsController::class, 'destroy'])->middleware(RateLimit::class.':redirect_urls.destroy,60,60');
+
+// JWT templates (OA-1).
+Route::get('/jwt-templates', [JwtTemplateController::class, 'index'])->middleware(RateLimit::class.':jwt_templates.list,300,60')->name('bapi.jwt_templates.index');
+Route::post('/jwt-templates', [JwtTemplateController::class, 'store'])->middleware(RateLimit::class.':jwt_templates.create,30,60')->name('bapi.jwt_templates.store');
+Route::get('/jwt-templates/{jwt_template_id}', [JwtTemplateController::class, 'show'])->middleware(RateLimit::class.':jwt_templates.read,300,60')->name('bapi.jwt_templates.show');
+Route::patch('/jwt-templates/{jwt_template_id}', [JwtTemplateController::class, 'update'])->middleware(RateLimit::class.':jwt_templates.update,60,60')->name('bapi.jwt_templates.update');
+Route::delete('/jwt-templates/{jwt_template_id}', [JwtTemplateController::class, 'destroy'])->middleware(RateLimit::class.':jwt_templates.destroy,30,60')->name('bapi.jwt_templates.destroy');
 
 // Webhooks
 Route::get('/webhooks/endpoints', [WebhookEndpointsController::class, 'index'])->middleware(RateLimit::class.':webhooks.list,300,60');
