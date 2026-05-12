@@ -1,4 +1,5 @@
 import { Link, useForm, usePage } from '@inertiajs/react'
+import * as React from 'react'
 import { useDashboard, useDashboardUrl } from '../shared'
 
 type MultiFactorSettings = {
@@ -948,6 +949,9 @@ function AppearanceSection({ appearance }: { appearance: AppearanceShape }) {
     const url = useDashboardUrl()
     const { active_project, active_environment } = useDashboard()
     const { props: pageProps } = usePage<{ flash?: { appearance_saved?: boolean } }>()
+    const [previewUrl, setPreviewUrl] = React.useState<string | null>(null)
+    const [previewError, setPreviewError] = React.useState<string | null>(null)
+    const [previewing, setPreviewing] = React.useState(false)
 
     const initialElementsObj = (appearance.elements ?? {}) as Record<string, string>
     const initial = {
@@ -1147,9 +1151,57 @@ function AppearanceSection({ appearance }: { appearance: AppearanceShape }) {
                     </div>
                 </details>
 
-                <button type="submit" disabled={form.processing}>
-                    {form.processing ? 'Saving…' : 'Save appearance'}
-                </button>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <button type="submit" disabled={form.processing}>
+                        {form.processing ? 'Saving…' : 'Save appearance'}
+                    </button>
+                    <button
+                        type="button"
+                        disabled={previewing || !parsedElements.ok}
+                        onClick={async () => {
+                            setPreviewError(null)
+                            setPreviewing(true)
+                            try {
+                                const res = await fetch(url(`${base}/appearance/preview`), {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                                    credentials: 'same-origin',
+                                    body: JSON.stringify({
+                                        variables: form.data.variables,
+                                        elements: parsedElements.ok ? parsedElements.value : {},
+                                        layout: form.data.layout,
+                                    }),
+                                })
+                                if (!res.ok) {
+                                    throw new Error(`preview request failed (${res.status})`)
+                                }
+                                const body = await res.json()
+                                setPreviewUrl(String(body.preview_url ?? ''))
+                            } catch (err) {
+                                setPreviewError((err as Error).message)
+                            } finally {
+                                setPreviewing(false)
+                            }
+                        }}
+                    >
+                        {previewing ? 'Preparing…' : 'Preview in <SignIn />'}
+                    </button>
+                    {previewError && <span style={{ color: '#b91c1c', fontSize: 12 }}>{previewError}</span>}
+                </div>
+
+                {previewUrl && (
+                    <div style={{ marginTop: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                        <p style={{ fontSize: 12, color: '#475569', marginBottom: 8 }}>
+                            Preview against the unsaved draft. Token expires in 5 minutes.
+                        </p>
+                        <iframe
+                            title="Appearance preview"
+                            src={previewUrl}
+                            style={{ width: '100%', minHeight: 480, border: '1px solid #cbd5e1', borderRadius: 4 }}
+                            sandbox="allow-scripts allow-same-origin"
+                        />
+                    </div>
+                )}
             </form>
         </div>
     )
