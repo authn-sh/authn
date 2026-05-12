@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\Validator;
  *
  *   GET    /v1/organizations/{org_id}/scim/tokens
  *   POST   /v1/organizations/{org_id}/scim/tokens
- *   POST   /v1/organizations/{org_id}/scim/tokens/{token_id}/revoke
+ *   POST   /v1/organizations/{org_id}/scim/tokens/{scim_token_id}/revoke
  *   GET    /v1/organizations/{org_id}/scim/attribute-mappings
  *   PUT    /v1/organizations/{org_id}/scim/attribute-mappings
  *   GET    /v1/organizations/{org_id}/scim/endpoint
@@ -62,35 +62,33 @@ final class OrganizationScimController
 
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|min:1|max:100',
-            'expires_at' => 'nullable|date',
-            'enterprise_connection_id' => 'nullable|string',
-            'created_by_user_id' => 'nullable|string',
         ]);
         if ($validator->fails()) {
             return $this->validationError($validator->errors()->toArray());
         }
         $data = $validator->validated();
 
-        // Operator-scoped: BAPI callers don't ride a session, so `created_by`
-        // is optional. When supplied, it must point at a user in this env;
-        // otherwise we fall back to the first existing user (so the FK
-        // constraint can be honoured without forcing a synthetic user).
-        $createdById = $this->resolveCreatedBy($env, $data['created_by_user_id'] ?? null);
+        // BAPI is bearer-secret authenticated, not session-authenticated, so
+        // there's no "current user" to attribute the issue to. Fall back to
+        // the first user that already exists in the env to honour the FK
+        // constraint; operators that need a specific attribution can do it
+        // via FAPI.
+        $createdById = $this->resolveCreatedBy($env);
         if ($createdById === null) {
-            return $this->error(422, 'created_by_user_id_required',
-                'No user exists in this environment to attribute the token to; pass `created_by_user_id` explicitly.');
+            return $this->error(422, 'no_user_to_attribute',
+                'Cannot issue a SCIM token in an environment with no users — create one first.');
         }
 
         $minted = ScimToken::mintPlaintext();
         $row = ScimToken::query()->withoutGlobalScopes()->create([
             'environment_id' => $env->id,
             'organization_id' => $org->id,
-            'enterprise_connection_id' => $data['enterprise_connection_id'] ?? null,
+            'enterprise_connection_id' => null,
             'hashed_token' => $minted['hash'],
             'prefix' => $minted['prefix'],
             'name' => $data['name'],
             'created_by_user_id' => $createdById,
-            'expires_at' => $data['expires_at'] ?? null,
+            'expires_at' => null,
         ]);
 
         Log::info('audit:bapi.scim_token.issued', [
@@ -107,7 +105,7 @@ final class OrganizationScimController
         ), 201)->header('Cache-Control', 'no-store');
     }
 
-    public function revokeToken(Request $request, string $organizationId, string $tokenId): JsonResponse
+    public function revokeToken(Request $request, string $organizationId, string $scimTokenId): JsonResponse
     {
         $env = app(Environment::class);
         $org = $this->findOrganization($env, $organizationId);
@@ -118,10 +116,10 @@ final class OrganizationScimController
         $row = ScimToken::query()->withoutGlobalScopes()
             ->where('environment_id', $env->id)
             ->where('organization_id', $org->id)
-            ->where('id', $tokenId)
+            ->where('id', $scimTokenId)
             ->first();
         if ($row === null) {
-            return $this->error(404, 'scim_token_not_found', "ScimToken {$tokenId} not found.");
+            return $this->error(404, 'scim_token_not_found', "ScimToken {$scimTokenId} not found.");
         }
         $row->revoke();
 
@@ -198,11 +196,10 @@ final class OrganizationScimController
             return $this->error(404, 'organization_not_found', "Organization {$organizationId} not found.");
         }
 
+        // Per OA-6: response is `{endpoint_url}` only, trailing slash. The
+        // IdP appends `/Users` / `/Groups` itself per SCIM RFC 7644.
         return response()->json([
-            'organization_id' => $org->id,
-            'endpoint_url' => Url::fapi($env, '/scim/v2'),
-            'users_url' => Url::fapi($env, '/scim/v2/Users'),
-            'groups_url' => Url::fapi($env, '/scim/v2/Groups'),
+            'endpoint_url' => rtrim(Url::fapi($env, '/scim/v2'), '/').'/',
         ])->header('Cache-Control', 'no-store');
     }
 
@@ -214,19 +211,8 @@ final class OrganizationScimController
             ->first();
     }
 
-    private function resolveCreatedBy(Environment $env, ?string $requested): ?string
+    private function resolveCreatedBy(Environment $env): ?string
     {
-        if ($requested !== null && $requested !== '') {
-            $exists = User::query()->withoutGlobalScopes()
-                ->where('environment_id', $env->id)
-                ->where('id', $requested)
-                ->exists();
-
-            return $exists ? $requested : null;
-        }
-
-        // Fall back to any existing user in the env so the FK constraint
-        // is honoured without forcing operators to supply one explicitly.
         return User::query()->withoutGlobalScopes()
             ->where('environment_id', $env->id)
             ->orderBy('id')
@@ -239,16 +225,13 @@ final class OrganizationScimController
     private function tokenShape(ScimToken $row): array
     {
         return [
-            'object' => 'scim_token',
             'id' => $row->id,
+            'object' => 'scim_token',
             'organization_id' => $row->organization_id,
-            'enterprise_connection_id' => $row->enterprise_connection_id,
             'name' => $row->name,
             'prefix' => $row->prefix,
-            'expires_at' => $row->expires_at?->getTimestampMs(),
-            'revoked_at' => $row->revoked_at?->getTimestampMs(),
-            'last_used_at' => $row->last_used_at?->getTimestampMs(),
             'created_at' => $row->created_at?->getTimestampMs(),
+            'revoked_at' => $row->revoked_at?->getTimestampMs(),
         ];
     }
 

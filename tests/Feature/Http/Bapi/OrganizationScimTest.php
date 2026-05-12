@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Models\Organization;
 use App\Models\ScimAttributeMapping;
-use App\Models\ScimToken;
 use App\Models\User;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 
@@ -74,26 +73,19 @@ it('returns 404 for an org outside the env', function (): void {
     $r->assertStatus(404)->assertJsonPath('errors.0.code', 'organization_not_found');
 });
 
-it('honours an explicit created_by_user_id and rejects unknown users', function (): void {
-    $f = makeOrgForScimBapi();
-    $otherEnvUser = User::create(['environment_id' => $f['env']->id]); // same env, ok
+it('refuses issuance in an env that has no users to attribute the token to', function (): void {
+    $f = BapiTestSupport::bootEnv('empty');
+    $org = Organization::create([
+        'environment_id' => $f['env']->id,
+        'name' => 'Empty Co',
+        'slug' => 'empty-co',
+    ]);
 
     $r = $this->withHeaders(BapiTestSupport::headers($f['token']))
-        ->postJson(BapiTestSupport::url('/organizations/'.$f['org']->id.'/scim/tokens'), [
-            'name' => 'pinned',
-            'created_by_user_id' => $otherEnvUser->id,
+        ->postJson(BapiTestSupport::url('/organizations/'.$org->id.'/scim/tokens'), [
+            'name' => 'attempt',
         ]);
-    $r->assertCreated();
-
-    $row = ScimToken::query()->withoutGlobalScopes()->where('id', $r->json('id'))->first();
-    expect($row?->created_by_user_id)->toBe($otherEnvUser->id);
-
-    $r = $this->withHeaders(BapiTestSupport::headers($f['token']))
-        ->postJson(BapiTestSupport::url('/organizations/'.$f['org']->id.'/scim/tokens'), [
-            'name' => 'bad',
-            'created_by_user_id' => 'user_nonexistent',
-        ]);
-    $r->assertStatus(422)->assertJsonPath('errors.0.code', 'created_by_user_id_required');
+    $r->assertStatus(422)->assertJsonPath('errors.0.code', 'no_user_to_attribute');
 });
 
 it('reads + replaces attribute mappings', function (): void {
@@ -141,7 +133,6 @@ it('exposes the SCIM endpoint URL for the org', function (): void {
     $r = $this->withHeaders(BapiTestSupport::headers($f['token']))
         ->getJson(BapiTestSupport::url('/organizations/'.$f['org']->id.'/scim/endpoint'));
     $r->assertOk()
-        ->assertJsonPath('organization_id', $f['org']->id)
-        ->assertJsonStructure(['endpoint_url', 'users_url', 'groups_url']);
-    expect($r->json('users_url'))->toContain('/scim/v2/Users');
+        ->assertJsonStructure(['endpoint_url']);
+    expect($r->json('endpoint_url'))->toEndWith('/scim/v2/');
 });
