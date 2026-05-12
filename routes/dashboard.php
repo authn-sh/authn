@@ -50,6 +50,8 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::patch('/configure/oauth-providers/{oauth_provider_id}', [DashboardController::class, 'updateOauthProvider'])->name('dashboard.configure.oauth_providers.update');
     Route::delete('/configure/oauth-providers/{oauth_provider_id}', [DashboardController::class, 'destroyOauthProvider'])->name('dashboard.configure.oauth_providers.destroy');
     Route::post('/configure/oauth-providers/{oauth_provider_id}/test', [DashboardController::class, 'testOauthProvider'])->name('dashboard.configure.oauth_providers.test');
+    Route::post('/configure/enterprise-connections', [DashboardController::class, 'storeEnterpriseConnection'])->name('dashboard.configure.enterprise_connections.store');
+    Route::delete('/configure/enterprise-connections/{enterprise_connection_id}', [DashboardController::class, 'destroyEnterpriseConnection'])->name('dashboard.configure.enterprise_connections.destroy');
     Route::get('/email-templates', [DashboardController::class, 'emailTemplates'])->name('dashboard.email_templates');
 
     Route::get('/api-keys', [DashboardController::class, 'apiKeys'])->name('dashboard.api_keys');

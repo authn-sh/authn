@@ -14,6 +14,8 @@ use App\Models\AllowlistIdentifier;
 use App\Models\ApiKey;
 use App\Models\BlocklistIdentifier;
 use App\Models\EmailTemplate;
+use App\Models\EnterpriseAccount;
+use App\Models\EnterpriseConnection;
 use App\Models\Environment;
 use App\Models\ExternalAccount;
 use App\Models\Invitation;
@@ -279,6 +281,13 @@ final class DashboardController
             ->orderBy('provider_key')
             ->get();
 
+        $enterpriseRows = EnterpriseConnection::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->orderBy('organization_id')
+            ->orderBy('protocol')
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Dashboard/Configure', [
             'section' => $section,
             'user_settings' => $userSettings,
@@ -308,6 +317,7 @@ final class DashboardController
             ])->all(),
             'oauth_providers' => $oauthRows->map(fn (OauthProvider $p) => $this->oauthRowShape($p))->all(),
             'oauth_preset_keys' => $this->oauthPresets->keys(),
+            'enterprise_connections' => $enterpriseRows->map(fn (EnterpriseConnection $c) => $this->enterpriseConnectionRowShape($c))->all(),
             'localization' => $this->localizationShape($env),
             'localization_canonical' => [
                 'shipped_locales' => CanonicalSchema::SHIPPED_LOCALES,
@@ -1235,5 +1245,115 @@ final class DashboardController
             ->where('is_system', false)
             ->orderBy('created_at')
             ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function enterpriseConnectionRowShape(EnterpriseConnection $row): array
+    {
+        $accountsCount = EnterpriseAccount::query()->withoutGlobalScopes()
+            ->where('enterprise_connection_id', $row->id)
+            ->count();
+
+        return [
+            'id' => $row->id,
+            'protocol' => $row->protocol,
+            'name' => $row->name,
+            'enabled' => (bool) $row->enabled,
+            'organization_id' => $row->organization_id,
+            'domains' => is_array($row->domains) ? array_values($row->domains) : [],
+            'default_role' => $row->default_role,
+            'saml_idp_entity_id' => $row->saml_idp_entity_id,
+            'saml_sso_url' => $row->saml_sso_url,
+            'saml_signing_algorithm' => $row->saml_signing_algorithm,
+            'oidc_issuer' => $row->oidc_issuer,
+            'oidc_client_id' => $row->oidc_client_id,
+            'oidc_scopes' => is_array($row->oidc_scopes) ? array_values($row->oidc_scopes) : [],
+            'linked_accounts_count' => $accountsCount,
+            'created_at' => $row->created_at?->getTimestampMs(),
+        ];
+    }
+
+    public function storeEnterpriseConnection(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $request->validate([
+            'protocol' => ['required', Rule::in(EnterpriseConnection::PROTOCOLS)],
+            'name' => ['required', 'string', 'max:255'],
+            'domains' => ['nullable', 'array'],
+            'domains.*' => ['string'],
+            'default_role' => ['nullable', 'string', 'max:255'],
+            'saml_idp_entity_id' => ['nullable', 'string', 'max:512'],
+            'saml_sso_url' => ['nullable', 'url', 'max:512'],
+            'saml_idp_certificate' => ['nullable', 'string'],
+            'saml_signing_algorithm' => ['nullable', 'string', 'max:128'],
+            'oidc_issuer' => ['nullable', 'url', 'max:512'],
+            'oidc_client_id' => ['nullable', 'string', 'max:255'],
+            'oidc_client_secret' => ['nullable', 'string'],
+            'oidc_scopes' => ['nullable', 'array'],
+            'enabled' => ['nullable', 'boolean'],
+        ]);
+
+        $protocol = (string) $request->input('protocol');
+        $payload = [
+            'environment_id' => $env->id,
+            'protocol' => $protocol,
+            'name' => (string) $request->input('name'),
+            'enabled' => $request->boolean('enabled', true),
+            'domains' => is_array($request->input('domains')) ? $request->input('domains') : [],
+            'default_role' => $request->input('default_role'),
+        ];
+        if ($protocol === EnterpriseConnection::PROTOCOL_SAML) {
+            $payload += [
+                'saml_idp_entity_id' => (string) $request->input('saml_idp_entity_id'),
+                'saml_sso_url' => (string) $request->input('saml_sso_url'),
+                'saml_idp_certificate' => (string) $request->input('saml_idp_certificate'),
+                'saml_signing_algorithm' => $request->input('saml_signing_algorithm') ?: 'RSA_SHA256',
+            ];
+        } else {
+            $payload += [
+                'oidc_issuer' => (string) $request->input('oidc_issuer'),
+                'oidc_client_id' => (string) $request->input('oidc_client_id'),
+                'oidc_client_secret' => (string) $request->input('oidc_client_secret'),
+                'oidc_scopes' => is_array($request->input('oidc_scopes')) ? $request->input('oidc_scopes') : ['openid', 'email', 'profile'],
+            ];
+        }
+
+        EnterpriseConnection::query()->withoutGlobalScopes()->create($payload);
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/enterprise-sso")
+            ->with('enterprise_connection_saved', true);
+    }
+
+    public function destroyEnterpriseConnection(Request $request, string $project_slug, string $env_slug, string $enterprise_connection_id): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $conn = EnterpriseConnection::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('id', $enterprise_connection_id)
+            ->first();
+        if ($conn !== null) {
+            $linked = EnterpriseAccount::query()->withoutGlobalScopes()
+                ->where('enterprise_connection_id', $conn->id)
+                ->exists();
+            if ($linked) {
+                return redirect()->back()->withErrors([
+                    'enterprise_connection' => 'Cannot delete — accounts are still linked. Unlink users first.',
+                ]);
+            }
+            $conn->delete();
+        }
+
+        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/enterprise-sso")
+            ->with('enterprise_connection_deleted', true);
     }
 }
