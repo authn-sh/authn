@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Bapi;
 
+use App\Auth\Jwt\JwtTemplateNotFound;
 use App\Models\Environment;
 use App\Models\Session;
 use App\Models\SessionActivity;
@@ -11,7 +12,6 @@ use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use InvalidArgumentException;
 
 /**
  * BAPI sessions surface.
@@ -89,11 +89,8 @@ final class SessionsController
 
         try {
             $minted = $this->issuer->mint($session, is_string($template) ? $template : null, $request);
-        } catch (InvalidArgumentException $e) {
-            if (str_starts_with($e->getMessage(), 'template_not_found:')) {
-                return $this->error(404, 'template_not_found', 'JWT template '.substr($e->getMessage(), strlen('template_not_found:')).' is not configured (custom JWT templates land in v0.7).');
-            }
-            throw $e;
+        } catch (JwtTemplateNotFound $e) {
+            return $this->error(404, 'template_not_found', "JWT template `{$e->templateName}` is not configured for this environment.");
         }
 
         return response()->json([

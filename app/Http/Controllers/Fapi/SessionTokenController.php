@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Fapi;
 
+use App\Auth\Jwt\JwtTemplateNotFound;
 use App\Models\Client;
 use App\Models\Session;
 use App\Models\User;
@@ -13,7 +14,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
-use InvalidArgumentException;
 
 /**
  * `POST /v1/client/sessions/{sid}/tokens[/{template}]`
@@ -89,11 +89,8 @@ final class SessionTokenController
 
         try {
             $minted = $this->issuer->mint($session, $template, $request);
-        } catch (InvalidArgumentException $e) {
-            if (str_starts_with($e->getMessage(), 'template_not_found:')) {
-                return $this->error(404, 'template_not_found', 'JWT template '.substr($e->getMessage(), strlen('template_not_found:')).' is not configured (custom JWT templates land in v0.7).');
-            }
-            throw $e;
+        } catch (JwtTemplateNotFound $e) {
+            return $this->error(404, 'template_not_found', "JWT template `{$e->templateName}` is not configured for this environment.");
         }
 
         if ($user !== null) {
