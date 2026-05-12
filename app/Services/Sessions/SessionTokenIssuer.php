@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Sessions;
 
+use App\Models\EnterpriseAccount;
 use App\Models\Environment;
 use App\Models\OrganizationMembership;
 use App\Models\Passkey;
@@ -90,6 +91,12 @@ final class SessionTokenIssuer
         $builder = $builder->withClaim('pnv', $this->phoneNumberVerified($session));
         $builder = $builder->withClaim('pkv', $this->passkeyVerified($session));
         $builder = $builder->withClaim('pkc', $this->passkeyCount($session));
+
+        $enterprise = $this->enterpriseClaims($session);
+        if ($enterprise !== null) {
+            $builder = $builder->withClaim('entcon', $enterprise['entcon']);
+            $builder = $builder->withClaim('entacc', $enterprise['entacc']);
+        }
 
         $dsf = $this->defaultSecondFactor($session);
         if ($dsf !== null) {
@@ -232,6 +239,52 @@ final class SessionTokenIssuer
             ->where('strategy', Verification::STRATEGY_PASSKEY)
             ->where('status', Verification::STATUS_VERIFIED)
             ->exists();
+    }
+
+    /**
+     * Compact enterprise-SSO state for downstream SDK consumers (sdk-php
+     * SP-3, sdk-node JS-8). Only emits when the SignInAttempt that
+     * produced this session was verified via the `enterprise_sso` /
+     * `saml` strategy AND the matching `EnterpriseAccount` row is still
+     * live. Returns null otherwise so the claims are absent from the JWT.
+     *
+     * @return array{entcon: string, entacc: string}|null
+     */
+    private function enterpriseClaims(Session $session): ?array
+    {
+        $attempt = SignInAttempt::query()
+            ->withoutGlobalScopes()
+            ->where('created_session_id', $session->id)
+            ->first();
+        if ($attempt === null) {
+            return null;
+        }
+
+        $verification = Verification::query()
+            ->withoutGlobalScopes()
+            ->where('verifiable_type', $attempt->getMorphClass())
+            ->where('verifiable_id', $attempt->id)
+            ->whereIn('strategy', [Verification::STRATEGY_ENTERPRISE_SSO, Verification::STRATEGY_SAML])
+            ->where('status', Verification::STATUS_VERIFIED)
+            ->latest('id')
+            ->first();
+        if ($verification === null) {
+            return null;
+        }
+
+        $account = EnterpriseAccount::query()
+            ->withoutGlobalScopes()
+            ->where('user_id', $session->user_id)
+            ->latest('last_signed_in_at')
+            ->first();
+        if ($account === null) {
+            return null;
+        }
+
+        return [
+            'entcon' => $account->enterprise_connection_id,
+            'entacc' => $account->id,
+        ];
     }
 
     /**
