@@ -806,14 +806,130 @@ const LAYOUT_KEYS = [
     'animations',
 ] as const
 
+const CANONICAL_ELEMENT_KEYS = [
+    'signIn.root',
+    'signIn.card',
+    'signIn.header',
+    'signIn.title',
+    'signIn.formButtonPrimary',
+    'signIn.formFieldInput',
+    'signIn.identifierField',
+    'signIn.passwordField',
+    'signIn.socialButtonsRoot',
+    'signIn.socialButton',
+    'signUp.root',
+    'signUp.card',
+    'signUp.header',
+    'signUp.title',
+    'signUp.formButtonPrimary',
+    'signUp.formFieldInput',
+    'userProfile.root',
+    'userProfile.section',
+    'userProfile.sectionTitle',
+    'userProfile.row',
+    'userButton.root',
+    'userButton.avatar',
+    'userButton.menu',
+    'organizationProfile.root',
+    'organizationProfile.section',
+    'organizationProfile.sectionTitle',
+    'organizationSwitcher.root',
+    'organizationSwitcher.trigger',
+    'organizationSwitcher.menu',
+    'button.primary',
+    'button.secondary',
+    'button.ghost',
+    'button.danger',
+    'card.root',
+    'dialog.overlay',
+    'dialog.content',
+    'dialog.title',
+    'dialog.description',
+    'input.root',
+    'label.root',
+    'field.root',
+    'form.root',
+    'helperText.root',
+    'badge.root',
+    'alert.root',
+    'avatar.root',
+    'tooltip.content',
+] as const
+
+type ElementDiff = {
+    added: string[]
+    changed: string[]
+    removed: string[]
+}
+
+function diffElementMaps(before: Record<string, string>, after: Record<string, string>): ElementDiff {
+    const added: string[] = []
+    const changed: string[] = []
+    const removed: string[] = []
+    for (const k of Object.keys(after)) {
+        if (!(k in before)) added.push(k)
+        else if (before[k] !== after[k]) changed.push(k)
+    }
+    for (const k of Object.keys(before)) {
+        if (!(k in after)) removed.push(k)
+    }
+    return { added: added.sort(), changed: changed.sort(), removed: removed.sort() }
+}
+
+/**
+ * Insert a `"<key>": "",` snippet when the user presses Tab after typing a partial
+ * canonical key. Pure UX nicety — survives without it. No-op when the line under
+ * the caret doesn't start with a `"`.
+ */
+function insertSnippetOnTab(
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+    text: string,
+    apply: (next: string, cursor: number) => void,
+): void {
+    if (event.key !== 'Tab' || event.shiftKey) return
+    const ta = event.currentTarget
+    const caret = ta.selectionStart
+    if (caret !== ta.selectionEnd) return
+    const before = text.slice(0, caret)
+    const after = text.slice(caret)
+    const lineStart = before.lastIndexOf('\n') + 1
+    const currentLine = before.slice(lineStart).trimStart()
+    if (!currentLine.startsWith('"')) return
+    const partial = currentLine.slice(1).replace(/"[^"]*$/, '')
+    const match = CANONICAL_ELEMENT_KEYS.find(k => k.startsWith(partial))
+    if (!match || match === partial) return
+    event.preventDefault()
+    const completion = match.slice(partial.length) + '": "",'
+    const cursor = caret + completion.length - 3
+    apply(before + completion + after, cursor)
+}
+
+/**
+ * Extract `{variable}` tokens from a translation string. Used to verify that
+ * an override on `key` carries the same tokens the canonical default expects.
+ */
+function extractPlaceholders(value: string): string[] {
+    const matches = value.match(/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/g)
+    if (!matches) return []
+    return Array.from(new Set(matches.map(m => m.slice(1, -1)))).sort()
+}
+
+/**
+ * Locales we plan to ship after v0.6 — rendered as disabled "Coming soon"
+ * chips in the Supported-locales picker so operators can see what's on deck
+ * without us shipping empty catalogs.
+ */
+const PLANNED_LOCALES = ['it-IT', 'nl-NL', 'pl-PL', 'ru-RU', 'tr-TR', 'zh-TW']
+
 function AppearanceSection({ appearance }: { appearance: AppearanceShape }) {
     const url = useDashboardUrl()
     const { active_project, active_environment } = useDashboard()
     const { props: pageProps } = usePage<{ flash?: { appearance_saved?: boolean } }>()
 
+    const initialElementsObj = (appearance.elements ?? {}) as Record<string, string>
     const initial = {
         variables: { ...(appearance.variables ?? {}) } as Record<string, string>,
-        elements: JSON.stringify(appearance.elements ?? {}, null, 2),
+        elements: JSON.stringify(initialElementsObj, null, 2),
         layout: { ...((appearance.layout ?? {}) as Record<string, unknown>) },
     }
     const form = useForm(initial)
@@ -823,18 +939,32 @@ function AppearanceSection({ appearance }: { appearance: AppearanceShape }) {
     }
     const base = `/${active_project.slug}/${active_environment.slug}/configure`
 
+    const parsedElements = (() => {
+        try {
+            const v = JSON.parse(form.data.elements || '{}')
+            return v && typeof v === 'object' && !Array.isArray(v)
+                ? { ok: true as const, value: v as Record<string, string> }
+                : { ok: false as const, error: 'Elements must be a JSON object.' }
+        } catch (err) {
+            return { ok: false as const, error: (err as Error).message }
+        }
+    })()
+
+    const unknownKeys = parsedElements.ok
+        ? Object.keys(parsedElements.value).filter(k => !CANONICAL_ELEMENT_KEYS.includes(k as (typeof CANONICAL_ELEMENT_KEYS)[number]))
+        : []
+
+    const diff = parsedElements.ok ? diffElementMaps(initialElementsObj, parsedElements.value) : null
+
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        let elementsParsed: Record<string, string> = {}
-        try {
-            elementsParsed = JSON.parse(form.data.elements || '{}')
-        } catch {
-            form.setError('elements', 'Elements must be a JSON object.')
+        if (!parsedElements.ok) {
+            form.setError('elements', parsedElements.error)
             return
         }
         form.transform(() => ({
             variables: form.data.variables,
-            elements: elementsParsed,
+            elements: parsedElements.value,
             layout: form.data.layout,
         })).patch(url(`${base}/appearance`), { preserveScroll: true })
     }
@@ -868,15 +998,64 @@ function AppearanceSection({ appearance }: { appearance: AppearanceShape }) {
                     </div>
                 </details>
 
-                <details style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                    <summary><strong>Elements</strong> (className override map, JSON)</summary>
+                <details open style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                    <summary>
+                        <strong>Elements</strong> (className override map, JSON) — <code>{CANONICAL_ELEMENT_KEYS.length}</code> known slots
+                    </summary>
+                    <p style={{ color: '#475569', fontSize: 12, marginTop: 8, marginBottom: 8 }}>
+                        Type <code>"signIn.root":</code> (or any key from the list below) and an autocomplete chip will appear.
+                        Unknown keys still save, but raise a warning so typos don't ship silently.
+                    </p>
                     <textarea
                         value={form.data.elements}
                         onChange={e => form.setData('elements', e.target.value)}
-                        rows={10}
-                        style={{ width: '100%', fontFamily: 'monospace', padding: 8, marginTop: 8 }}
+                        onKeyDown={e => insertSnippetOnTab(e, form.data.elements, (next, cursor) => {
+                            form.setData('elements', next)
+                            requestAnimationFrame(() => {
+                                const ta = e.currentTarget
+                                ta.setSelectionRange(cursor, cursor)
+                            })
+                        })}
+                        spellCheck={false}
+                        rows={12}
+                        list="canonical-element-keys"
+                        style={{ width: '100%', fontFamily: 'monospace', padding: 8, marginTop: 4 }}
                     />
+                    <datalist id="canonical-element-keys">
+                        {CANONICAL_ELEMENT_KEYS.map(k => (<option key={k} value={k} />))}
+                    </datalist>
+                    {!parsedElements.ok && (
+                        <p style={{ color: '#b91c1c', marginTop: 4 }}>JSON parse error: {parsedElements.error}</p>
+                    )}
                     {form.errors.elements && <p style={{ color: '#b91c1c' }}>{form.errors.elements}</p>}
+                    {parsedElements.ok && unknownKeys.length > 0 && (
+                        <div style={{ marginTop: 8, padding: 8, background: '#fef3c7', borderRadius: 4, fontSize: 12 }}>
+                            <strong>Unknown element keys</strong> (will save but may be ignored by SDKs):
+                            <ul style={{ margin: '4px 0 0 16px' }}>
+                                {unknownKeys.map(k => (<li key={k}><code>{k}</code></li>))}
+                            </ul>
+                        </div>
+                    )}
+                    {diff && (diff.added.length + diff.changed.length + diff.removed.length > 0) && (
+                        <div style={{ marginTop: 8, padding: 8, background: '#eff6ff', borderRadius: 4, fontSize: 12 }}>
+                            <strong>Pending changes:</strong>{' '}
+                            <span style={{ color: '#166534' }}>+{diff.added.length}</span>{' / '}
+                            <span style={{ color: '#92400e' }}>~{diff.changed.length}</span>{' / '}
+                            <span style={{ color: '#991b1b' }}>-{diff.removed.length}</span>
+                            <details style={{ marginTop: 4 }}>
+                                <summary>Show diff</summary>
+                                <ul style={{ margin: '4px 0 0 16px', listStyle: 'none', paddingLeft: 0 }}>
+                                    {diff.added.map(k => (<li key={'a-' + k} style={{ color: '#166534' }}>+ {k}: <code>{parsedElements.value[k]}</code></li>))}
+                                    {diff.changed.map(k => (
+                                        <li key={'c-' + k} style={{ color: '#92400e' }}>
+                                            ~ {k}: <code>{initialElementsObj[k]}</code> → <code>{parsedElements.value[k]}</code>
+                                        </li>
+                                    ))}
+                                    {diff.removed.map(k => (<li key={'r-' + k} style={{ color: '#991b1b' }}>- {k}: <code>{initialElementsObj[k]}</code></li>))}
+                                </ul>
+                            </details>
+                        </div>
+                    )}
                 </details>
 
                 <details style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
@@ -994,6 +1173,60 @@ function LocalizationSection({
         form.setData('overrides', { ...form.data.overrides, [locale]: localeOverrides })
     }
 
+    /**
+     * Compute per-(locale, key) placeholder warnings: any locale override that
+     * drops a `{variable}` token the canonical en-US default requires is flagged.
+     * Returns `Map<locale, Map<key, missingTokens[]>>`.
+     */
+    const placeholderWarnings = (() => {
+        const expectedByKey: Record<string, string[]> = {}
+        for (const k of canonical.keys) {
+            expectedByKey[k] = extractPlaceholders(canonical.en_us_catalog[k] ?? '')
+        }
+        const map: Record<string, Record<string, string[]>> = {}
+        for (const [locale, perKey] of Object.entries(form.data.overrides)) {
+            for (const [key, override] of Object.entries(perKey)) {
+                const expected = expectedByKey[key] ?? []
+                if (expected.length === 0) continue
+                const got = extractPlaceholders(String(override))
+                const missing = expected.filter(t => !got.includes(t))
+                if (missing.length > 0) {
+                    map[locale] ??= {}
+                    map[locale][key] = missing
+                }
+            }
+        }
+        return map
+    })()
+
+    const placeholderWarningCount = Object.values(placeholderWarnings)
+        .reduce((acc, perKey) => acc + Object.keys(perKey).length, 0)
+
+    /**
+     * Diff against the persisted localization shape: counts of locales toggled
+     * on/off plus override cells added / changed / removed across every locale.
+     */
+    const localizationDiff = (() => {
+        const before = localization.overrides as Record<string, Record<string, string>>
+        const after = form.data.overrides
+        let added = 0, changed = 0, removed = 0
+        const allLocales = new Set([...Object.keys(before), ...Object.keys(after)])
+        for (const locale of allLocales) {
+            const b = before[locale] ?? {}
+            const a = after[locale] ?? {}
+            for (const k of Object.keys(a)) {
+                if (!(k in b)) added++
+                else if (b[k] !== a[k]) changed++
+            }
+            for (const k of Object.keys(b)) {
+                if (!(k in a)) removed++
+            }
+        }
+        const localeAdds = form.data.supported_locales.filter(l => !localization.supported_locales.includes(l))
+        const localeRemoves = localization.supported_locales.filter(l => !form.data.supported_locales.includes(l))
+        return { added, changed, removed, localeAdds, localeRemoves }
+    })()
+
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault()
         form.patch(url(`${base}/localization`), { preserveScroll: true })
@@ -1050,6 +1283,26 @@ function LocalizationSection({
                                 <span>{l}</span>
                             </label>
                         ))}
+                        {PLANNED_LOCALES.filter(l => !canonical.shipped_locales.includes(l)).map(l => (
+                            <span
+                                key={l}
+                                title="Translation catalog ships in a future release."
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#94a3b8', cursor: 'not-allowed' }}
+                            >
+                                {l}
+                                <span style={{
+                                    fontSize: 10,
+                                    padding: '1px 6px',
+                                    borderRadius: 10,
+                                    background: '#f1f5f9',
+                                    color: '#64748b',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: 0.4,
+                                }}>
+                                    Coming soon
+                                </span>
+                            </span>
+                        ))}
                     </div>
                 </details>
 
@@ -1074,16 +1327,31 @@ function LocalizationSection({
                                         <td style={{ padding: 6, color: '#0f172a', verticalAlign: 'top' }}>
                                             {canonical.en_us_catalog[key]}
                                         </td>
-                                        {form.data.supported_locales.filter(l => l !== 'en-US').map(l => (
-                                            <td key={l} style={{ padding: 6, verticalAlign: 'top' }}>
-                                                <input
-                                                    type="text"
-                                                    value={form.data.overrides[l]?.[key] ?? ''}
-                                                    onChange={e => setOverride(l, key, e.target.value)}
-                                                    style={{ width: '100%', padding: 4 }}
-                                                />
-                                            </td>
-                                        ))}
+                                        {form.data.supported_locales.filter(l => l !== 'en-US').map(l => {
+                                            const missing = placeholderWarnings[l]?.[key]
+                                            const hasMissing = (missing?.length ?? 0) > 0
+                                            return (
+                                                <td key={l} style={{ padding: 6, verticalAlign: 'top' }}>
+                                                    <input
+                                                        type="text"
+                                                        value={form.data.overrides[l]?.[key] ?? ''}
+                                                        onChange={e => setOverride(l, key, e.target.value)}
+                                                        style={{
+                                                            width: '100%',
+                                                            padding: 4,
+                                                            border: hasMissing ? '1px solid #f59e0b' : '1px solid #d1d5db',
+                                                            background: hasMissing ? '#fffbeb' : '#fff',
+                                                        }}
+                                                        title={hasMissing ? `Missing placeholder tokens: ${missing!.map(m => '{' + m + '}').join(', ')}` : undefined}
+                                                    />
+                                                    {hasMissing && (
+                                                        <p style={{ color: '#b45309', fontSize: 11, margin: '2px 0 0' }}>
+                                                            Missing: {missing!.map(m => `{${m}}`).join(', ')}
+                                                        </p>
+                                                    )}
+                                                </td>
+                                            )
+                                        })}
                                     </tr>
                                 ))}
                             </tbody>
@@ -1091,6 +1359,34 @@ function LocalizationSection({
                     </div>
                 </details>
 
+                {(localizationDiff.added + localizationDiff.changed + localizationDiff.removed > 0
+                    || localizationDiff.localeAdds.length + localizationDiff.localeRemoves.length > 0) && (
+                    <div style={{ marginBottom: 12, padding: 8, background: '#eff6ff', borderRadius: 4, fontSize: 12 }}>
+                        <strong>Pending changes:</strong>{' '}
+                        <span style={{ color: '#166534' }}>+{localizationDiff.added}</span>{' / '}
+                        <span style={{ color: '#92400e' }}>~{localizationDiff.changed}</span>{' / '}
+                        <span style={{ color: '#991b1b' }}>-{localizationDiff.removed}</span>
+                        {(localizationDiff.localeAdds.length > 0 || localizationDiff.localeRemoves.length > 0) && (
+                            <>
+                                {' · '}
+                                {localizationDiff.localeAdds.length > 0 && (
+                                    <span style={{ color: '#166534' }}>+locales: {localizationDiff.localeAdds.join(', ')}</span>
+                                )}
+                                {localizationDiff.localeAdds.length > 0 && localizationDiff.localeRemoves.length > 0 && '; '}
+                                {localizationDiff.localeRemoves.length > 0 && (
+                                    <span style={{ color: '#991b1b' }}>-locales: {localizationDiff.localeRemoves.join(', ')}</span>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+                {placeholderWarningCount > 0 && (
+                    <p style={{ color: '#b45309', fontSize: 12, marginBottom: 8 }}>
+                        {placeholderWarningCount} placeholder warning{placeholderWarningCount === 1 ? '' : 's'}.{' '}
+                        Overrides that drop a <code>{'{variable}'}</code> token from the canonical string will still save,
+                        but the rendered string may show a literal <code>{'{variable}'}</code>.
+                    </p>
+                )}
                 <button type="submit" disabled={form.processing}>
                     {form.processing ? 'Saving…' : 'Save localization'}
                 </button>
