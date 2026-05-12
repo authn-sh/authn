@@ -17,6 +17,7 @@ use App\Http\Controllers\Bapi\OrganizationDomainChallengeController;
 use App\Http\Controllers\Bapi\OrganizationDomainController;
 use App\Http\Controllers\Bapi\OrganizationInvitationController;
 use App\Http\Controllers\Bapi\OrganizationMembershipController;
+use App\Http\Controllers\Bapi\OrganizationScimController;
 use App\Http\Controllers\Bapi\PasskeyController;
 use App\Http\Controllers\Bapi\PermissionController;
 use App\Http\Controllers\Bapi\PhoneNumberController;
@@ -176,6 +177,14 @@ Route::delete('/organizations/{organization_id}/domains/{domain_id}', [Organizat
 Route::post('/organizations/{organization_id}/domains/{domain_id}/challenges', [OrganizationDomainChallengeController::class, 'store'])->middleware(RateLimit::class.':orgs.domains.verify,30,60')->name('bapi.organizations.domains.challenges.store');
 Route::post('/organizations/{organization_id}/domains/{domain_id}/challenges/{cid}/answer', [OrganizationDomainChallengeController::class, 'answer'])->middleware(RateLimit::class.':orgs.domains.verify,30,60')->name('bapi.organizations.domains.challenges.answer');
 Route::get('/organizations/{organization_id}/domains/{domain_id}/challenges/{cid}', [OrganizationDomainChallengeController::class, 'show'])->middleware(RateLimit::class.':orgs.domains.read,300,60')->name('bapi.organizations.domains.challenges.show');
+
+// Per-org SCIM admin (BAPI mirror of FAPI /v1/organizations/{org_id}/scim/...).
+Route::get('/organizations/{organization_id}/scim/tokens', [OrganizationScimController::class, 'listTokens'])->middleware(RateLimit::class.':orgs.scim.list,300,60')->name('bapi.organizations.scim.tokens.index');
+Route::post('/organizations/{organization_id}/scim/tokens', [OrganizationScimController::class, 'issueToken'])->middleware(RateLimit::class.':orgs.scim.issue,30,60')->name('bapi.organizations.scim.tokens.store');
+Route::post('/organizations/{organization_id}/scim/tokens/{token_id}/revoke', [OrganizationScimController::class, 'revokeToken'])->middleware(RateLimit::class.':orgs.scim.revoke,30,60')->name('bapi.organizations.scim.tokens.revoke');
+Route::get('/organizations/{organization_id}/scim/attribute-mappings', [OrganizationScimController::class, 'showAttributeMappings'])->middleware(RateLimit::class.':orgs.scim.read,300,60')->name('bapi.organizations.scim.attribute_mappings.show');
+Route::put('/organizations/{organization_id}/scim/attribute-mappings', [OrganizationScimController::class, 'replaceAttributeMappings'])->middleware(RateLimit::class.':orgs.scim.update,30,60')->name('bapi.organizations.scim.attribute_mappings.replace');
+Route::get('/organizations/{organization_id}/scim/endpoint', [OrganizationScimController::class, 'showEndpoint'])->middleware(RateLimit::class.':orgs.scim.read,300,60')->name('bapi.organizations.scim.endpoint.show');
 
 // Roles + Permissions
 Route::get('/roles', [RoleController::class, 'index'])->middleware(RateLimit::class.':roles.list,300,60')->name('bapi.roles.index');
