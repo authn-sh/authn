@@ -17,6 +17,7 @@ use App\Http\Controllers\Fapi\MeOrganizationController;
 use App\Http\Controllers\Fapi\MePasskeysController;
 use App\Http\Controllers\Fapi\MePhoneNumberController;
 use App\Http\Controllers\Fapi\MeTotpController;
+use App\Http\Controllers\Fapi\OauthAuthorizeController;
 use App\Http\Controllers\Fapi\OauthCallbackController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
 use App\Http\Controllers\Fapi\OrganizationEnterpriseConnectionController;
@@ -60,6 +61,12 @@ use Illuminate\Support\Facades\Route;
 Route::withoutMiddleware([EnforceFapiOrigin::class])->group(function (): void {
     Route::get('/.well-known/jwks.json', JwksController::class)->name('fapi.jwks');
     Route::get('/.well-known/openid-configuration', OpenIdConfigurationController::class)->name('fapi.openid_configuration');
+
+    // OAuth provider mode (AU-6). Browser-initiated top-level navigation; no
+    // Origin header / Client cookie required up front. Cache-Control: no-store
+    // is set on every response per RFC 6749 §5.1.
+    Route::get('/oauth/authorize', OauthAuthorizeController::class)
+        ->name('fapi.oauth.authorize');
 });
 
 // SCIM 2.0 server (RFC 7644). Bearer-authenticated; the SCIM client is the
