@@ -22,6 +22,7 @@ use App\Http\Controllers\Fapi\OrganizationEnterpriseConnectionController;
 use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
 use App\Http\Controllers\Fapi\OrganizationMembershipController as FapiOrganizationMembershipController;
 use App\Http\Controllers\Fapi\OrganizationMembershipRequestController as FapiOrganizationMembershipRequestController;
+use App\Http\Controllers\Fapi\OrganizationScimController;
 use App\Http\Controllers\Fapi\PingController;
 use App\Http\Controllers\Fapi\SessionsController;
 use App\Http\Controllers\Fapi\SessionTokenController;
@@ -253,6 +254,27 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}/test', [OrganizationEnterpriseConnectionController::class, 'test'])
             ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
             ->name('fapi.organizations.enterprise_connections.test');
+
+        // Per-org SCIM management (AU-10 / OA-7). Drives the
+        // <OrganizationProfile /> Directory Sync section in sdk-react.
+        Route::get('/organizations/{organization_id}/scim/tokens', [OrganizationScimController::class, 'listTokens'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->name('fapi.organizations.scim.tokens.index');
+        Route::post('/organizations/{organization_id}/scim/tokens', [OrganizationScimController::class, 'issueToken'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->name('fapi.organizations.scim.tokens.store');
+        Route::post('/organizations/{organization_id}/scim/tokens/{token_id}/revoke', [OrganizationScimController::class, 'revokeToken'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->name('fapi.organizations.scim.tokens.revoke');
+        Route::get('/organizations/{organization_id}/scim/attribute-mappings', [OrganizationScimController::class, 'showAttributeMappings'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->name('fapi.organizations.scim.attribute_mappings.show');
+        Route::put('/organizations/{organization_id}/scim/attribute-mappings', [OrganizationScimController::class, 'replaceAttributeMappings'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->name('fapi.organizations.scim.attribute_mappings.replace');
+        Route::get('/organizations/{organization_id}/scim/endpoint', [OrganizationScimController::class, 'showEndpoint'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->name('fapi.organizations.scim.endpoint.show');
 
         // /v1/me org-related collections + active-org switching (AU-7).
         Route::get('/me/organization-memberships', [MeOrganizationController::class, 'listMemberships'])->name('fapi.me.organization_memberships');
