@@ -32,7 +32,7 @@ final class IdPrefix
 
         // Restrictions and platform settings
         'inv_', 'redir_', 'allow_', 'block_',
-        'jtmpl_', 'oac_', 'oat_', 'ort_', 'oauthp_', 'entcon_',
+        'jtmpl_', 'oac_', 'oat_', 'ort_', 'oauthp_', 'authgrant_', 'entcon_',
         'scimt_', 'scimm_', 'wait_',
 
         // Webhooks + delivery
