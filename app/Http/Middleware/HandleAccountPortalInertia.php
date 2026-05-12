@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\AccountPortal\AppearancePreviewRenderController;
 use App\Models\Environment;
 use App\Support\Url;
 use Closure;
@@ -30,12 +31,12 @@ final class HandleAccountPortalInertia
 
         $env = app()->bound(Environment::class) ? app(Environment::class) : null;
         Inertia::share([
-            'environment' => function () use ($env) {
+            'environment' => function () use ($env, $request) {
                 if (! $env instanceof Environment) {
                     return null;
                 }
 
-                return $this->bootstrapProps($env);
+                return $this->bootstrapProps($env, $request);
             },
         ]);
 
@@ -45,9 +46,10 @@ final class HandleAccountPortalInertia
     /**
      * @return array<string, mixed>
      */
-    private function bootstrapProps(Environment $env): array
+    private function bootstrapProps(Environment $env, Request $request): array
     {
-        $appearance = is_array($env->appearance) ? $env->appearance : [];
+        $override = $request->attributes->get(AppearancePreviewRenderController::REQUEST_ATTRIBUTE);
+        $appearance = is_array($override) ? $override : (is_array($env->appearance) ? $env->appearance : []);
         $localization = is_array($env->localization) ? $env->localization : [];
         $paths = is_array($appearance['paths'] ?? null) ? $appearance['paths'] : [];
 

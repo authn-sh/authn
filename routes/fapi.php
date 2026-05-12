@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\AccountPortal\AccountPortalController;
+use App\Http\Controllers\AccountPortal\AppearancePreviewRenderController;
 use App\Http\Controllers\Fapi\ChallengeController;
 use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnterpriseSsoCallbackController;
@@ -326,6 +327,13 @@ Route::withoutMiddleware([EnforceFapiOrigin::class])
         Route::get('/organization/{id?}/{tab?}', [AccountPortalController::class, 'organizationProfile'])
             ->where('tab', 'general|members|invitations|requests|domains')
             ->name('account_portal.organization_profile');
+
+        // Dashboard Customization editor preview — operators mint a 5-min
+        // token via POST /configure/appearance/preview (dashboard host) and
+        // load that signed URL inside the editor iframe.
+        Route::get('/_preview/appearance/{token}', [AppearancePreviewRenderController::class, 'show'])
+            ->where('token', '[A-Za-z0-9]{16,128}')
+            ->name('account_portal.appearance_preview');
     });
 
 Route::prefix('account')->group(function (): void {
