@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Bapi\AllowlistIdentifiersController;
 use App\Http\Controllers\Bapi\BlocklistIdentifiersController;
+use App\Http\Controllers\Bapi\EnterpriseAccountController;
 use App\Http\Controllers\Bapi\EnterpriseConnectionController;
 use App\Http\Controllers\Bapi\ExternalAccountController;
 use App\Http\Controllers\Bapi\InstanceAppearanceController;
@@ -125,6 +126,11 @@ Route::get('/enterprise-connections/{enterprise_connection_id}', [EnterpriseConn
 Route::patch('/enterprise-connections/{enterprise_connection_id}', [EnterpriseConnectionController::class, 'update'])->middleware(RateLimit::class.':enterprise_connections.update,60,60')->name('bapi.enterprise_connections.update');
 Route::delete('/enterprise-connections/{enterprise_connection_id}', [EnterpriseConnectionController::class, 'destroy'])->middleware(RateLimit::class.':enterprise_connections.destroy,30,60')->name('bapi.enterprise_connections.destroy');
 Route::post('/enterprise-connections/{enterprise_connection_id}/test', [EnterpriseConnectionController::class, 'test'])->middleware(RateLimit::class.':enterprise_connections.test,30,60')->name('bapi.enterprise_connections.test');
+
+// Enterprise accounts (admin read + unlink). Provisioning happens via the SSO callback, not BAPI.
+Route::get('/enterprise-accounts', [EnterpriseAccountController::class, 'index'])->middleware(RateLimit::class.':enterprise_accounts.list,300,60')->name('bapi.enterprise_accounts.index');
+Route::get('/enterprise-accounts/{enterprise_account_id}', [EnterpriseAccountController::class, 'show'])->middleware(RateLimit::class.':enterprise_accounts.read,300,60')->name('bapi.enterprise_accounts.show');
+Route::delete('/enterprise-accounts/{enterprise_account_id}', [EnterpriseAccountController::class, 'destroy'])->middleware(RateLimit::class.':enterprise_accounts.destroy,30,60')->name('bapi.enterprise_accounts.destroy');
 
 // Passkeys (admin) — sdk-php SP-1 wraps this.
 Route::get('/passkeys', [PasskeyController::class, 'index'])->middleware(RateLimit::class.':passkeys.list,300,60')->name('bapi.passkeys.index');
