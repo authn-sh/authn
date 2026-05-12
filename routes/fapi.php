@@ -20,6 +20,7 @@ use App\Http\Controllers\Fapi\MePhoneNumberController;
 use App\Http\Controllers\Fapi\MeTotpController;
 use App\Http\Controllers\Fapi\OauthAuthorizeController;
 use App\Http\Controllers\Fapi\OauthCallbackController;
+use App\Http\Controllers\Fapi\OauthConsentController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
 use App\Http\Controllers\Fapi\OrganizationEnterpriseConnectionController;
 use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
@@ -346,7 +347,27 @@ Route::withoutMiddleware([EnforceFapiOrigin::class])
         Route::get('/_preview/appearance/{token}', [AppearancePreviewRenderController::class, 'show'])
             ->where('token', '[A-Za-z0-9]{16,128}')
             ->name('account_portal.appearance_preview');
+
+        // OAuth provider mode — consent screen for /oauth/authorize redirects
+        // (AU-9). The accept/deny POSTs do JSON-only fetch from the page so
+        // they sit outside the Inertia group below.
+        Route::get('/oauth/consent/{request_id}', [OauthConsentController::class, 'show'])
+            ->where('request_id', '[A-Za-z0-9_-]{16,128}')
+            ->name('account_portal.oauth_consent');
     });
+
+// OAuth consent accept/deny — top-level POSTs from the consent screen.
+// JSON-only response shape (`{redirect_url}`) so the page can follow the
+// redirect in JS. EnforceFapiOrigin opt-out because the consent screen is
+// a top-level Inertia navigation context, not an embedded SDK call.
+Route::withoutMiddleware([EnforceFapiOrigin::class])->group(function (): void {
+    Route::post('/oauth/consent/{request_id}/accept', [OauthConsentController::class, 'accept'])
+        ->where('request_id', '[A-Za-z0-9_-]{16,128}')
+        ->name('fapi.oauth.consent.accept');
+    Route::post('/oauth/consent/{request_id}/deny', [OauthConsentController::class, 'deny'])
+        ->where('request_id', '[A-Za-z0-9_-]{16,128}')
+        ->name('fapi.oauth.consent.deny');
+});
 
 Route::prefix('account')->group(function (): void {
     Route::get('/_ping', PingController::class)->name('account_portal.ping');
