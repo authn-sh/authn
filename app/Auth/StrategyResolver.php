@@ -7,6 +7,7 @@ namespace App\Auth;
 use App\Auth\Strategies\BackupCodeStrategy;
 use App\Auth\Strategies\EmailCodeStrategy;
 use App\Auth\Strategies\EmailLinkStrategy;
+use App\Auth\Strategies\EnterpriseSsoStrategy;
 use App\Auth\Strategies\OauthRedirectStrategy;
 use App\Auth\Strategies\PasskeyStrategy;
 use App\Auth\Strategies\PasswordStrategy;
@@ -35,6 +36,7 @@ final class StrategyResolver
         private readonly PhoneCodeStrategy $phoneCode,
         private readonly OauthRedirectStrategy $oauth,
         private readonly PasskeyStrategy $passkey,
+        private readonly EnterpriseSsoStrategy $enterpriseSso,
     ) {}
 
     public function resolve(string $name): Strategy
@@ -53,6 +55,7 @@ final class StrategyResolver
             Verification::STRATEGY_BACKUP_CODE => $this->backupCode,
             Verification::STRATEGY_PHONE_CODE => $this->phoneCode,
             Verification::STRATEGY_PASSKEY => $this->passkey,
+            Verification::STRATEGY_ENTERPRISE_SSO, Verification::STRATEGY_SAML => $this->enterpriseSso,
             default => throw new InvalidArgumentException("Strategy {$name} is not supported."),
         };
     }
