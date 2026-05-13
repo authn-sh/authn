@@ -231,28 +231,26 @@ function ContextPickers({ activeProject, activeEnv, projects, environments, dash
                             <span className="authn-context-picker-kind">{activeEnv?.kind ?? 'environment'}</span>
                             <ChevronDownIcon className="authn-context-picker-chevron" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuPortal>
-                            <DropdownMenuContent className="authn-context-menu" sideOffset={6} align="start">
-                                <p className="authn-context-menu-section">Environments</p>
-                                {environments.length === 0 && (
-                                    <div className="authn-context-menu-item" style={{ color: 'var(--authn-color-text-secondary)' }}>
-                                        No environments
-                                    </div>
-                                )}
-                                {environments.map((e) => (
-                                    <DropdownMenuItem key={e.id} asChild>
-                                        <Link
-                                            href={`${prefix}/${activeProject.slug}/${e.slug}/overview`}
-                                            className="authn-context-menu-item"
-                                            {...(e.id === activeEnv?.id ? { 'aria-current': 'true' as const } : {})}
-                                        >
-                                            <span>{e.kind}</span>
-                                            <code style={{ color: 'var(--authn-color-text-secondary)' }}>{e.slug}</code>
-                                        </Link>
-                                    </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenuPortal>
+                        <DropdownMenuContent className="authn-context-menu" sideOffset={6} align="start">
+                            <p className="authn-context-menu-section">Environments</p>
+                            {environments.length === 0 && (
+                                <div className="authn-context-menu-item" style={{ color: 'var(--authn-color-text-secondary)' }}>
+                                    No environments
+                                </div>
+                            )}
+                            {environments.map((e) => (
+                                <DropdownMenuItem key={e.id} asChild>
+                                    <Link
+                                        href={`${prefix}/${activeProject.slug}/${e.slug}/overview`}
+                                        className="authn-context-menu-item"
+                                        {...(e.id === activeEnv?.id ? { 'aria-current': 'true' as const } : {})}
+                                    >
+                                        <span>{e.kind}</span>
+                                        <code style={{ color: 'var(--authn-color-text-secondary)' }}>{e.slug}</code>
+                                    </Link>
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
                     </DropdownMenu>
                 </>
             )}
