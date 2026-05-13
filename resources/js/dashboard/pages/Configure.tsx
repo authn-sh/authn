@@ -1,6 +1,6 @@
 import { Link, useForm, usePage } from '@inertiajs/react'
 import * as React from 'react'
-import { Tabs, TabsList, TabsTrigger } from '@authn-sh/ui'
+import { Button, Input, Label, Tabs, TabsList, TabsTrigger } from '@authn-sh/ui'
 import { useDashboard, useDashboardUrl } from '../shared'
 
 type MultiFactorSettings = {
@@ -235,9 +235,9 @@ function AttributesSection({ attributes, signupMode }: { attributes: AttributesS
                     ))}
                     </div>
                 </section>
-                <button type="submit" disabled={form.processing}>
+                <Button type="submit" loading={form.processing}>
                     {form.processing ? 'Saving…' : 'Save'}
-                </button>
+                </Button>
             </form>
         </section>
     )
@@ -302,7 +302,7 @@ function MultiFactorSection({ multiFactor }: { multiFactor: MultiFactorSettings 
                     </label>
                     <label style={{ display: 'block' }}>
                         Codes per regeneration (4–24)
-                        <input
+                        <Input
                             type="number"
                             min={4}
                             max={24}
@@ -314,9 +314,9 @@ function MultiFactorSection({ multiFactor }: { multiFactor: MultiFactorSettings 
                     {form.errors['backup_codes.default_count'] && <span style={{ color: '#c00', fontSize: 12 }}>{form.errors['backup_codes.default_count']}</span>}
                     </div>
                 </section>
-                <button type="submit" disabled={form.processing}>
+                <Button type="submit" loading={form.processing}>
                     {form.processing ? 'Saving…' : 'Save'}
-                </button>
+                </Button>
             </form>
         </section>
     )
@@ -385,7 +385,7 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
 
                 <label style={{ display: 'block', marginBottom: 16 }}>
                     From number (E.164)
-                    <input
+                    <Input
                         type="text"
                         value={settingsForm.data.from_number}
                         onChange={(e) => settingsForm.setData('from_number', e.target.value)}
@@ -400,7 +400,7 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                     <div className="authn-section-body">
                         <label style={{ display: 'block', marginBottom: 8 }}>
                             Account SID
-                            <input
+                            <Input
                                 type="text"
                                 value={settingsForm.data.twilio.account_sid}
                                 onChange={(e) => settingsForm.setData('twilio', { ...settingsForm.data.twilio, account_sid: e.target.value })}
@@ -409,7 +409,7 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                         </label>
                         <label style={{ display: 'block' }}>
                             Auth token {sms.twilio_auth_token_set && <span style={{ color: '#64748b', fontSize: 12 }}>(••••, leave blank to keep)</span>}
-                            <input
+                            <Input
                                 type="password"
                                 value={settingsForm.data.twilio.auth_token}
                                 onChange={(e) => settingsForm.setData('twilio', { ...settingsForm.data.twilio, auth_token: e.target.value })}
@@ -427,7 +427,7 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                     <div className="authn-section-body">
                         <label style={{ display: 'block', marginBottom: 8 }}>
                             API key
-                            <input
+                            <Input
                                 type="text"
                                 value={settingsForm.data.vonage.api_key}
                                 onChange={(e) => settingsForm.setData('vonage', { ...settingsForm.data.vonage, api_key: e.target.value })}
@@ -436,7 +436,7 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                         </label>
                         <label style={{ display: 'block' }}>
                             API secret {sms.vonage_api_secret_set && <span style={{ color: '#64748b', fontSize: 12 }}>(••••, leave blank to keep)</span>}
-                            <input
+                            <Input
                                 type="password"
                                 value={settingsForm.data.vonage.api_secret}
                                 onChange={(e) => settingsForm.setData('vonage', { ...settingsForm.data.vonage, api_secret: e.target.value })}
@@ -448,9 +448,9 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                 </section>
                 )}
 
-                <button type="submit" disabled={settingsForm.processing}>
+                <Button type="submit" loading={settingsForm.processing}>
                     {settingsForm.processing ? 'Saving…' : 'Save'}
-                </button>
+                </Button>
             </form>
 
             <section className="authn-section">
@@ -464,7 +464,7 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                 >
                     <label style={{ display: 'block', marginBottom: 8 }}>
                         Recipient (E.164)
-                        <input
+                        <Input
                             type="text"
                             value={testForm.data.to_number}
                             onChange={(e) => testForm.setData('to_number', e.target.value)}
@@ -472,9 +472,9 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                             style={{ display: 'block', marginTop: 4, padding: 6, width: 240 }}
                         />
                     </label>
-                    <button type="submit" disabled={testForm.processing}>
+                    <Button type="submit" loading={testForm.processing}>
                         {testForm.processing ? 'Sending…' : 'Send test'}
-                    </button>
+                    </Button>
                 </form>
                     </div>
                 </section>
@@ -530,7 +530,7 @@ function SmsTemplateRow({ template }: { template: SmsTemplate }) {
                 </label>
                 <label style={{ display: 'block', marginBottom: 8 }}>
                     From number override
-                    <input
+                    <Input
                         type="text"
                         value={form.data.from_number_override}
                         onChange={(e) => form.setData('from_number_override', e.target.value)}
@@ -538,9 +538,9 @@ function SmsTemplateRow({ template }: { template: SmsTemplate }) {
                         style={{ display: 'block', marginTop: 4, padding: 6, width: 240 }}
                     />
                 </label>
-                <button type="submit" disabled={form.processing}>
+                <Button type="submit" loading={form.processing}>
                     {form.processing ? 'Saving…' : 'Save'}
-                </button>
+                </Button>
             </form>
         </details>
     )
@@ -642,7 +642,7 @@ function ProviderRow({ provider, base, url }: { provider: OauthProvider; base: s
                 </label>
                 <label style={{ display: 'block', marginBottom: 8 }}>
                     Display name
-                    <input
+                    <Input
                         type="text"
                         value={form.data.name}
                         onChange={e => form.setData('name', e.target.value)}
@@ -651,7 +651,7 @@ function ProviderRow({ provider, base, url }: { provider: OauthProvider; base: s
                 </label>
                 <label style={{ display: 'block', marginBottom: 8 }}>
                     client_id
-                    <input
+                    <Input
                         type="text"
                         value={form.data.client_id}
                         onChange={e => form.setData('client_id', e.target.value)}
@@ -660,7 +660,7 @@ function ProviderRow({ provider, base, url }: { provider: OauthProvider; base: s
                 </label>
                 <label style={{ display: 'block', marginBottom: 8 }}>
                     client_secret {provider.client_secret_set && <span style={{ color: '#64748b', fontSize: 12 }}>(••••, leave blank to keep)</span>}
-                    <input
+                    <Input
                         type="password"
                         value={form.data.client_secret}
                         onChange={e => form.setData('client_secret', e.target.value)}
@@ -670,7 +670,7 @@ function ProviderRow({ provider, base, url }: { provider: OauthProvider; base: s
                 </label>
                 <label style={{ display: 'block', marginBottom: 8 }}>
                     Scopes (space-separated)
-                    <input
+                    <Input
                         type="text"
                         value={form.data.scopes}
                         onChange={e => form.setData('scopes', e.target.value)}
@@ -685,9 +685,9 @@ function ProviderRow({ provider, base, url }: { provider: OauthProvider; base: s
                     <input type="checkbox" checked={form.data.allow_sign_up} onChange={e => form.setData('allow_sign_up', e.target.checked)} />
                     Allow sign-up
                 </label>
-                <button type="submit" disabled={form.processing} style={{ marginRight: 8 }}>
+                <Button type="submit" loading={form.processing} style={{ marginRight: 8 }}>
                     {form.processing ? 'Saving…' : 'Save'}
-                </button>
+                </Button>
                 <TestButton providerId={provider.id} base={base} url={url} />
                 <DeleteButton providerId={provider.id} base={base} url={url} />
             </form>
@@ -698,30 +698,30 @@ function ProviderRow({ provider, base, url }: { provider: OauthProvider; base: s
 function TestButton({ providerId, base, url }: { providerId: string; base: string; url: (s: string) => string }) {
     const form = useForm({})
     return (
-        <button
+        <Button
             type="button"
-            disabled={form.processing}
+            loading={form.processing}
             onClick={() => form.post(url(`${base}/oauth-providers/${providerId}/test`), { preserveScroll: true })}
             style={{ marginRight: 8 }}
         >
             Test
-        </button>
+        </Button>
     )
 }
 
 function DeleteButton({ providerId, base, url }: { providerId: string; base: string; url: (s: string) => string }) {
     const form = useForm({})
     return (
-        <button
+        <Button
             type="button"
-            disabled={form.processing}
+            loading={form.processing}
             onClick={() => {
                 if (!confirm('Delete this OAuth provider?')) return
                 form.delete(url(`${base}/oauth-providers/${providerId}`), { preserveScroll: true })
             }}
         >
             Delete
-        </button>
+        </Button>
     )
 }
 
@@ -744,23 +744,23 @@ function PresetCreateForm({ providerKey, base, url }: { providerKey: string; bas
             style={{ marginBottom: 8 }}
         >
             <strong>{providerKey}</strong>
-            <input
+            <Input
                 type="text"
                 value={form.data.client_id}
                 onChange={e => form.setData('client_id', e.target.value)}
                 placeholder="client_id"
                 style={{ marginLeft: 8, padding: 4, width: 240 }}
             />
-            <input
+            <Input
                 type="password"
                 value={form.data.client_secret}
                 onChange={e => form.setData('client_secret', e.target.value)}
                 placeholder="client_secret"
                 style={{ marginLeft: 8, padding: 4, width: 240 }}
             />
-            <button type="submit" disabled={form.processing} style={{ marginLeft: 8 }}>
+            <Button type="submit" loading={form.processing} style={{ marginLeft: 8 }}>
                 {form.processing ? 'Adding…' : 'Add'}
-            </button>
+            </Button>
         </form>
     )
 }
@@ -784,14 +784,14 @@ function CustomOidcWizard({ base, url }: { base: string; url: (s: string) => str
                 }}
                 style={{ marginTop: 8 }}
             >
-                <input type="text" placeholder="provider_key" value={form.data.provider_key} onChange={e => form.setData('provider_key', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 240 }} />
-                <input type="text" placeholder="display name" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 320 }} />
-                <input type="url" placeholder="https://idp.example.com (issuer)" value={form.data.issuer} onChange={e => form.setData('issuer', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
-                <input type="text" placeholder="client_id" value={form.data.client_id} onChange={e => form.setData('client_id', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
-                <input type="password" placeholder="client_secret" value={form.data.client_secret} onChange={e => form.setData('client_secret', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
-                <button type="submit" disabled={form.processing}>
+                <Input type="text" placeholder="provider_key" value={form.data.provider_key} onChange={e => form.setData('provider_key', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 240 }} />
+                <Input type="text" placeholder="display name" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 320 }} />
+                <Input type="url" placeholder="https://idp.example.com (issuer)" value={form.data.issuer} onChange={e => form.setData('issuer', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <Input type="text" placeholder="client_id" value={form.data.client_id} onChange={e => form.setData('client_id', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <Input type="password" placeholder="client_secret" value={form.data.client_secret} onChange={e => form.setData('client_secret', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <Button type="submit" loading={form.processing}>
                     {form.processing ? 'Adding…' : 'Discover + add'}
-                </button>
+                </Button>
             </form>
         </details>
     )
@@ -820,13 +820,13 @@ function CustomOauth2Wizard({ base, url }: { base: string; url: (s: string) => s
                 }}
                 style={{ marginTop: 8 }}
             >
-                <input type="text" placeholder="provider_key" value={form.data.provider_key} onChange={e => form.setData('provider_key', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 240 }} />
-                <input type="text" placeholder="display name" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 320 }} />
-                <input type="text" placeholder="client_id" value={form.data.client_id} onChange={e => form.setData('client_id', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
-                <input type="password" placeholder="client_secret" value={form.data.client_secret} onChange={e => form.setData('client_secret', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
-                <input type="url" placeholder="authorization_endpoint" value={form.data.authorization_endpoint} onChange={e => form.setData('authorization_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
-                <input type="url" placeholder="token_endpoint" value={form.data.token_endpoint} onChange={e => form.setData('token_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
-                <input type="url" placeholder="userinfo_endpoint" value={form.data.userinfo_endpoint} onChange={e => form.setData('userinfo_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <Input type="text" placeholder="provider_key" value={form.data.provider_key} onChange={e => form.setData('provider_key', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 240 }} />
+                <Input type="text" placeholder="display name" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 320 }} />
+                <Input type="text" placeholder="client_id" value={form.data.client_id} onChange={e => form.setData('client_id', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <Input type="password" placeholder="client_secret" value={form.data.client_secret} onChange={e => form.setData('client_secret', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <Input type="url" placeholder="authorization_endpoint" value={form.data.authorization_endpoint} onChange={e => form.setData('authorization_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <Input type="url" placeholder="token_endpoint" value={form.data.token_endpoint} onChange={e => form.setData('token_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
+                <Input type="url" placeholder="userinfo_endpoint" value={form.data.userinfo_endpoint} onChange={e => form.setData('userinfo_endpoint', e.target.value)} style={{ display: 'block', marginBottom: 8, padding: 6, width: 360 }} />
                 <select value={form.data.userinfo_method} onChange={e => form.setData('userinfo_method', e.target.value)} style={{ marginRight: 8, padding: 6 }}>
                     <option value="GET">GET</option>
                     <option value="POST">POST</option>
@@ -836,9 +836,9 @@ function CustomOauth2Wizard({ base, url }: { base: string; url: (s: string) => s
                     <option value="basic">basic</option>
                     <option value="query">query</option>
                 </select>
-                <button type="submit" disabled={form.processing}>
+                <Button type="submit" loading={form.processing}>
                     {form.processing ? 'Adding…' : 'Add'}
-                </button>
+                </Button>
             </form>
         </details>
     )
@@ -1196,12 +1196,12 @@ function AppearanceSection({ appearance }: { appearance: AppearanceShape }) {
                 </details>
 
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <button type="submit" disabled={form.processing}>
+                    <Button type="submit" loading={form.processing}>
                         {form.processing ? 'Saving…' : 'Save appearance'}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="button"
-                        disabled={previewing || !parsedElements.ok}
+                        loading={previewing || !parsedElements.ok}
                         onClick={async () => {
                             setPreviewError(null)
                             setPreviewing(true)
@@ -1229,7 +1229,7 @@ function AppearanceSection({ appearance }: { appearance: AppearanceShape }) {
                         }}
                     >
                         {previewing ? 'Preparing…' : 'Preview in <SignIn />'}
-                    </button>
+                    </Button>
                     {previewError && <span style={{ color: '#b91c1c', fontSize: 12 }}>{previewError}</span>}
                 </div>
 
@@ -1451,7 +1451,7 @@ function LocalizationSection({
                                             const hasMissing = (missing?.length ?? 0) > 0
                                             return (
                                                 <td key={l} style={{ padding: 6, verticalAlign: 'top' }}>
-                                                    <input
+                                                    <Input
                                                         type="text"
                                                         value={form.data.overrides[l]?.[key] ?? ''}
                                                         onChange={e => setOverride(l, key, e.target.value)}
@@ -1506,9 +1506,9 @@ function LocalizationSection({
                         but the rendered string may show a literal <code>{'{variable}'}</code>.
                     </p>
                 )}
-                <button type="submit" disabled={form.processing}>
+                <Button variant="secondary" type="submit" disabled={form.processing}>
                     {form.processing ? 'Saving…' : 'Save localization'}
-                </button>
+                </Button>
             </form>
         </div>
     )
@@ -1689,7 +1689,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                 </label>
                 <label>
                     <strong>Name</strong>
-                    <input
+                    <Input
                         type="text"
                         value={form.data.name}
                         onChange={e => form.setData('name', e.target.value)}
@@ -1699,7 +1699,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                 </label>
                 <label>
                     <strong>Domains (comma-separated)</strong>
-                    <input
+                    <Input
                         type="text"
                         value={form.data.domains_csv}
                         onChange={e => form.setData('domains_csv', e.target.value)}
@@ -1709,7 +1709,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                 </label>
                 <label>
                     <strong>Default org role</strong>
-                    <input
+                    <Input
                         type="text"
                         value={form.data.default_role}
                         onChange={e => form.setData('default_role', e.target.value)}
@@ -1725,7 +1725,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                     <div className="authn-section-body">
                     <label style={{ display: 'block', marginBottom: 8 }}>
                         IdP entity ID
-                        <input
+                        <Input
                             type="text"
                             value={form.data.saml_idp_entity_id}
                             onChange={e => form.setData('saml_idp_entity_id', e.target.value)}
@@ -1734,7 +1734,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                     </label>
                     <label style={{ display: 'block', marginBottom: 8 }}>
                         SSO URL
-                        <input
+                        <Input
                             type="url"
                             value={form.data.saml_sso_url}
                             onChange={e => form.setData('saml_sso_url', e.target.value)}
@@ -1771,7 +1771,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                     <div className="authn-section-body">
                     <label style={{ display: 'block', marginBottom: 8 }}>
                         Issuer URL
-                        <input
+                        <Input
                             type="url"
                             value={form.data.oidc_issuer}
                             onChange={e => form.setData('oidc_issuer', e.target.value)}
@@ -1781,7 +1781,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                     </label>
                     <label style={{ display: 'block', marginBottom: 8 }}>
                         Client ID
-                        <input
+                        <Input
                             type="text"
                             value={form.data.oidc_client_id}
                             onChange={e => form.setData('oidc_client_id', e.target.value)}
@@ -1790,7 +1790,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                     </label>
                     <label style={{ display: 'block', marginBottom: 8 }}>
                         Client secret
-                        <input
+                        <Input
                             type="password"
                             value={form.data.oidc_client_secret}
                             onChange={e => form.setData('oidc_client_secret', e.target.value)}
@@ -1799,7 +1799,7 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                     </label>
                     <label>
                         Scopes (comma-separated)
-                        <input
+                        <Input
                             type="text"
                             value={form.data.oidc_scopes_csv}
                             onChange={e => form.setData('oidc_scopes_csv', e.target.value)}
@@ -1820,9 +1820,9 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                 Enabled
             </label>
 
-            <button type="submit" disabled={form.processing}>
+            <Button type="submit" loading={form.processing}>
                 {form.processing ? 'Saving…' : 'Add connection'}
-            </button>
+            </Button>
         </form>
     )
 }
@@ -1837,15 +1837,15 @@ function DeleteConnectionButton({ id, action, disabled }: { id: string; action: 
     }
 
     return (
-        <button
+        <Button
             type="button"
             onClick={onDelete}
-            disabled={disabled || form.processing}
+            loading={disabled || form.processing}
             title={disabled ? 'Has linked accounts — unlink users first.' : undefined}
             style={{ padding: '4px 10px', background: disabled ? '#e5e7eb' : '#fee2e2', color: disabled ? '#94a3b8' : '#b91c1c', border: 'none', borderRadius: 4, cursor: disabled ? 'not-allowed' : 'pointer' }}
         >
             Delete
-        </button>
+        </Button>
     )
 }
 
@@ -1900,9 +1900,9 @@ function JwtTemplatesSection({ templates }: { templates: JwtTemplateRow[] }) {
                                 <td style={{ padding: 6 }}>{t.lifetime}s</td>
                                 <td style={{ padding: 6, color: '#475569' }}>{t.last_used_at ? new Date(t.last_used_at).toISOString() : '—'}</td>
                                 <td style={{ padding: 6, textAlign: 'right' }}>
-                                    <button type="button" onClick={() => setEditing(editing === t.id ? null : t.id)} style={{ marginRight: 6 }}>
+                                    <Button type="button" onClick={() => setEditing(editing === t.id ? null : t.id)} style={{ marginRight: 6 }}>
                                         {editing === t.id ? 'Close' : 'Edit'}
-                                    </button>
+                                    </Button>
                                     <DeleteJwtTemplateButton id={t.id} action={url(`${base}/jwt-templates/${t.id}`)} />
                                 </td>
                             </tr>
@@ -1926,9 +1926,9 @@ function JwtTemplatesSection({ templates }: { templates: JwtTemplateRow[] }) {
                     onDone={() => setAdding(false)}
                 />
             ) : (
-                <button type="button" onClick={() => setAdding(true)} style={{ marginTop: 8 }}>
+                <Button variant="secondary" type="button" onClick={() => setAdding(true)} style={{ marginTop: 8 }}>
                     Add JWT template
-                </button>
+                </Button>
             )}
         </section>
     )
@@ -1980,12 +1980,12 @@ function JwtTemplateForm({ template, saveUrl, onDone }: { template: JwtTemplateR
             <h3 style={{ marginTop: 0 }}>{isEdit ? 'Edit JWT template' : 'New JWT template'}</h3>
             <label style={{ display: 'block', marginBottom: 8 }}>
                 <span style={{ display: 'block', color: '#475569' }}>Name (slug)</span>
-                <input
+                <Input
                     type="text"
                     value={form.data.name}
                     onChange={e => form.setData('name', e.target.value)}
                     placeholder="supabase"
-                    disabled={isEdit}
+                    loading={isEdit}
                     style={{ width: '100%', padding: 6 }}
                 />
                 {form.errors.name && <p style={{ color: '#b91c1c' }}>{form.errors.name}</p>}
@@ -2006,11 +2006,11 @@ function JwtTemplateForm({ template, saveUrl, onDone }: { template: JwtTemplateR
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 8 }}>
                 <label>
                     <span style={{ display: 'block', color: '#475569' }}>Lifetime (s)</span>
-                    <input type="number" min={1} max={86400} value={form.data.lifetime} onChange={e => form.setData('lifetime', Number(e.target.value))} style={{ width: '100%', padding: 6 }} />
+                    <Input type="number" min={1} max={86400} value={form.data.lifetime} onChange={e => form.setData('lifetime', Number(e.target.value))} style={{ width: '100%', padding: 6 }} />
                 </label>
                 <label>
                     <span style={{ display: 'block', color: '#475569' }}>Allowed clock skew (s)</span>
-                    <input type="number" min={0} max={300} value={form.data.allowed_clock_skew} onChange={e => form.setData('allowed_clock_skew', Number(e.target.value))} style={{ width: '100%', padding: 6 }} />
+                    <Input type="number" min={0} max={300} value={form.data.allowed_clock_skew} onChange={e => form.setData('allowed_clock_skew', Number(e.target.value))} style={{ width: '100%', padding: 6 }} />
                 </label>
                 <label>
                     <span style={{ display: 'block', color: '#475569' }}>Algorithm</span>
@@ -2041,10 +2041,10 @@ function JwtTemplateForm({ template, saveUrl, onDone }: { template: JwtTemplateR
             </label>
 
             <div style={{ display: 'flex', gap: 8 }}>
-                <button type="submit" disabled={form.processing}>
+                <Button variant="secondary" type="submit" disabled={form.processing}>
                     {form.processing ? 'Saving…' : isEdit ? 'Save changes' : 'Create template'}
-                </button>
-                <button type="button" onClick={onDone}>Cancel</button>
+                </Button>
+                <Button type="button" onClick={onDone}>Cancel</Button>
             </div>
         </form>
     )
@@ -2058,14 +2058,14 @@ function DeleteJwtTemplateButton({ id: _id, action }: { id: string; action: stri
     }
 
     return (
-        <button
+        <Button variant="secondary"
             type="button"
             onClick={onDelete}
-            disabled={form.processing}
+            loading={form.processing}
             style={{ padding: '4px 10px', background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 4 }}
         >
             Delete
-        </button>
+        </Button>
     )
 }
 
@@ -2132,9 +2132,9 @@ function OauthApplicationsSection({ applications }: { applications: OauthApplica
                                 <td style={{ padding: 6 }}>{a.is_public ? 'Public (PKCE)' : 'Confidential'}</td>
                                 <td style={{ padding: 6 }}>{a.grants_count}</td>
                                 <td style={{ padding: 6, textAlign: 'right' }}>
-                                    <button type="button" onClick={() => setEditing(editing === a.id ? null : a.id)} style={{ marginRight: 6 }}>
+                                    <Button type="button" onClick={() => setEditing(editing === a.id ? null : a.id)} style={{ marginRight: 6 }}>
                                         {editing === a.id ? 'Close' : 'Edit'}
-                                    </button>
+                                    </Button>
                                     {!a.is_public && (
                                         <RotateSecretButton action={url(`${base}/oauth-applications/${a.id}/rotate-secret`)} />
                                     )}
@@ -2161,9 +2161,9 @@ function OauthApplicationsSection({ applications }: { applications: OauthApplica
                     onDone={() => setAdding(false)}
                 />
             ) : (
-                <button type="button" onClick={() => setAdding(true)} style={{ marginTop: 8 }}>
+                <Button variant="secondary" type="button" onClick={() => setAdding(true)} style={{ marginTop: 8 }}>
                     Add OAuth application
-                </button>
+                </Button>
             )}
         </section>
     )
@@ -2210,7 +2210,7 @@ function OauthApplicationForm({ application, saveUrl, onDone }: { application: O
 
             <label style={{ display: 'block', marginBottom: 8 }}>
                 <span style={{ display: 'block', color: '#475569' }}>Name</span>
-                <input type="text" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ width: '100%', padding: 6 }} />
+                <Input type="text" value={form.data.name} onChange={e => form.setData('name', e.target.value)} style={{ width: '100%', padding: 6 }} />
                 {form.errors.name && <p style={{ color: '#b91c1c' }}>{form.errors.name}</p>}
             </label>
 
@@ -2239,18 +2239,18 @@ function OauthApplicationForm({ application, saveUrl, onDone }: { application: O
                 {form.data.scopes.filter(s => !KNOWN_SCOPES.includes(s as typeof KNOWN_SCOPES[number])).map(s => (
                     <div key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 8, marginTop: 6 }}>
                         <code>{s}</code>
-                        <button type="button" onClick={() => toggleScope(s)} style={{ background: 'transparent', border: 'none', color: '#b91c1c', cursor: 'pointer' }}>×</button>
+                        <Button variant="secondary" type="button" onClick={() => toggleScope(s)} style={{ background: 'transparent', border: 'none', color: '#b91c1c', cursor: 'pointer' }}>×</Button>
                     </div>
                 ))}
                 <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                    <input
+                    <Input
                         type="text"
                         value={customScope}
                         onChange={e => setCustomScope(e.target.value)}
                         placeholder="acme.read_billing"
                         style={{ flex: 1, padding: 6 }}
                     />
-                    <button
+                    <Button variant="secondary"
                         type="button"
                         onClick={() => {
                             if (!customScope.trim()) return
@@ -2261,7 +2261,7 @@ function OauthApplicationForm({ application, saveUrl, onDone }: { application: O
                         }}
                     >
                         Add scope
-                    </button>
+                    </Button>
                 </div>
                 </div>
             </section>
@@ -2274,10 +2274,10 @@ function OauthApplicationForm({ application, saveUrl, onDone }: { application: O
             )}
 
             <div style={{ display: 'flex', gap: 8 }}>
-                <button type="submit" disabled={form.processing}>
+                <Button variant="secondary" type="submit" loading={form.processing}>
                     {form.processing ? 'Saving…' : isEdit ? 'Save changes' : 'Create application'}
-                </button>
-                <button type="button" onClick={onDone}>Cancel</button>
+                </Button>
+                <Button type="button" onClick={onDone}>Cancel</Button>
             </div>
         </form>
     )
@@ -2291,14 +2291,14 @@ function RotateSecretButton({ action }: { action: string }) {
     }
 
     return (
-        <button
+        <Button
             type="button"
+            variant="secondary"
             onClick={onClick}
-            disabled={form.processing}
-            style={{ marginRight: 6, padding: '4px 10px', background: '#fef3c7', border: 'none', borderRadius: 4 }}
+            loading={form.processing}
         >
             Rotate secret
-        </button>
+        </Button>
     )
 }
 
@@ -2310,13 +2310,13 @@ function DeleteOauthApplicationButton({ action }: { action: string }) {
     }
 
     return (
-        <button
+        <Button
             type="button"
             onClick={onDelete}
-            disabled={form.processing}
+            loading={form.processing}
             style={{ padding: '4px 10px', background: '#fee2e2', color: '#b91c1c', border: 'none', borderRadius: 4 }}
         >
             Delete
-        </button>
+        </Button>
     )
 }
