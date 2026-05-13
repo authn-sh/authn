@@ -1,5 +1,6 @@
 import { Link, useForm, usePage } from '@inertiajs/react'
 import * as React from 'react'
+import { Tabs, TabsList, TabsTrigger } from '@authn-sh/ui'
 import { useDashboard, useDashboardUrl } from '../shared'
 
 type MultiFactorSettings = {
@@ -150,25 +151,19 @@ export default function Configure(props: Props) {
         : '/configure'
 
     return (
-        <div>
-            <h1>Configure</h1>
-            <nav style={{ display: 'flex', gap: 12, marginBottom: 24, borderBottom: '1px solid #e5e7eb', paddingBottom: 8 }}>
-                {SECTIONS.map(s => (
-                    <Link
-                        key={s.slug}
-                        href={url(`${baseConfigure}/${s.slug}`)}
-                        style={{
-                            padding: '6px 10px',
-                            borderRadius: 6,
-                            background: props.section === s.slug ? '#0f172a' : 'transparent',
-                            color: props.section === s.slug ? '#fff' : '#0f172a',
-                            textDecoration: 'none',
-                        }}
-                    >
-                        {s.label}
-                    </Link>
-                ))}
-            </nav>
+        <>
+            <div className="authn-page-header">
+                <h1 className="authn-page-title">Configure</h1>
+            </div>
+            <Tabs value={props.section}>
+                <TabsList>
+                    {SECTIONS.map((s) => (
+                        <TabsTrigger key={s.slug} value={s.slug} asChild>
+                            <Link href={url(`${baseConfigure}/${s.slug}`)}>{s.label}</Link>
+                        </TabsTrigger>
+                    ))}
+                </TabsList>
+            </Tabs>
             {props.section === 'attributes' && <AttributesSection attributes={props.attributes} signupMode={props.signup_mode} />}
             {props.section === 'multi-factor' && <MultiFactorSection multiFactor={props.multi_factor} />}
             {props.section === 'sms' && <SmsSection sms={props.sms} smsTemplates={props.sms_templates} />}
@@ -190,11 +185,11 @@ export default function Configure(props: Props) {
                 <OauthApplicationsSection applications={props.oauth_applications ?? []} />
             )}
             {!['attributes', 'multi-factor', 'sms', 'social-providers', 'enterprise-sso', 'appearance', 'localization', 'jwt-templates', 'oauth-applications'].includes(props.section) && (
-                <pre style={{ background: '#f1f5f9', padding: 12, borderRadius: 6 }}>
+                <pre className="authn-json-block">
                     {JSON.stringify(props.user_settings, null, 2)}
                 </pre>
             )}
-        </div>
+        </>
     )
 }
 

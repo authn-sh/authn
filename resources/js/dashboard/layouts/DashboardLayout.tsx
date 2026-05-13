@@ -8,6 +8,7 @@ import {
 import { Link, usePage } from '@inertiajs/react'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
+    BookIcon,
     BoxIcon,
     BuildingIcon,
     ChevronDownIcon,
@@ -17,12 +18,15 @@ import {
     HomeIcon,
     KeyIcon,
     MailIcon,
+    MonitorIcon,
+    MoonIcon,
     PlusIcon,
     ScrollIcon,
     ShieldCheckIcon,
     ShieldIcon,
     ShieldOffIcon,
     SlidersIcon,
+    SunIcon,
     UsersIcon,
     WebhookIcon,
 } from '../icons'
@@ -89,6 +93,43 @@ function useCollapsed(): [boolean, (next: boolean) => void] {
     return [collapsed, set]
 }
 
+type ThemeMode = 'auto' | 'light' | 'dark'
+const THEME_KEY = 'authn.dashboard.theme'
+
+function useTheme(): [ThemeMode, () => void] {
+    const [mode, setMode] = useState<ThemeMode>('auto')
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem(THEME_KEY) as ThemeMode | null
+            if (stored === 'light' || stored === 'dark') {
+                setMode(stored)
+                document.documentElement.setAttribute('data-theme', stored)
+            } else {
+                setMode('auto')
+                document.documentElement.removeAttribute('data-theme')
+            }
+        } catch {
+            /* ignore */
+        }
+    }, [])
+    const cycle = () => {
+        const next: ThemeMode = mode === 'auto' ? 'light' : mode === 'light' ? 'dark' : 'auto'
+        setMode(next)
+        try {
+            if (next === 'auto') {
+                localStorage.removeItem(THEME_KEY)
+                document.documentElement.removeAttribute('data-theme')
+            } else {
+                localStorage.setItem(THEME_KEY, next)
+                document.documentElement.setAttribute('data-theme', next)
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+    return [mode, cycle]
+}
+
 export function DashboardLayout({ children }: { children: ReactNode }) {
     const { active_project, active_environment, projects, environments, dashboard_prefix } = useDashboard()
     const url = useDashboardUrl()
@@ -96,6 +137,7 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
     const envSlug = active_environment?.slug
     const { url: currentUrl } = usePage()
     const [collapsed, setCollapsed] = useCollapsed()
+    const [theme, cycleTheme] = useTheme()
 
     return (
         <>
@@ -162,6 +204,26 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                                 />
                             </div>
                             <div className="authn-shell-topbar-right">
+                                <a
+                                    href="https://authn.sh/docs"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="authn-icon-button"
+                                    data-shape="pill"
+                                    title="Docs"
+                                >
+                                    <BookIcon />
+                                    <span>Docs</span>
+                                </a>
+                                <button
+                                    type="button"
+                                    className="authn-icon-button"
+                                    onClick={cycleTheme}
+                                    title={`Theme: ${theme} (click to change)`}
+                                    aria-label={`Theme: ${theme} (click to change)`}
+                                >
+                                    {theme === 'light' ? <SunIcon /> : theme === 'dark' ? <MoonIcon /> : <MonitorIcon />}
+                                </button>
                                 <UserButton />
                             </div>
                         </header>

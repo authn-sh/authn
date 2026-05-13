@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="color-scheme" content="light dark">
     <title inertia>{{ $page['props']['operator']['name'] ?? 'authn.sh' }} — Dashboard</title>
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem('authn.dashboard.theme');
+                if (t === 'light' || t === 'dark') {
+                    document.documentElement.setAttribute('data-theme', t);
+                }
+            } catch (_) {}
+        })();
+    </script>
     @viteReactRefresh
     @vite('resources/js/dashboard/main.tsx')
     @inertiaHead
