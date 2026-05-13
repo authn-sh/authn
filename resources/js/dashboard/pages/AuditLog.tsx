@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react'
+import { Badge } from '@authn-sh/ui'
 import { useDashboard, useDashboardUrl } from '../shared'
 
 type Entry = {
@@ -15,6 +16,18 @@ type Props = {
     entries: Entry[]
 }
 
+const FACETS = [
+    { slug: '', label: 'all' },
+    { slug: 'user', label: 'user' },
+    { slug: 'session', label: 'session' },
+    { slug: 'oauthProvider', label: 'oauth provider' },
+    { slug: 'externalAccount', label: 'external account' },
+    { slug: 'phoneNumber', label: 'phone number' },
+    { slug: 'organization', label: 'organization' },
+    { slug: 'sms', label: 'sms' },
+    { slug: 'email', label: 'email' },
+]
+
 export default function AuditLog({ note, filter, entries }: Props) {
     const url = useDashboardUrl()
     const { active_project, active_environment } = useDashboard()
@@ -22,76 +35,67 @@ export default function AuditLog({ note, filter, entries }: Props) {
         ? `/${active_project.slug}/${active_environment.slug}/audit-log`
         : '/audit-log'
 
-    const facets = [
-        { slug: '', label: 'all' },
-        { slug: 'user', label: 'user' },
-        { slug: 'session', label: 'session' },
-        { slug: 'oauthProvider', label: 'oauth provider' },
-        { slug: 'externalAccount', label: 'external account' },
-        { slug: 'phoneNumber', label: 'phone number' },
-        { slug: 'organization', label: 'organization' },
-        { slug: 'sms', label: 'sms' },
-        { slug: 'email', label: 'email' },
-    ]
-
     return (
-        <div>
-            <h1>Audit log</h1>
-            <p style={{ color: '#64748b' }}>{note}</p>
-            <nav style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-                {facets.map(f => {
+        <>
+            <div className="authn-page-header">
+                <div>
+                    <h1 className="authn-page-title">Audit log</h1>
+                    <p className="authn-page-subtitle">{note}</p>
+                </div>
+            </div>
+            <nav className="authn-chip-group">
+                {FACETS.map((f) => {
                     const active = filter === f.slug
                     const href = f.slug === '' ? url(base) : url(`${base}?type=${encodeURIComponent(f.slug)}`)
                     return (
                         <Link
                             key={f.slug || 'all'}
                             href={href}
-                            style={{
-                                padding: '4px 8px',
-                                borderRadius: 4,
-                                fontSize: 13,
-                                background: active ? '#0f172a' : '#f1f5f9',
-                                color: active ? '#fff' : '#0f172a',
-                                textDecoration: 'none',
-                            }}
+                            className="authn-chip"
+                            {...(active ? { 'aria-current': 'true' as const } : {})}
                         >
                             {f.label}
                         </Link>
                     )
                 })}
             </nav>
-            {entries.length === 0 ? (
-                <p style={{ color: '#94a3b8' }}>No events match the current filter.</p>
-            ) : (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <div className="authn-table-wrap">
+                <table className="authn-table">
                     <thead>
-                        <tr style={{ textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
-                            <th style={{ padding: '6px 8px', width: 200 }}>at</th>
-                            <th style={{ padding: '6px 8px', width: 240 }}>type</th>
-                            <th style={{ padding: '6px 8px' }}>data</th>
+                        <tr>
+                            <th style={{ width: 220 }}>At</th>
+                            <th style={{ width: 260 }}>Type</th>
+                            <th>Data</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {entries.map(e => (
-                            <tr key={e.id} style={{ borderBottom: '1px solid #f1f5f9', verticalAlign: 'top' }}>
-                                <td style={{ padding: '6px 8px', fontFamily: 'monospace', color: '#475569' }}>
-                                    {e.created_at ? new Date(e.created_at).toISOString() : '—'}
-                                    {e.was_test && <span style={{ marginLeft: 6, fontSize: 11, color: '#b45309' }}>test</span>}
+                        {entries.length === 0 && (
+                            <tr>
+                                <td colSpan={3}>
+                                    <div className="authn-empty-state">No events match the current filter.</div>
                                 </td>
-                                <td style={{ padding: '6px 8px' }}><code>{e.type}</code></td>
-                                <td style={{ padding: '6px 8px' }}>
+                            </tr>
+                        )}
+                        {entries.map((e) => (
+                            <tr key={e.id} style={{ verticalAlign: 'top' }}>
+                                <td>
+                                    <code>{e.created_at ? new Date(e.created_at).toISOString() : '—'}</code>
+                                    {e.was_test && <Badge tone="warning" style={{ marginLeft: 6 }}>test</Badge>}
+                                </td>
+                                <td><code>{e.type}</code></td>
+                                <td>
                                     <details>
-                                        <summary style={{ cursor: 'pointer', color: '#64748b' }}>view payload</summary>
-                                        <pre style={{ fontSize: 12, marginTop: 4, padding: 8, background: '#f8fafc', borderRadius: 4, overflow: 'auto' }}>
-                                            {JSON.stringify(e.data, null, 2)}
-                                        </pre>
+                                        <summary style={{ cursor: 'pointer', color: 'var(--authn-color-text-secondary)' }}>
+                                            view payload
+                                        </summary>
+                                        <pre className="authn-json-block">{JSON.stringify(e.data, null, 2)}</pre>
                                     </details>
                                 </td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
-            )}
-        </div>
+            </div>
+        </>
     )
 }

@@ -1,5 +1,5 @@
 import { RedirectToSignIn, SignedIn, SignedOut, UserButton } from '@authn-sh/sdk-react'
-import { Link } from '@inertiajs/react'
+import { Link, usePage } from '@inertiajs/react'
 import type { ReactNode } from 'react'
 import { useDashboard, useDashboardUrl } from '../shared'
 
@@ -17,46 +17,49 @@ const SECTIONS = [
     ['Audit log', 'audit-log'],
 ] as const
 
-/**
- * Sidebar + topbar shell for the Dashboard. Heavy widgets land in a
- * follow-up — v0.1 keeps it intentionally plain so the wire-up is testable
- * without React component dependencies.
- */
 export function DashboardLayout({ children }: { children: ReactNode }) {
     const { active_project, active_environment } = useDashboard()
     const url = useDashboardUrl()
     const projectSlug = active_project?.slug
     const envSlug = active_environment?.slug
+    const { url: currentUrl } = usePage()
 
     return (
         <>
             <SignedIn>
-                <div style={{ display: 'flex', minHeight: '100dvh', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
-                    <aside style={{ width: 240, padding: 20, borderRight: '1px solid #e2e8f0', background: '#f8fafc' }}>
-                        <h2 style={{ fontSize: 16, marginTop: 0 }}>authn.sh</h2>
+                <div className="authn-root authn-shell">
+                    <aside className="authn-shell-sidebar">
+                        <h2 className="authn-shell-brand">authn.sh</h2>
                         {projectSlug && envSlug ? (
-                            <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                {SECTIONS.map(([label, slug]) => (
-                                    <Link
-                                        key={slug}
-                                        href={url(`/${projectSlug}/${envSlug}/${slug}`)}
-                                        style={{ padding: '6px 8px', borderRadius: 6, color: '#0f172a', textDecoration: 'none' }}
-                                    >
-                                        {label}
-                                    </Link>
-                                ))}
+                            <nav className="authn-shell-nav">
+                                {SECTIONS.map(([label, slug]) => {
+                                    const href = url(`/${projectSlug}/${envSlug}/${slug}`)
+                                    const active = currentUrl.startsWith(href)
+                                    return (
+                                        <Link
+                                            key={slug}
+                                            href={href}
+                                            className="authn-nav-item"
+                                            {...(active ? { 'aria-current': 'page' as const } : {})}
+                                        >
+                                            {label}
+                                        </Link>
+                                    )
+                                })}
                             </nav>
                         ) : (
-                            <p style={{ color: '#64748b', fontSize: 13 }}>Pick a project to load the sidebar.</p>
+                            <p className="authn-empty-state" style={{ padding: '1rem 0.5rem', textAlign: 'left', alignItems: 'flex-start' }}>
+                                Pick a project to load the sidebar.
+                            </p>
                         )}
                     </aside>
-                    <main style={{ flex: 1, padding: 32 }}>
-                        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                    <div className="authn-shell-main">
+                        <header className="authn-shell-topbar">
                             <strong>{active_project?.name ?? 'Dashboard'}</strong>
                             <UserButton />
                         </header>
-                        {children}
-                    </main>
+                        <main className="authn-shell-content">{children}</main>
+                    </div>
                 </div>
             </SignedIn>
             <SignedOut>

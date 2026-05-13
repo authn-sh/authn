@@ -2,9 +2,34 @@ type Props = { rows: Array<{ id: string; identifier: string }> }
 
 export default function Blocklist({ rows }: Props) {
     return (
-        <div>
-            <h1>Blocklist</h1>
-            <p>{rows.length} entries.</p>
-        </div>
+        <>
+            <div className="authn-page-header">
+                <div>
+                    <h1 className="authn-page-title">Blocklist</h1>
+                    <p className="authn-page-subtitle">{rows.length} {rows.length === 1 ? 'entry' : 'entries'}.</p>
+                </div>
+            </div>
+            <div className="authn-table-wrap">
+                <table className="authn-table">
+                    <thead>
+                        <tr><th>Identifier</th></tr>
+                    </thead>
+                    <tbody>
+                        {rows.length === 0 && (
+                            <tr>
+                                <td>
+                                    <div className="authn-empty-state">No blocklist entries.</div>
+                                </td>
+                            </tr>
+                        )}
+                        {rows.map((r) => (
+                            <tr key={r.id}>
+                                <td><code>{r.identifier}</code></td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </>
     )
 }
