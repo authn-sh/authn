@@ -217,8 +217,9 @@ function AttributesSection({ attributes, signupMode }: { attributes: AttributesS
                     form.patch(action, { preserveScroll: true })
                 }}
             >
-                <fieldset style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                    <legend><strong>Phone number</strong></legend>
+                <section className="authn-section">
+                    <h3 className="authn-section-title">Phone number</h3>
+                    <div className="authn-section-body">
                     {(['required', 'optional', 'off'] as const).map(opt => (
                         <label key={opt} style={{ display: 'block', marginBottom: 4 }}>
                             <input
@@ -232,7 +233,8 @@ function AttributesSection({ attributes, signupMode }: { attributes: AttributesS
                             {opt}
                         </label>
                     ))}
-                </fieldset>
+                    </div>
+                </section>
                 <button type="submit" disabled={form.processing}>
                     {form.processing ? 'Saving…' : 'Save'}
                 </button>
@@ -273,8 +275,9 @@ function MultiFactorSection({ multiFactor }: { multiFactor: MultiFactorSettings 
                     form.patch(action, { preserveScroll: true })
                 }}
             >
-                <fieldset style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                    <legend><strong>TOTP (authenticator app)</strong></legend>
+                <section className="authn-section">
+                    <h3 className="authn-section-title">TOTP (authenticator app)</h3>
+                    <div className="authn-section-body">
                     <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <input
                             type="checkbox"
@@ -284,9 +287,11 @@ function MultiFactorSection({ multiFactor }: { multiFactor: MultiFactorSettings 
                         Allow users to enroll an authenticator app as a second factor.
                     </label>
                     {form.errors['totp.enabled'] && <span style={{ color: '#c00', fontSize: 12 }}>{form.errors['totp.enabled']}</span>}
-                </fieldset>
-                <fieldset style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                    <legend><strong>Backup codes</strong></legend>
+                    </div>
+                </section>
+                <section className="authn-section">
+                    <h3 className="authn-section-title">Backup codes</h3>
+                    <div className="authn-section-body">
                     <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
                         <input
                             type="checkbox"
@@ -307,7 +312,8 @@ function MultiFactorSection({ multiFactor }: { multiFactor: MultiFactorSettings 
                         />
                     </label>
                     {form.errors['backup_codes.default_count'] && <span style={{ color: '#c00', fontSize: 12 }}>{form.errors['backup_codes.default_count']}</span>}
-                </fieldset>
+                    </div>
+                </section>
                 <button type="submit" disabled={form.processing}>
                     {form.processing ? 'Saving…' : 'Save'}
                 </button>
@@ -358,8 +364,9 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                     settingsForm.patch(url(`${base}/sms`), { preserveScroll: true })
                 }}
             >
-                <fieldset style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                    <legend><strong>Driver</strong></legend>
+                <section className="authn-section">
+                    <h3 className="authn-section-title">Driver</h3>
+                    <div className="authn-section-body">
                     {(['', 'twilio', 'vonage'] as const).map(opt => (
                         <label key={opt || 'null'} style={{ display: 'block', marginBottom: 4 }}>
                             <input
@@ -373,7 +380,8 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                             {opt === '' ? 'Disabled (no-op)' : opt}
                         </label>
                     ))}
-                </fieldset>
+                    </div>
+                </section>
 
                 <label style={{ display: 'block', marginBottom: 16 }}>
                     From number (E.164)
@@ -387,8 +395,9 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                 </label>
 
                 {settingsForm.data.driver === 'twilio' && (
-                    <fieldset style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                        <legend><strong>Twilio</strong></legend>
+                    <section className="authn-section">
+                    <h3 className="authn-section-title">Twilio</h3>
+                    <div className="authn-section-body">
                         <label style={{ display: 'block', marginBottom: 8 }}>
                             Account SID
                             <input
@@ -408,12 +417,14 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                                 style={{ display: 'block', marginTop: 4, padding: 6, width: 360 }}
                             />
                         </label>
-                    </fieldset>
+                    </div>
+                </section>
                 )}
 
                 {settingsForm.data.driver === 'vonage' && (
-                    <fieldset style={{ marginBottom: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                        <legend><strong>Vonage</strong></legend>
+                    <section className="authn-section">
+                    <h3 className="authn-section-title">Vonage</h3>
+                    <div className="authn-section-body">
                         <label style={{ display: 'block', marginBottom: 8 }}>
                             API key
                             <input
@@ -433,7 +444,8 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                                 style={{ display: 'block', marginTop: 4, padding: 6, width: 360 }}
                             />
                         </label>
-                    </fieldset>
+                    </div>
+                </section>
                 )}
 
                 <button type="submit" disabled={settingsForm.processing}>
@@ -441,8 +453,9 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                 </button>
             </form>
 
-            <fieldset style={{ marginTop: 24, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                <legend><strong>Send test SMS</strong></legend>
+            <section className="authn-section">
+                    <h3 className="authn-section-title">Send test SMS</h3>
+                    <div className="authn-section-body">
                 <form
                     onSubmit={(e) => {
                         e.preventDefault()
@@ -463,7 +476,8 @@ function SmsSection({ sms, smsTemplates }: { sms: SmsSettings; smsTemplates: Sms
                         {testForm.processing ? 'Sending…' : 'Send test'}
                     </button>
                 </form>
-            </fieldset>
+                    </div>
+                </section>
 
             <h3 style={{ marginTop: 24 }}>Templates</h3>
             {smsTemplates.map(t => (
@@ -568,10 +582,12 @@ function SocialProvidersSection({ providers, presetKeys }: { providers: OauthPro
             {providers.map(p => <ProviderRow key={p.id} provider={p} base={base} url={url} />)}
 
             {presetsMissing.length > 0 && (
-                <fieldset style={{ marginTop: 16, padding: 12, border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                    <legend><strong>Add preset</strong></legend>
+                <section className="authn-section">
+                    <h3 className="authn-section-title">Add preset</h3>
+                    <div className="authn-section-body">
                     {presetsMissing.map(k => <PresetCreateForm key={k} providerKey={k} base={base} url={url} />)}
-                </fieldset>
+                    </div>
+                </section>
             )}
 
             <CustomOidcWizard base={base} url={url} />
@@ -1704,8 +1720,9 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
             </div>
 
             {form.data.protocol === 'saml' ? (
-                <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: 6, padding: 12, marginBottom: 12 }}>
-                    <legend><strong>SAML</strong></legend>
+                <section className="authn-section">
+                    <h3 className="authn-section-title">SAML</h3>
+                    <div className="authn-section-body">
                     <label style={{ display: 'block', marginBottom: 8 }}>
                         IdP entity ID
                         <input
@@ -1746,10 +1763,12 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                             <option value="RSA_SHA512">RSA_SHA512</option>
                         </select>
                     </label>
-                </fieldset>
+                    </div>
+                </section>
             ) : (
-                <fieldset style={{ border: '1px solid #e5e7eb', borderRadius: 6, padding: 12, marginBottom: 12 }}>
-                    <legend><strong>OIDC</strong></legend>
+                <section className="authn-section">
+                    <h3 className="authn-section-title">OIDC</h3>
+                    <div className="authn-section-body">
                     <label style={{ display: 'block', marginBottom: 8 }}>
                         Issuer URL
                         <input
@@ -1787,7 +1806,8 @@ function AddEnterpriseConnectionForm({ action }: { action: string }) {
                             style={{ display: 'block', marginTop: 4, padding: 6, width: '100%' }}
                         />
                     </label>
-                </fieldset>
+                    </div>
+                </section>
             )}
 
             <label style={{ display: 'block', marginBottom: 12 }}>
@@ -2205,8 +2225,9 @@ function OauthApplicationForm({ application, saveUrl, onDone }: { application: O
                 />
             </label>
 
-            <fieldset style={{ marginBottom: 8, padding: 8, border: '1px solid #e5e7eb', borderRadius: 4 }}>
-                <legend style={{ color: '#475569', padding: '0 6px' }}>Scopes</legend>
+            <section className="authn-section">
+                <h3 className="authn-section-title">Scopes</h3>
+                <div className="authn-section-body">
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     {KNOWN_SCOPES.map(s => (
                         <label key={s} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -2242,7 +2263,8 @@ function OauthApplicationForm({ application, saveUrl, onDone }: { application: O
                         Add scope
                     </button>
                 </div>
-            </fieldset>
+                </div>
+            </section>
 
             {!isEdit && (
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
