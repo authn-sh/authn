@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1] — 2026-05-13
+
+### Changed
+
+- Account Portal layout no longer wraps the SDK SignIn / SignUp / UserProfile in an outer `<section>` box. The SDK component renders its own Card with shadow and centers itself on the page, eliminating the previous box-inside-box look. The layout is now just background + minimum viewport height.
+
 ## [0.7.0] — 2026-05-12
 
 JWT templates + OAuth provider mode (authn.sh as IdP) + v0.5/v0.6 deferral cleanup.
