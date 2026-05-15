@@ -34,7 +34,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 /**
  * FAPI sign-in state-machine controller. The factor verification surface
  * (formerly prepare-/attempt-first-factor and reset-password) is now
- * served by ChallengeController under `/sign-ins/{sid}/challenges`.
+ * served by SignInChallengeController under `/sign-ins/{sid}/challenges`.
  *
  * Endpoints:
  *   POST   /v1/client/sign-ins
