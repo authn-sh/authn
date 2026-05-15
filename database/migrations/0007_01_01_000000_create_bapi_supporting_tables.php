@@ -7,8 +7,8 @@ use Illuminate\Support\Facades\Schema;
 /**
  * BAPI supporting schema (AU-13):
  *
- *   - redirect_urls               operator-managed allowlist of post-OAuth /
- *                                 magic-link redirect targets
+ *   - redirect_urls               operator-managed allowlist of post-OAuth
+ *                                 redirect targets
  *   - users.password_imported     marks a row whose hash came from a migration
  *                                 import (verify_password still works, but the
  *                                 SDK should prompt a re-hash on next login)

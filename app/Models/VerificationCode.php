@@ -20,7 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $id
  * @property string $verification_id
  * @property string $code_hash SHA-256 of the cleartext code
- * @property string $purpose email_code | magic_link | reset_password_email_code | passwordless_email
+ * @property string $purpose email_code | reset_password_email_code | passwordless_email
  * @property \DateTimeInterface $expires_at
  * @property ?\DateTimeInterface $consumed_at
  */
@@ -29,8 +29,6 @@ class VerificationCode extends Model
     use HasFactory;
 
     public const PURPOSE_EMAIL_CODE = 'email_code';
-
-    public const PURPOSE_MAGIC_LINK = 'magic_link';
 
     public const PURPOSE_RESET_PASSWORD_EMAIL_CODE = 'reset_password_email_code';
 

@@ -9,7 +9,6 @@ use App\Http\Controllers\Fapi\ClientController;
 use App\Http\Controllers\Fapi\EnterpriseSsoCallbackController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\LocalizationController;
-use App\Http\Controllers\Fapi\MagicLinkController;
 use App\Http\Controllers\Fapi\MeAuthorizedAppsController;
 use App\Http\Controllers\Fapi\MeBackupCodesController;
 use App\Http\Controllers\Fapi\MeController;
@@ -113,10 +112,6 @@ Route::prefix('v1')->group(function (): void {
         Route::put('/client', [ClientController::class, 'store'])->name('fapi.client.store');
         Route::delete('/client', [ClientController::class, 'destroy'])->name('fapi.client.destroy');
         Route::match(['get', 'post'], '/client/handshake', [ClientController::class, 'handshake'])->name('fapi.client.handshake');
-
-        // Magic-link click handler (AU-10). Top-level browser navigation
-        // from the email — no Origin header, no Client cookie required.
-        Route::get('/client/magic-link/redeem', [MagicLinkController::class, 'redeem'])->name('fapi.magic_link.redeem');
 
         // OAuth callback — IdP top-level redirect back from the authorize
         // dance. No Origin / Client cookie required (redirect lands on a

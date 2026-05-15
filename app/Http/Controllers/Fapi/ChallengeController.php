@@ -11,13 +11,11 @@ use App\Http\Resources\ChallengeResource;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\SignInResource;
 use App\Http\Resources\SignUpResource;
-use App\Jobs\Mail\SendMagicLinkEmail;
 use App\Jobs\Mail\SendVerificationEmail;
 use App\Models\BackupCode;
 use App\Models\Challenge;
 use App\Models\Client;
 use App\Models\EmailAddress;
-use App\Models\EmailTemplate;
 use App\Models\Environment;
 use App\Models\OauthProvider;
 use App\Models\Passkey;
@@ -30,7 +28,6 @@ use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
 use App\Services\Domains\DomainEnroller;
-use App\Services\MagicLink\MagicLinkIssuer;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Verification\VerificationManager;
@@ -362,10 +359,6 @@ final class ChallengeController
             return $this->errorWithSignUp(422, ErrorCodes::FORM_PARAM_NIL, 'email_address is required before issuing a challenge.', $client, $attempt);
         }
 
-        if ($strategyName === Verification::STRATEGY_EMAIL_LINK) {
-            return $this->issueSignUpEmailLink($client, $attempt, $request);
-        }
-
         $verification = $this->verifications->start($attempt, Verification::STRATEGY_EMAIL_CODE, self::SIGN_UP_EMAIL_VERIFICATION_TTL);
         $code = $this->verifications->mintNumericCode($verification, VerificationCode::PURPOSE_EMAIL_CODE, self::SIGN_UP_EMAIL_VERIFICATION_TTL);
 
@@ -401,27 +394,6 @@ final class ChallengeController
         $verification = Verification::query()->withoutGlobalScopes()->where('id', $challenge->verification_id)->first();
         if ($verification === null) {
             return $this->errorWithSignUp(422, ErrorCodes::VERIFICATION_FAILED, 'Underlying verification missing.', $client, $attempt);
-        }
-
-        if ($challenge->strategy === Verification::STRATEGY_EMAIL_LINK) {
-            // Empty body — commits the SDK to polling; the click flips the
-            // Verification out-of-band.
-            $this->refreshChallengeFromVerification($challenge);
-            $fresh = $challenge->fresh();
-            if ($fresh === null) {
-                return $this->errorWithSignUp(422, ErrorCodes::VERIFICATION_FAILED, 'Challenge missing.', $client, $attempt);
-            }
-            if ($fresh->status === Challenge::STATUS_PENDING) {
-                return $this->errorWithSignUp(422, ErrorCodes::VERIFICATION_FAILED, 'Magic link not yet redeemed.', $client, $attempt, $fresh);
-            }
-            if ($fresh->status === Challenge::STATUS_EXPIRED) {
-                return $this->errorWithSignUp(422, ErrorCodes::VERIFICATION_EXPIRED, 'Magic link expired.', $client, $attempt, $fresh);
-            }
-            if ($fresh->status !== Challenge::STATUS_VERIFIED) {
-                return $this->errorWithSignUp(422, ErrorCodes::VERIFICATION_FAILED, "Challenge in status {$fresh->status}.", $client, $attempt, $fresh);
-            }
-
-            return $this->finalizeSignUpIfReady($client, $attempt, $fresh);
         }
 
         $code = $request->input('code');
@@ -486,18 +458,16 @@ final class ChallengeController
         if ($strategyName === '') {
             return $this->bareError(422, ErrorCodes::FORM_PARAM_NIL, 'strategy is required.', null);
         }
-        if (! in_array($strategyName, [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK], true)) {
+        if ($strategyName !== Verification::STRATEGY_EMAIL_CODE) {
             return $this->bareError(422, ErrorCodes::STRATEGY_NOT_SUPPORTED, "strategy {$strategyName} is not supported on email-address challenges.", null);
         }
 
-        $challenge = $strategyName === Verification::STRATEGY_EMAIL_LINK
-            ? $this->issueEmailLinkForEmailAddress($email, $request)
-            : $this->issueEmailCodeForEmailAddress($email);
+        $challenge = $this->issueEmailCodeForEmailAddress($email);
 
         // Inline answer-on-create — the SDK can pass `code` alongside the
-        // create call to skip the second round trip for email_code.
+        // create call to skip the second round trip.
         $code = $request->input('code');
-        if ($strategyName === Verification::STRATEGY_EMAIL_CODE && is_string($code) && $code !== '') {
+        if (is_string($code) && $code !== '') {
             return $this->runEmailAddressAnswer($email, $challenge, ['code' => $code]);
         }
 
@@ -536,10 +506,6 @@ final class ChallengeController
         }
 
         $this->refreshChallengeFromVerification($challenge);
-        // email_link verifications flip out-of-band via the click handler;
-        // mirror that into the EmailAddress.verified_at on poll so the
-        // SDK sees the final state without a second round trip.
-        $this->reflectEmailLinkRedemption($email, $challenge->fresh() ?? $challenge);
 
         return response()->json(ChallengeResource::from($challenge->fresh()))
             ->header('Cache-Control', 'no-store');
@@ -576,64 +542,11 @@ final class ChallengeController
         );
     }
 
-    private function issueEmailLinkForEmailAddress(EmailAddress $email, Request $request): Challenge
-    {
-        $verification = $this->verifications->start(
-            $email,
-            Verification::STRATEGY_EMAIL_LINK,
-            MagicLinkIssuer::TTL_SECONDS,
-        );
-
-        $redirectUrl = $request->input('redirect_url');
-        $minted = app(MagicLinkIssuer::class)->issue(
-            $verification,
-            is_string($redirectUrl) && $redirectUrl !== '' ? $redirectUrl : null,
-        );
-
-        SendMagicLinkEmail::dispatch(
-            $email->environment_id,
-            $email->email_address,
-            $minted['url'],
-            EmailTemplate::SLUG_MAGIC_LINK_SIGN_IN,
-            $verification->id,
-            $email->id,
-        );
-
-        $verification->forceFill(['external_verification_redirect_url' => $minted['url']])->save();
-
-        return $this->createChallenge(
-            $email,
-            Challenge::PARENT_EMAIL_ADDRESS,
-            Challenge::STEP_SINGLE,
-            Verification::STRATEGY_EMAIL_LINK,
-            $verification->fresh() ?? $verification,
-        );
-    }
-
     private function runEmailAddressAnswer(EmailAddress $email, Challenge $challenge, array $params): JsonResponse
     {
         $verification = Verification::query()->withoutGlobalScopes()->where('id', $challenge->verification_id)->first();
         if ($verification === null) {
             return $this->bareError(422, ErrorCodes::VERIFICATION_FAILED, 'Underlying verification missing.', null);
-        }
-
-        if ($challenge->strategy === Verification::STRATEGY_EMAIL_LINK) {
-            // Empty-body poll. The click handler flips Verification.status
-            // out-of-band; here we just mirror it onto the Challenge.
-            $this->refreshChallengeFromVerification($challenge);
-            $fresh = $challenge->fresh() ?? $challenge;
-            if ($fresh->status === Challenge::STATUS_PENDING) {
-                return $this->bareError(422, ErrorCodes::VERIFICATION_FAILED, 'Magic link not yet redeemed.', null);
-            }
-            if ($fresh->status === Challenge::STATUS_EXPIRED) {
-                return $this->bareError(422, ErrorCodes::VERIFICATION_EXPIRED, 'Magic link expired.', null);
-            }
-            if ($fresh->status !== Challenge::STATUS_VERIFIED) {
-                return $this->bareError(422, ErrorCodes::VERIFICATION_FAILED, "Challenge in status {$fresh->status}.", null);
-            }
-            $this->reflectEmailLinkRedemption($email, $fresh);
-
-            return $this->emailAddressEnvelope($fresh);
         }
 
         $code = $params['code'] ?? null;
@@ -658,17 +571,6 @@ final class ChallengeController
         $email->forceFill(['verified_at' => now()])->save();
 
         return $this->emailAddressEnvelope($challenge->fresh());
-    }
-
-    private function reflectEmailLinkRedemption(EmailAddress $email, Challenge $challenge): void
-    {
-        if ($challenge->status !== Challenge::STATUS_VERIFIED) {
-            return;
-        }
-        if ($email->verified_at !== null) {
-            return;
-        }
-        $email->forceFill(['verified_at' => now()])->save();
     }
 
     private function emailAddressEnvelope(?Challenge $challenge): JsonResponse
@@ -698,40 +600,6 @@ final class ChallengeController
     }
 
     /* ================================ helpers ================================ */
-
-    private function issueSignUpEmailLink(Client $client, SignUpAttempt $attempt, Request $request): JsonResponse
-    {
-        $verification = $this->verifications->start(
-            $attempt,
-            Verification::STRATEGY_EMAIL_LINK,
-            MagicLinkIssuer::TTL_SECONDS,
-        );
-        $redirectUrl = $request->input('redirect_url');
-        $minted = app(MagicLinkIssuer::class)->issue(
-            $verification,
-            is_string($redirectUrl) && $redirectUrl !== '' ? $redirectUrl : null,
-        );
-
-        SendMagicLinkEmail::dispatch(
-            $attempt->environment_id,
-            (string) $attempt->email_address,
-            $minted['url'],
-            EmailTemplate::SLUG_MAGIC_LINK_SIGN_UP,
-            $verification->id,
-        );
-
-        $verification->forceFill(['external_verification_redirect_url' => $minted['url']])->save();
-
-        $challenge = $this->createChallenge(
-            $attempt,
-            Challenge::PARENT_SIGN_UP,
-            Challenge::STEP_SINGLE,
-            Verification::STRATEGY_EMAIL_LINK,
-            $verification->fresh() ?? $verification,
-        );
-
-        return $this->signUpEnvelope($client, $attempt->fresh(), $challenge);
-    }
 
     private function createChallenge(
         Model $attempt,
@@ -858,7 +726,6 @@ final class ChallengeController
                 [
                     Verification::STRATEGY_PASSWORD,
                     Verification::STRATEGY_EMAIL_CODE,
-                    Verification::STRATEGY_EMAIL_LINK,
                     Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
                     Verification::STRATEGY_TICKET,
                 ],
@@ -994,10 +861,7 @@ final class ChallengeController
             return [];
         }
 
-        return [
-            Verification::STRATEGY_EMAIL_CODE,
-            Verification::STRATEGY_EMAIL_LINK,
-        ];
+        return [Verification::STRATEGY_EMAIL_CODE];
     }
 
     private function loadSignInAttempt(string $sid, Client $client, bool $allowTerminal = false): SignInAttempt|JsonResponse
@@ -1068,7 +932,7 @@ final class ChallengeController
         $verifiedFlags = [];
         $emailVerified = $attempt->challenges()
             ->where('status', Challenge::STATUS_VERIFIED)
-            ->whereIn('strategy', [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK])
+            ->where('strategy', Verification::STRATEGY_EMAIL_CODE)
             ->exists();
         if ($emailVerified) {
             $verifiedFlags['email_address'] = true;

@@ -27,12 +27,6 @@ it('rejects lengths outside [4, 12]', function (): void {
     expect(fn () => $g->generateNumericCode(13))->toThrow(InvalidArgumentException::class);
 });
 
-it('produces a 43-character magic-link token', function (): void {
-    $token = (new CodeGenerator)->generateMagicLinkToken();
-
-    expect(strlen($token))->toBe(43);
-});
-
 it('hashes a value with sha256', function (): void {
     $h = (new CodeGenerator)->hash('hello');
 

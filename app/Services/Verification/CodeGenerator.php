@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Verification;
 
-use Illuminate\Support\Str;
-
 /**
  * Mints the cleartext values that get hashed into VerificationCode rows
- * and dispatched to end users (email/SMS code, magic-link token).
+ * and dispatched to end users (email/SMS codes).
  *
  * No randomness happens at the model layer — services that need a code
  * (sign-in, sign-up, /v1/me email-add) call into here.
@@ -31,17 +29,6 @@ final class CodeGenerator
         $value = random_int(0, $max - 1);
 
         return str_pad((string) $value, $length, '0', STR_PAD_LEFT);
-    }
-
-    /**
-     * 32-byte URL-safe magic-link token. Surfaces inside the
-     * `?__authn_ticket=` query parameter (PLAN §9.7) — the token format
-     * matches the JWT shape there but the value here is a placeholder
-     * for the JWT issuer that AU-13's TicketIssuer wraps.
-     */
-    public function generateMagicLinkToken(): string
-    {
-        return Str::random(43); // ~32 bytes of base62 entropy
     }
 
     public function hash(string $value): string

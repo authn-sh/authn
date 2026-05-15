@@ -6,7 +6,6 @@ namespace App\Auth;
 
 use App\Auth\Strategies\BackupCodeStrategy;
 use App\Auth\Strategies\EmailCodeStrategy;
-use App\Auth\Strategies\EmailLinkStrategy;
 use App\Auth\Strategies\EnterpriseSsoStrategy;
 use App\Auth\Strategies\OauthRedirectStrategy;
 use App\Auth\Strategies\PasskeyStrategy;
@@ -28,7 +27,6 @@ final class StrategyResolver
     public function __construct(
         private readonly PasswordStrategy $password,
         private readonly EmailCodeStrategy $emailCode,
-        private readonly EmailLinkStrategy $emailLink,
         private readonly ResetPasswordEmailCodeStrategy $resetPasswordEmailCode,
         private readonly TicketStrategy $ticket,
         private readonly TotpStrategy $totp,
@@ -48,7 +46,6 @@ final class StrategyResolver
         return match ($name) {
             Verification::STRATEGY_PASSWORD => $this->password,
             Verification::STRATEGY_EMAIL_CODE => $this->emailCode,
-            Verification::STRATEGY_EMAIL_LINK => $this->emailLink,
             Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE => $this->resetPasswordEmailCode,
             Verification::STRATEGY_TICKET => $this->ticket,
             Verification::STRATEGY_TOTP => $this->totp,

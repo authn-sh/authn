@@ -30,10 +30,10 @@ return new class extends Migration
             $table->timestamp('verified_at')->nullable();
             $table->boolean('is_primary')->default(false);
             $table->string('linked_to_external_account_id', 64)->nullable();
-            // Live Challenge (email_code / email_link) the SDK is currently
-            // polling. Cleared once the Challenge leaves `pending`. FK is
-            // wired in the back-fill pass below — challenges table doesn't
-            // exist yet.
+            // Live Challenge (email_code) the SDK is currently polling.
+            // Cleared once the Challenge leaves `pending`. FK is wired in
+            // the back-fill pass below — challenges table doesn't exist
+            // yet.
             $table->string('current_challenge_id', 64)->nullable();
             $table->timestamps();
 

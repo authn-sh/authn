@@ -101,7 +101,6 @@ final class SignInResource
             $strategies[] = Verification::STRATEGY_PASSWORD;
         }
         $strategies[] = Verification::STRATEGY_EMAIL_CODE;
-        $strategies[] = Verification::STRATEGY_EMAIL_LINK;
         $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
 
         $hasPasskey = Passkey::query()

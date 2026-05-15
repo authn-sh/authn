@@ -75,9 +75,6 @@ final class SignUpResource
             return [];
         }
 
-        return [
-            Verification::STRATEGY_EMAIL_CODE,
-            Verification::STRATEGY_EMAIL_LINK,
-        ];
+        return [Verification::STRATEGY_EMAIL_CODE];
     }
 }
