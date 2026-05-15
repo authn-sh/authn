@@ -67,6 +67,7 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::get('/audit-log', [DashboardController::class, 'auditLog'])->name('dashboard.audit_log');
 
     Route::patch('/configure/multi-factor', [DashboardController::class, 'updateMultiFactor'])->name('dashboard.configure.multi_factor.update');
+    Route::patch('/configure/sign-in-methods', [DashboardController::class, 'updateSignInMethods'])->name('dashboard.configure.sign_in_methods.update');
     Route::patch('/configure/strategies/passkey', [DashboardController::class, 'updatePasskeyEnabled'])->name('dashboard.configure.strategies.passkey.update');
     Route::patch('/configure/appearance', [DashboardController::class, 'updateAppearance'])->name('dashboard.configure.appearance.update');
     Route::post('/configure/appearance/preview', [AppearancePreviewController::class, 'store'])->name('dashboard.configure.appearance.preview');

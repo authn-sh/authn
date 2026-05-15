@@ -723,18 +723,35 @@ final class ChallengeController
     {
         return match ($attempt->status) {
             SignInAttempt::STATUS_NEEDS_FIRST_FACTOR => array_merge(
-                [
-                    Verification::STRATEGY_PASSWORD,
-                    Verification::STRATEGY_EMAIL_CODE,
-                    Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
-                    Verification::STRATEGY_TICKET,
-                ],
+                $this->signInFirstFactorBaseStrategies($attempt),
                 $this->enabledOauthStrategies($attempt->environment_id, allowSignIn: true),
                 $this->signInPasskeyStrategies($attempt),
             ),
             SignInAttempt::STATUS_NEEDS_SECOND_FACTOR => $this->signInSecondFactorStrategies($attempt),
             default => [],
         };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function signInFirstFactorBaseStrategies(SignInAttempt $attempt): array
+    {
+        $signInMethods = \App\Settings\SignInMethodsSettings::fromUserSettings(
+            is_array($attempt->environment?->user_settings) ? $attempt->environment->user_settings : [],
+        );
+        $strategies = [
+            Verification::STRATEGY_PASSWORD,
+            Verification::STRATEGY_TICKET,
+        ];
+        if ($signInMethods->emailCodeAllowed()) {
+            $strategies[] = Verification::STRATEGY_EMAIL_CODE;
+        }
+        if ($signInMethods->emailEnabled) {
+            $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
+        }
+
+        return $strategies;
     }
 
     /**

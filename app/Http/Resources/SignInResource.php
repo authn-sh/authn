@@ -14,6 +14,7 @@ use App\Models\SignInAttempt;
 use App\Models\TotpSecret;
 use App\Models\User;
 use App\Models\Verification;
+use App\Settings\SignInMethodsSettings;
 
 /**
  * Mirrors openapi `SignIn`. Factor verification state is no longer
@@ -100,8 +101,15 @@ final class SignInResource
         if ($user->password_hash !== null) {
             $strategies[] = Verification::STRATEGY_PASSWORD;
         }
-        $strategies[] = Verification::STRATEGY_EMAIL_CODE;
-        $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
+        $signInMethods = SignInMethodsSettings::fromUserSettings(
+            is_array($attempt->environment?->user_settings) ? $attempt->environment->user_settings : [],
+        );
+        if ($signInMethods->emailCodeAllowed()) {
+            $strategies[] = Verification::STRATEGY_EMAIL_CODE;
+        }
+        if ($signInMethods->emailEnabled) {
+            $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
+        }
 
         $hasPasskey = Passkey::query()
             ->where('user_id', $user->id)

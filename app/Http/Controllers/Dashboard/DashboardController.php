@@ -37,6 +37,7 @@ use App\Models\WebhookEndpoint;
 use App\Models\WebhookEvent;
 use App\Services\Keys\KeyGenerator;
 use App\Settings\MultiFactorSettings;
+use App\Settings\SignInMethodsSettings;
 use App\Settings\PasskeySettings;
 use App\Support\RoutingLabel;
 use App\Support\Url;
@@ -281,7 +282,9 @@ final class DashboardController
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
 
         return match ($section) {
-            'sign-in' => Inertia::render('Dashboard/Configure/Authentication/SignIn'),
+            'sign-in' => Inertia::render('Dashboard/Configure/Authentication/SignIn', [
+                'sign_in_methods' => SignInMethodsSettings::fromUserSettings($userSettings)->toArray(),
+            ]),
             'sign-up' => Inertia::render('Dashboard/Configure/Authentication/SignUp'),
             'mfa' => Inertia::render('Dashboard/Configure/Authentication/Mfa', [
                 'multi_factor' => MultiFactorSettings::fromUserSettings($userSettings)->toArray(),
@@ -414,6 +417,34 @@ final class DashboardController
 
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/multi-factor")
             ->with('multi_factor_saved', true);
+    }
+
+    public function updateSignInMethods(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $request->validate([
+            'email.enabled' => ['sometimes', 'boolean'],
+            'email.code' => ['sometimes', 'boolean'],
+        ]);
+
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $previous = SignInMethodsSettings::fromUserSettings($userSettings);
+        $patch = ['email' => []];
+        if ($request->has('email.enabled')) {
+            $patch['email']['enabled'] = $request->boolean('email.enabled');
+        }
+        if ($request->has('email.code')) {
+            $patch['email']['code'] = $request->boolean('email.code');
+        }
+        $next = $previous->withPatch($patch);
+        $signInMethods = is_array($userSettings['sign_in_methods'] ?? null) ? $userSettings['sign_in_methods'] : [];
+        $userSettings['sign_in_methods'] = array_replace_recursive($signInMethods, $next->toArray());
+        $env->forceFill(['user_settings' => $userSettings])->save();
+
+        return back(303)->with('sign_in_methods_saved', true);
     }
 
     public function updatePasskeyEnabled(Request $request, string $project_slug, string $env_slug): RedirectResponse
