@@ -53,6 +53,7 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
             ->name('dashboard.configure.restrictions');
         Route::get('/domains', [DashboardController::class, 'domains'])->name('dashboard.configure.domains');
         Route::get('/redirects', [DashboardController::class, 'redirects'])->name('dashboard.configure.redirects');
+        Route::patch('/redirects', [DashboardController::class, 'updateRedirects'])->name('dashboard.configure.redirects.update');
         Route::get('/idp-attributes', [DashboardController::class, 'idpAttributes'])->name('dashboard.configure.idp_attributes');
         Route::get('/branding/{section?}', [DashboardController::class, 'branding'])->name('dashboard.configure.branding');
         Route::get('/templates/{tab?}', [DashboardController::class, 'templates'])->name('dashboard.configure.templates');
