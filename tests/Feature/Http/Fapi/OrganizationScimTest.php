@@ -49,7 +49,7 @@ it('rejects non-members with 404 organization_not_found', function (): void {
     $r->assertStatus(404)->assertJsonPath('errors.0.code', 'organization_not_found');
 });
 
-it('rejects members lacking org:sys_provisioning:manage with 403', function (): void {
+it('rejects members lacking org:provisioning:manage with 403', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = fapiScimMakeOrg($f['env'], $auth['user'], 'org:member');

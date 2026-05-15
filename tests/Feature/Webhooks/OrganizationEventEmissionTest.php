@@ -200,7 +200,7 @@ it('emits role.created/updated/deleted; RolePermissionsChanged maps to role.upda
     RoleUpdated::dispatch($role);
     expect(latestOrgWebhookEvent('role.updated'))->not->toBeNull();
 
-    $perm = Permission::query()->withoutGlobalScopes()->where('environment_id', $f['env']->id)->where('key', 'org:sys_profile:read')->firstOrFail();
+    $perm = Permission::query()->withoutGlobalScopes()->where('environment_id', $f['env']->id)->where('key', 'org:profile:read')->firstOrFail();
     $role->permissions()->attach($perm->id);
     RolePermissionsChanged::dispatch($role->fresh(), [$perm->key]);
     // RolePermissionsChanged maps to role.updated per AU-11 spec.

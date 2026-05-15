@@ -50,16 +50,16 @@ it('rejects non-members with 404 organization_not_found', function (): void {
     $r->assertStatus(404)->assertJsonPath('errors.0.code', 'organization_not_found');
 });
 
-it('rejects members lacking org:sys_sso:manage with 403', function (): void {
+it('rejects members lacking org:sso:manage with 403', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
-    $org = fapiEcMakeOrg($f['env'], $auth['user'], 'org:member'); // member role does NOT have sys_sso:manage
+    $org = fapiEcMakeOrg($f['env'], $auth['user'], 'org:member'); // member role does NOT have sso:manage
 
     $r = fapiOrgEcReq('GET', "/organizations/{$org->id}/enterprise-connections", $auth['jwt']);
     $r->assertStatus(403)->assertJsonPath('errors.0.code', 'authorization_invalid');
 });
 
-it('allows org:admin (which has sys_sso:manage) to list connections', function (): void {
+it('allows org:admin (which has sso:manage) to list connections', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = fapiEcMakeOrg($f['env'], $auth['user']);

@@ -13,13 +13,13 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * FAPI permission gate: requires the bound User to hold a system
- * permission (e.g. `org:sys_memberships:manage`) inside the Organization
+ * permission (e.g. `org:memberships:manage`) inside the Organization
  * named by the `organization_id` route parameter.
  *
  * Usage in route definitions:
  *
  *   Route::patch('/organizations/{organization_id}', ...)
- *       ->middleware(EnsureOrgPermission::class.':org:sys_profile:manage');
+ *       ->middleware(EnsureOrgPermission::class.':org:profile:manage');
  *
  * Resolution order:
  *   1. Resolve the Organization from the route param. Non-member callers

@@ -27,19 +27,19 @@ final class RoleSeeder
      * @var list<array{key: string, name: string}>
      */
     public const SYSTEM_PERMISSIONS = [
-        ['key' => 'org:sys_profile:read', 'name' => 'Read organization profile'],
-        ['key' => 'org:sys_profile:manage', 'name' => 'Manage organization profile'],
-        ['key' => 'org:sys_profile:delete', 'name' => 'Delete organization'],
-        ['key' => 'org:sys_memberships:read', 'name' => 'Read organization memberships'],
-        ['key' => 'org:sys_memberships:manage', 'name' => 'Manage organization memberships'],
-        ['key' => 'org:sys_domains:read', 'name' => 'Read organization domains'],
-        ['key' => 'org:sys_domains:manage', 'name' => 'Manage organization domains'],
-        ['key' => 'org:sys_billing:read', 'name' => 'Read organization billing'],
-        ['key' => 'org:sys_billing:manage', 'name' => 'Manage organization billing'],
-        ['key' => 'org:sys_sso:read', 'name' => 'Read organization SSO settings'],
-        ['key' => 'org:sys_sso:manage', 'name' => 'Manage organization SSO settings'],
-        ['key' => 'org:sys_provisioning:read', 'name' => 'Read organization provisioning'],
-        ['key' => 'org:sys_provisioning:manage', 'name' => 'Manage organization provisioning'],
+        ['key' => 'org:profile:read', 'name' => 'Read organization profile'],
+        ['key' => 'org:profile:manage', 'name' => 'Manage organization profile'],
+        ['key' => 'org:profile:delete', 'name' => 'Delete organization'],
+        ['key' => 'org:memberships:read', 'name' => 'Read organization memberships'],
+        ['key' => 'org:memberships:manage', 'name' => 'Manage organization memberships'],
+        ['key' => 'org:domains:read', 'name' => 'Read organization domains'],
+        ['key' => 'org:domains:manage', 'name' => 'Manage organization domains'],
+        ['key' => 'org:billing:read', 'name' => 'Read organization billing'],
+        ['key' => 'org:billing:manage', 'name' => 'Manage organization billing'],
+        ['key' => 'org:sso:read', 'name' => 'Read organization SSO settings'],
+        ['key' => 'org:sso:manage', 'name' => 'Manage organization SSO settings'],
+        ['key' => 'org:provisioning:read', 'name' => 'Read organization provisioning'],
+        ['key' => 'org:provisioning:manage', 'name' => 'Manage organization provisioning'],
     ];
 
     public const ROLE_ADMIN = 'org:admin';

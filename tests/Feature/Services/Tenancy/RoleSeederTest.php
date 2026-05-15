@@ -30,19 +30,19 @@ it('seeds 12 system permissions when an environment is created', function (): vo
     $perms = Permission::withoutGlobalScopes()->where('environment_id', $env->id)->get();
     expect($perms)->toHaveCount(13);
     expect($perms->pluck('key')->all())->toContain(
-        'org:sys_profile:read',
-        'org:sys_profile:manage',
-        'org:sys_profile:delete',
-        'org:sys_memberships:read',
-        'org:sys_memberships:manage',
-        'org:sys_domains:read',
-        'org:sys_domains:manage',
-        'org:sys_billing:read',
-        'org:sys_billing:manage',
-        'org:sys_sso:read',
-        'org:sys_sso:manage',
-        'org:sys_provisioning:read',
-        'org:sys_provisioning:manage',
+        'org:profile:read',
+        'org:profile:manage',
+        'org:profile:delete',
+        'org:memberships:read',
+        'org:memberships:manage',
+        'org:domains:read',
+        'org:domains:manage',
+        'org:billing:read',
+        'org:billing:manage',
+        'org:sso:read',
+        'org:sso:manage',
+        'org:provisioning:read',
+        'org:provisioning:manage',
     );
     expect($perms->every(fn (Permission $p): bool => $p->is_system === true))->toBeTrue();
 });
@@ -85,8 +85,8 @@ it('does not bleed permissions across environments', function (): void {
     expect(Permission::withoutGlobalScopes()->where('environment_id', $envB->id)->count())->toBe(13);
 
     // Same key string lives in both envs as separate rows.
-    $a = Permission::withoutGlobalScopes()->where('environment_id', $envA->id)->where('key', 'org:sys_profile:read')->firstOrFail();
-    $b = Permission::withoutGlobalScopes()->where('environment_id', $envB->id)->where('key', 'org:sys_profile:read')->firstOrFail();
+    $a = Permission::withoutGlobalScopes()->where('environment_id', $envA->id)->where('key', 'org:profile:read')->firstOrFail();
+    $b = Permission::withoutGlobalScopes()->where('environment_id', $envB->id)->where('key', 'org:profile:read')->firstOrFail();
     expect($a->id)->not->toBe($b->id);
 });
 
@@ -95,7 +95,7 @@ it('User::hasOrgPermission returns false when org is null', function (): void {
     $user = new User(['environment_id' => $env->id]);
     $user->save();
 
-    expect($user->hasOrgPermission('org:sys_profile:read', null))->toBeFalse();
+    expect($user->hasOrgPermission('org:profile:read', null))->toBeFalse();
 });
 
 it('User::hasOrgPermission returns true through membership → role → permission', function (): void {
@@ -112,8 +112,8 @@ it('User::hasOrgPermission returns true through membership → role → permissi
         'role_id' => $admin->id,
     ]);
 
-    expect($user->hasOrgPermission('org:sys_memberships:manage', $org))->toBeTrue();
-    expect($user->hasOrgPermission('org:sys_profile:read', $org))->toBeTrue();
+    expect($user->hasOrgPermission('org:memberships:manage', $org))->toBeTrue();
+    expect($user->hasOrgPermission('org:profile:read', $org))->toBeTrue();
 });
 
 it('User::hasOrgPermission returns false when the role does not carry the key', function (): void {
@@ -131,8 +131,8 @@ it('User::hasOrgPermission returns false when the role does not carry the key', 
     ]);
 
     // Member is read-only.
-    expect($user->hasOrgPermission('org:sys_memberships:manage', $org))->toBeFalse();
-    expect($user->hasOrgPermission('org:sys_memberships:read', $org))->toBeTrue();
+    expect($user->hasOrgPermission('org:memberships:manage', $org))->toBeFalse();
+    expect($user->hasOrgPermission('org:memberships:read', $org))->toBeTrue();
 });
 
 it('User::hasOrgPermission returns false when the user is not a member of the org', function (): void {
@@ -151,7 +151,7 @@ it('User::hasOrgPermission returns false when the user is not a member of the or
         'role_id' => $admin->id,
     ]);
 
-    expect($userB->hasOrgPermission('org:sys_profile:read', $org))->toBeFalse();
+    expect($userB->hasOrgPermission('org:profile:read', $org))->toBeFalse();
 });
 
 it('User::hasOrgRole returns true on exact role-key match', function (): void {
@@ -187,17 +187,17 @@ it('reflects pivot updates after flushing the per-request cache', function (): v
         'role_id' => $member->id,
     ]);
 
-    expect($user->hasOrgPermission('org:sys_memberships:manage', $org))->toBeFalse();
+    expect($user->hasOrgPermission('org:memberships:manage', $org))->toBeFalse();
 
     // Add the manage permission to the member role.
     $managePerm = Permission::withoutGlobalScopes()
         ->where('environment_id', $env->id)
-        ->where('key', 'org:sys_memberships:manage')
+        ->where('key', 'org:memberships:manage')
         ->firstOrFail();
     $member->permissions()->attach($managePerm->id);
     $user->flushOrgPermissionCache();
 
-    expect($user->hasOrgPermission('org:sys_memberships:manage', $org))->toBeTrue();
+    expect($user->hasOrgPermission('org:memberships:manage', $org))->toBeTrue();
 });
 
 it('Gate::allows dispatches through hasOrgPermission for system abilities', function (): void {
@@ -214,6 +214,6 @@ it('Gate::allows dispatches through hasOrgPermission for system abilities', func
         'role_id' => $admin->id,
     ]);
 
-    expect(Gate::forUser($user)->allows('org:sys_memberships:manage', $org))->toBeTrue();
-    expect(Gate::forUser($user)->allows('org:sys_billing:manage', $org))->toBeTrue();
+    expect(Gate::forUser($user)->allows('org:memberships:manage', $org))->toBeTrue();
+    expect(Gate::forUser($user)->allows('org:billing:manage', $org))->toBeTrue();
 });

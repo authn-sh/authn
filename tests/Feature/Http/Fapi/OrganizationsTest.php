@@ -121,7 +121,7 @@ it('GET /v1/organizations/{id} returns the org for a member', function (): void 
         ->assertJsonPath('id', $org->id);
 });
 
-it('PATCH /v1/organizations/{id} 403s without org:sys_profile:manage (member only)', function (): void {
+it('PATCH /v1/organizations/{id} 403s without org:profile:manage (member only)', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = Organization::create(['environment_id' => $f['env']->id, 'name' => 'Acme', 'slug' => 'acme']);

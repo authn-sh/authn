@@ -53,7 +53,7 @@ it('session.created carries the active organization block when the session has o
     expect($event->data['organization']['id'])->toBe($org->id);
     expect($event->data['organization']['slug'])->toBe('acme-active');
     expect($event->data['organization']['role'])->toBe('org:admin');
-    expect($event->data['organization']['permissions'])->toContain('org:sys_profile:manage');
+    expect($event->data['organization']['permissions'])->toContain('org:profile:manage');
 });
 
 it('session.created omits the organization block when no active org', function (): void {

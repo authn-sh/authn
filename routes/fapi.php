@@ -218,112 +218,112 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/organizations', [FapiOrganizationController::class, 'store'])->name('fapi.organizations.store');
         Route::post('/organizations/{organization_id}/leave', [FapiOrganizationController::class, 'leave'])->name('fapi.organizations.leave');
         Route::get('/organizations/{organization_id}', [FapiOrganizationController::class, 'show'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_profile:read')
+            ->middleware(EnsureOrgPermission::class.':org:profile:read')
             ->name('fapi.organizations.show');
         Route::patch('/organizations/{organization_id}', [FapiOrganizationController::class, 'update'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_profile:manage')
+            ->middleware(EnsureOrgPermission::class.':org:profile:manage')
             ->name('fapi.organizations.update');
         Route::delete('/organizations/{organization_id}', [FapiOrganizationController::class, 'destroy'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_profile:delete')
+            ->middleware(EnsureOrgPermission::class.':org:profile:delete')
             ->name('fapi.organizations.destroy');
 
         Route::get('/organizations/{organization_id}/memberships', [FapiOrganizationMembershipController::class, 'index'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:read')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:read')
             ->name('fapi.organizations.memberships.index');
         Route::post('/organizations/{organization_id}/memberships', [FapiOrganizationMembershipController::class, 'store'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:manage')
             ->name('fapi.organizations.memberships.store');
         Route::patch('/organizations/{organization_id}/memberships/{user_id}', [FapiOrganizationMembershipController::class, 'update'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:manage')
             ->name('fapi.organizations.memberships.update');
         Route::delete('/organizations/{organization_id}/memberships/{user_id}', [FapiOrganizationMembershipController::class, 'destroy'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:manage')
             ->name('fapi.organizations.memberships.destroy');
 
         // Per-org admin invitation surface (AU-7).
         Route::get('/organizations/{organization_id}/invitations', [FapiOrganizationInvitationController::class, 'index'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:read')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:read')
             ->name('fapi.organizations.invitations.index');
         Route::post('/organizations/{organization_id}/invitations', [FapiOrganizationInvitationController::class, 'store'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:manage')
             ->name('fapi.organizations.invitations.store');
         Route::post('/organizations/{organization_id}/invitations/bulk', [FapiOrganizationInvitationController::class, 'bulkStore'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:manage')
             ->name('fapi.organizations.invitations.bulk');
         Route::post('/organizations/{organization_id}/invitations/{invitation_id}/revoke', [FapiOrganizationInvitationController::class, 'revoke'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:manage')
             ->name('fapi.organizations.invitations.revoke');
 
         // Per-org membership-request approve/reject (AU-7).
         Route::get('/organizations/{organization_id}/membership-requests', [FapiOrganizationMembershipRequestController::class, 'index'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:read')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:read')
             ->name('fapi.organizations.membership_requests.index');
         Route::post('/organizations/{organization_id}/membership-requests/{request_id}/accept', [FapiOrganizationMembershipRequestController::class, 'accept'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:manage')
             ->name('fapi.organizations.membership_requests.accept');
         Route::post('/organizations/{organization_id}/membership-requests/{request_id}/reject', [FapiOrganizationMembershipRequestController::class, 'reject'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
+            ->middleware(EnsureOrgPermission::class.':org:memberships:manage')
             ->name('fapi.organizations.membership_requests.reject');
 
         // Per-org domains (AU-13 / OA-1). Drives the <OrganizationProfile />
         // Domains section in sdk-react. BAPI hosts the verification-challenge
         // sub-resource — FAPI only exposes the CRUD on the domain rows.
         Route::get('/organizations/{organization_id}/domains', [FapiOrganizationDomainController::class, 'index'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_domains:read')
+            ->middleware(EnsureOrgPermission::class.':org:domains:read')
             ->name('fapi.organizations.domains.index');
         Route::post('/organizations/{organization_id}/domains', [FapiOrganizationDomainController::class, 'store'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_domains:manage')
+            ->middleware(EnsureOrgPermission::class.':org:domains:manage')
             ->name('fapi.organizations.domains.store');
         Route::get('/organizations/{organization_id}/domains/{domain_id}', [FapiOrganizationDomainController::class, 'show'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_domains:read')
+            ->middleware(EnsureOrgPermission::class.':org:domains:read')
             ->name('fapi.organizations.domains.show');
         Route::patch('/organizations/{organization_id}/domains/{domain_id}', [FapiOrganizationDomainController::class, 'update'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_domains:manage')
+            ->middleware(EnsureOrgPermission::class.':org:domains:manage')
             ->name('fapi.organizations.domains.update');
         Route::delete('/organizations/{organization_id}/domains/{domain_id}', [FapiOrganizationDomainController::class, 'destroy'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_domains:manage')
+            ->middleware(EnsureOrgPermission::class.':org:domains:manage')
             ->name('fapi.organizations.domains.destroy');
 
         // Per-org enterprise SSO connections (AU-6 / OA-5). Drives the
         // <OrganizationProfile /> SSO section in sdk-react.
         Route::get('/organizations/{organization_id}/enterprise-connections', [OrganizationEnterpriseConnectionController::class, 'index'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->middleware(EnsureOrgPermission::class.':org:sso:manage')
             ->name('fapi.organizations.enterprise_connections.index');
         Route::post('/organizations/{organization_id}/enterprise-connections', [OrganizationEnterpriseConnectionController::class, 'store'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->middleware(EnsureOrgPermission::class.':org:sso:manage')
             ->name('fapi.organizations.enterprise_connections.store');
         Route::get('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}', [OrganizationEnterpriseConnectionController::class, 'show'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->middleware(EnsureOrgPermission::class.':org:sso:manage')
             ->name('fapi.organizations.enterprise_connections.show');
         Route::patch('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}', [OrganizationEnterpriseConnectionController::class, 'update'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->middleware(EnsureOrgPermission::class.':org:sso:manage')
             ->name('fapi.organizations.enterprise_connections.update');
         Route::delete('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}', [OrganizationEnterpriseConnectionController::class, 'destroy'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->middleware(EnsureOrgPermission::class.':org:sso:manage')
             ->name('fapi.organizations.enterprise_connections.destroy');
         Route::post('/organizations/{organization_id}/enterprise-connections/{enterprise_connection_id}/test', [OrganizationEnterpriseConnectionController::class, 'test'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_sso:manage')
+            ->middleware(EnsureOrgPermission::class.':org:sso:manage')
             ->name('fapi.organizations.enterprise_connections.test');
 
         // Per-org SCIM management (AU-10 / OA-7). Drives the
         // <OrganizationProfile /> Directory Sync section in sdk-react.
         Route::get('/organizations/{organization_id}/scim/tokens', [OrganizationScimController::class, 'listTokens'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->middleware(EnsureOrgPermission::class.':org:provisioning:manage')
             ->name('fapi.organizations.scim.tokens.index');
         Route::post('/organizations/{organization_id}/scim/tokens', [OrganizationScimController::class, 'issueToken'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->middleware(EnsureOrgPermission::class.':org:provisioning:manage')
             ->name('fapi.organizations.scim.tokens.store');
         Route::post('/organizations/{organization_id}/scim/tokens/{token_id}/revoke', [OrganizationScimController::class, 'revokeToken'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->middleware(EnsureOrgPermission::class.':org:provisioning:manage')
             ->name('fapi.organizations.scim.tokens.revoke');
         Route::get('/organizations/{organization_id}/scim/attribute-mappings', [OrganizationScimController::class, 'showAttributeMappings'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->middleware(EnsureOrgPermission::class.':org:provisioning:manage')
             ->name('fapi.organizations.scim.attribute_mappings.show');
         Route::put('/organizations/{organization_id}/scim/attribute-mappings', [OrganizationScimController::class, 'replaceAttributeMappings'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->middleware(EnsureOrgPermission::class.':org:provisioning:manage')
             ->name('fapi.organizations.scim.attribute_mappings.replace');
         Route::get('/organizations/{organization_id}/scim/endpoint', [OrganizationScimController::class, 'showEndpoint'])
-            ->middleware(EnsureOrgPermission::class.':org:sys_provisioning:manage')
+            ->middleware(EnsureOrgPermission::class.':org:provisioning:manage')
             ->name('fapi.organizations.scim.endpoint.show');
 
         // /v1/me org-related collections + active-org switching (AU-7).
