@@ -7,6 +7,7 @@ namespace App\Http\Resources;
 use App\Models\Environment;
 use App\Models\OauthProvider;
 use App\Settings\MultiFactorSettings;
+use App\Settings\RedirectsSettings;
 
 /**
  * The public-facing shape returned by `GET /v1/environment`. The SDK
@@ -74,7 +75,7 @@ final class EnvironmentResource
                 'brand_color' => $appearance['brand_color'] ?? null,
                 'logo_url' => $appearance['logo_url'] ?? null,
                 'favicon_url' => $appearance['favicon_url'] ?? null,
-                'redirects' => \App\Settings\RedirectsSettings::fromUserSettings($userSettings)->toArray(),
+                'redirects' => RedirectsSettings::fromUserSettings($userSettings)->toArray(),
             ],
 
             'user_settings' => [

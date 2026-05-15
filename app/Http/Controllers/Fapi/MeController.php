@@ -16,6 +16,7 @@ use App\Models\Environment;
 use App\Models\Session;
 use App\Models\User;
 use App\Services\Sessions\SessionLifecycle;
+use App\Settings\SignUpMethodsSettings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -255,7 +256,7 @@ final class MeController
         } else {
             // Adding a password to a user who doesn't have one is gated by
             // user_settings.sign_up_methods.password.add_password (#281).
-            $signUpMethods = \App\Settings\SignUpMethodsSettings::fromUserSettings(app(\App\Models\Environment::class)->user_settings);
+            $signUpMethods = SignUpMethodsSettings::fromUserSettings(app(Environment::class)->user_settings);
             if (! $signUpMethods->addPassword) {
                 return $this->error(403, ErrorCodes::ADD_PASSWORD_DISABLED, 'Adding a password is disabled for this environment.');
             }

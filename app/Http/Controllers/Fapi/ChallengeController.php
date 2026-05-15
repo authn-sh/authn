@@ -31,6 +31,7 @@ use App\Services\Domains\DomainEnroller;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
 use App\Services\Verification\VerificationManager;
+use App\Settings\SignInMethodsSettings;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -737,7 +738,7 @@ final class ChallengeController
      */
     private function signInFirstFactorBaseStrategies(SignInAttempt $attempt): array
     {
-        $signInMethods = \App\Settings\SignInMethodsSettings::fromUserSettings(
+        $signInMethods = SignInMethodsSettings::fromUserSettings(
             is_array($attempt->environment?->user_settings) ? $attempt->environment->user_settings : [],
         );
         $strategies = [
