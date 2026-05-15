@@ -8,6 +8,8 @@ use App\Models\Environment;
 use App\Models\OauthProvider;
 use App\Settings\MultiFactorSettings;
 use App\Settings\RedirectsSettings;
+use App\Settings\SignInMethodsSettings;
+use App\Settings\SignUpMethodsSettings;
 
 /**
  * The public-facing shape returned by `GET /v1/environment`. The SDK
@@ -30,17 +32,32 @@ final class EnvironmentResource
         $localization = is_array($environment->localization) ? $environment->localization : [];
         $multiFactor = MultiFactorSettings::fromUserSettings($userSettings);
 
-        $signUpMethods = is_array($userSettings['sign_up_methods'] ?? null) ? $userSettings['sign_up_methods'] : [];
-        $phoneMethod = is_array($signUpMethods['phone'] ?? null) ? $signUpMethods['phone'] : [];
-        $phoneEnabled = (bool) ($phoneMethod['enabled'] ?? false);
-        $phoneRequired = (bool) ($phoneMethod['required'] ?? false);
-        $phoneReq = match (true) {
-            $phoneEnabled && $phoneRequired => 'required',
-            $phoneEnabled => 'optional',
+        $signUp = SignUpMethodsSettings::fromUserSettings($userSettings);
+        $signIn = SignInMethodsSettings::fromUserSettings($userSettings);
+        $emailReq = match (true) {
+            $signUp->emailEnabled && $signUp->emailRequired => 'required',
+            $signUp->emailEnabled => 'optional',
             default => 'off',
         };
-        $firstFactors = ['password', 'email_code', 'reset_password_email_code', 'ticket'];
-        if ($phoneEnabled) {
+        $phoneReq = match (true) {
+            $signUp->phoneEnabled && $signUp->phoneRequired => 'required',
+            $signUp->phoneEnabled => 'optional',
+            default => 'off',
+        };
+        $usernameReq = match (true) {
+            $signUp->usernameEnabled && $signUp->usernameRequired => 'required',
+            $signUp->usernameEnabled => 'optional',
+            default => 'off',
+        };
+        $firstFactors = ['password'];
+        if ($signIn->emailCodeAllowed()) {
+            $firstFactors[] = 'email_code';
+        }
+        if ($signIn->emailEnabled) {
+            $firstFactors[] = 'reset_password_email_code';
+        }
+        $firstFactors[] = 'ticket';
+        if ($signUp->phoneEnabled) {
             $firstFactors[] = 'phone_code';
         }
         $oauthRows = OauthProvider::query()
@@ -59,9 +76,9 @@ final class EnvironmentResource
 
             'auth_config' => [
                 'identifier_requirements' => [
-                    'email_address' => 'required',
+                    'email_address' => $emailReq,
                     'phone_number' => $phoneReq,
-                    'username' => 'off',
+                    'username' => $usernameReq,
                 ],
                 'first_factors' => $firstFactors,
                 'second_factors' => $multiFactor->enabledStrategies(),

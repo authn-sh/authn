@@ -36,7 +36,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 /**
  * FAPI sign-up state-machine controller. The factor verification surface
  * (formerly prepare-/attempt-verification) is now served by
- * ChallengeController under `/sign-ups/{sid}/challenges`.
+ * SignUpChallengeController under `/sign-ups/{sid}/challenges`.
  *
  * Endpoints (PLAN §3.3 / §9.4):
  *   POST   /v1/client/sign-ups

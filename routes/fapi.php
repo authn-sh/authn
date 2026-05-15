@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 use App\Http\Controllers\AccountPortal\AccountPortalController;
 use App\Http\Controllers\AccountPortal\AppearancePreviewRenderController;
-use App\Http\Controllers\Fapi\ChallengeController;
 use App\Http\Controllers\Fapi\ClientController;
+use App\Http\Controllers\Fapi\EmailAddressChallengeController;
 use App\Http\Controllers\Fapi\EnterpriseSsoCallbackController;
 use App\Http\Controllers\Fapi\EnvironmentController;
 use App\Http\Controllers\Fapi\LocalizationController;
@@ -32,7 +32,9 @@ use App\Http\Controllers\Fapi\OrganizationScimController;
 use App\Http\Controllers\Fapi\PingController;
 use App\Http\Controllers\Fapi\SessionsController;
 use App\Http\Controllers\Fapi\SessionTokenController;
+use App\Http\Controllers\Fapi\SignInChallengeController;
 use App\Http\Controllers\Fapi\SignInController;
+use App\Http\Controllers\Fapi\SignUpChallengeController;
 use App\Http\Controllers\Fapi\SignUpController;
 use App\Http\Controllers\Scim\GroupsController as ScimGroupsController;
 use App\Http\Controllers\Scim\UsersController as ScimUsersController;
@@ -136,16 +138,16 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/client/sign-ins/{sid}', [SignInController::class, 'show'])->name('fapi.sign_in.show');
         Route::patch('/client/sign-ins/{sid}', [SignInController::class, 'patch'])->name('fapi.sign_in.patch');
 
-        Route::post('/client/sign-ins/{sid}/challenges', [ChallengeController::class, 'storeForSignIn'])->name('fapi.sign_in.challenges.store');
-        Route::post('/client/sign-ins/{sid}/challenges/{cid}/answer', [ChallengeController::class, 'answerForSignIn'])->name('fapi.sign_in.challenges.answer');
-        Route::get('/client/sign-ins/{sid}/challenges/{cid}', [ChallengeController::class, 'showForSignIn'])->name('fapi.sign_in.challenges.show');
+        Route::post('/client/sign-ins/{sid}/challenges', [SignInChallengeController::class, 'store'])->name('fapi.sign_in.challenges.store');
+        Route::post('/client/sign-ins/{sid}/challenges/{cid}/answer', [SignInChallengeController::class, 'answer'])->name('fapi.sign_in.challenges.answer');
+        Route::get('/client/sign-ins/{sid}/challenges/{cid}', [SignInChallengeController::class, 'show'])->name('fapi.sign_in.challenges.show');
 
         Route::get('/client/sign-ups/{sid}', [SignUpController::class, 'show'])->name('fapi.sign_up.show');
         Route::patch('/client/sign-ups/{sid}', [SignUpController::class, 'patch'])->name('fapi.sign_up.patch');
 
-        Route::post('/client/sign-ups/{sid}/challenges', [ChallengeController::class, 'storeForSignUp'])->name('fapi.sign_up.challenges.store');
-        Route::post('/client/sign-ups/{sid}/challenges/{cid}/answer', [ChallengeController::class, 'answerForSignUp'])->name('fapi.sign_up.challenges.answer');
-        Route::get('/client/sign-ups/{sid}/challenges/{cid}', [ChallengeController::class, 'showForSignUp'])->name('fapi.sign_up.challenges.show');
+        Route::post('/client/sign-ups/{sid}/challenges', [SignUpChallengeController::class, 'store'])->name('fapi.sign_up.challenges.store');
+        Route::post('/client/sign-ups/{sid}/challenges/{cid}/answer', [SignUpChallengeController::class, 'answer'])->name('fapi.sign_up.challenges.answer');
+        Route::get('/client/sign-ups/{sid}/challenges/{cid}', [SignUpChallengeController::class, 'show'])->name('fapi.sign_up.challenges.show');
 
         Route::get('/client/sessions/{sid}', [SessionsController::class, 'show'])->name('fapi.session.show');
         Route::post('/client/sessions/{sid}/touch', [SessionsController::class, 'touch'])->name('fapi.session.touch');
@@ -179,9 +181,9 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/me/external-accounts/{external_account_id}', [MeExternalAccountController::class, 'show'])->name('fapi.me.external_accounts.show');
         Route::delete('/me/external-accounts/{external_account_id}', [MeExternalAccountController::class, 'destroy'])->name('fapi.me.external_accounts.destroy');
 
-        Route::post('/me/email-addresses/{email_address_id}/challenges', [ChallengeController::class, 'storeForEmailAddress'])->name('fapi.me.emails.challenges.store');
-        Route::post('/me/email-addresses/{email_address_id}/challenges/{cid}/answer', [ChallengeController::class, 'answerForEmailAddress'])->name('fapi.me.emails.challenges.answer');
-        Route::get('/me/email-addresses/{email_address_id}/challenges/{cid}', [ChallengeController::class, 'showForEmailAddress'])->name('fapi.me.emails.challenges.show');
+        Route::post('/me/email-addresses/{email_address_id}/challenges', [EmailAddressChallengeController::class, 'store'])->name('fapi.me.emails.challenges.store');
+        Route::post('/me/email-addresses/{email_address_id}/challenges/{cid}/answer', [EmailAddressChallengeController::class, 'answer'])->name('fapi.me.emails.challenges.answer');
+        Route::get('/me/email-addresses/{email_address_id}/challenges/{cid}', [EmailAddressChallengeController::class, 'show'])->name('fapi.me.emails.challenges.show');
 
         Route::get('/me/sessions', [MeController::class, 'listSessions'])->name('fapi.me.sessions.list');
         Route::post('/me/change-password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');

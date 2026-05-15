@@ -113,7 +113,7 @@ final class PasskeyStrategy implements Strategy
      * Whether `passkey` should appear in `supported_strategies` for an
      * in-flight SignIn attempt — i.e. whether the resolved user holds at
      * least one verified passkey. Used by `SignInResource` and by the
-     * ChallengeController's strategy-validation gate.
+     * SignInChallengeController's strategy-validation gate.
      */
     public function applicableForFirstFactor(SignInAttempt $attempt): bool
     {

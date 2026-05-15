@@ -15,7 +15,7 @@ use Tests\Feature\Http\SignIn\SignInTestSupport;
  * AU-16: end-to-end second-factor sign-in via SMS-OTP. Mirrors
  * SecondFactorTest's TOTP cases but for phone_code (AU-9). Pairs the
  * verified+reserved phone with a TOTP enrolment so the existing pivot
- * (totp/backup_code only, see ChallengeController::userHasEnrolledSecondFactor)
+ * (totp/backup_code only, see SignInChallengeController::userHasEnrolledSecondFactor)
  * fires; phone_code then appears alongside TOTP in supported_strategies.
  */
 function au16PhoneSignInPost(array $f, array $body, ?string $cookie = null): TestResponse

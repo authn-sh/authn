@@ -12,6 +12,7 @@ use App\Models\Environment;
 use App\Models\PhoneNumber;
 use App\Models\Session;
 use App\Models\User;
+use App\Settings\SignUpMethodsSettings;
 use App\Webhooks\Emitter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,10 @@ final class MePhoneNumberController
         }
         $env = app(Environment::class);
         $user = app(User::class);
+        $signUpMethods = SignUpMethodsSettings::fromUserSettings($env->user_settings);
+        if ($signUpMethods->phoneRestrictChanges) {
+            return $this->error(422, ErrorCodes::IDENTIFIER_LOCKED, 'Phone-number changes are disabled for this environment.');
+        }
 
         $number = $request->input('phone_number');
         if (! is_string($number) || preg_match(self::E164_PATTERN, $number) !== 1) {
@@ -126,6 +131,11 @@ final class MePhoneNumberController
         $session = app(Session::class);
         if ($session->isImpersonation()) {
             return $this->error(403, ErrorCodes::ACTOR_SESSION_FORBIDDEN, 'Impersonation sessions cannot delete phone numbers.');
+        }
+        $env = app(Environment::class);
+        $signUpMethods = SignUpMethodsSettings::fromUserSettings($env->user_settings);
+        if ($signUpMethods->phoneRestrictChanges) {
+            return $this->error(422, ErrorCodes::IDENTIFIER_LOCKED, 'Phone-number changes are disabled for this environment.');
         }
         $row = $this->load($request);
         if ($row instanceof JsonResponse) {

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.3] — 2026-05-15
+
+Second wave of dashboard follow-ups: the remaining 4 issues deferred from v0.7.2 all land here.
+
+### Added
+
+- **Sign-up identifier matrix** (#280) — `SignUpMethodsSettings` now covers `email.{enabled, required, verify, verify_code, restrict_changes}`, `phone.{enabled, required, verify, restrict_changes}`, and `username.{enabled, required, restrict_changes}` on top of the existing `password.*` block. `StageRequirements` reads from the new tree; `EnvironmentResource.auth_config.identifier_requirements.{email_address, phone_number, username}` reflects the resolved state. FAPI `restrict_changes` enforcement: `/me` PATCH (username), `/me/email-addresses` POST + DELETE, `/me/phone-numbers` POST + DELETE return `422 identifier_locked` when the corresponding lock is on.
+- **Phone-as-first-factor identifier** (#278) — `sign_in_methods.phone.enabled` (default `false`). When on, SignIn accepts an E.164 phone number as the `identifier`, `SignInResource.supported_identifiers` advertises `phone_number`, and `firstFactorStrategies` emits `phone_code` when the user has a verified `PhoneNumber` row. `PhoneCodeStrategy::resolvePhone` honours the first-factor path (identifier → PhoneNumber lookup) in addition to the existing second-factor reservation flow.
+- **Username-as-first-factor identifier** (#279) — `sign_in_methods.username.enabled` (default `false`). When on, SignIn accepts the user's `username` as the `identifier`; first-factor flow flips straight to a `password` challenge (no SMS / email step). `SignInResource.supported_identifiers` advertises `username`.
+- **`IdentifierResolver` service** — single place that sniffs the identifier shape (email vs E.164 phone vs username) and resolves to a `User`. The SDK keeps sending a free-form `identifier` string; the server figures out what it is. `SignInController.shouldTransferToSignUp`, `SignInResource`, `SignInChallengeController`, and `PhoneCodeStrategy` all route through it.
+
+### Changed
+
+- **`DashboardController` split** (#285) — the 1700-line monolith fans out into 19 resource-per-controller files under `app/Http/Controllers/Dashboard/` (HomeController, OverviewController, UsersController, AuthenticationController, ApplicationsController, OauthProvidersController, RedirectsController, …). Shared `env()` / `workspace()` / `oauthRowShape()` helpers move to a `Concerns\ResolvesDashboardEnv` trait. `routes/dashboard.php` URLs, names, middleware all unchanged.
+- **`ChallengeController` split** (#285) — the 1193-line monolith fans out into three per-parent controllers (`SignInChallengeController`, `SignUpChallengeController`, `EmailAddressChallengeController`) under `app/Http/Controllers/Fapi/`. Shared `createChallenge` / `mapVerificationStatus` / `refreshChallengeFromVerification` / `loadChallenge` / `buildSessionCookie` helpers move to a `Concerns\ManagesChallenges` trait. Behavior, routes, and route names unchanged.
+
 ## [0.7.2] — 2026-05-15
 
 First wave of dashboard backend persistence + cleanup follow-ups behind the v0.7.1 UI rebuild. Issue references on GitHub.

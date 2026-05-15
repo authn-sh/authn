@@ -31,6 +31,8 @@ final class ErrorCodes
 
     public const ADD_PASSWORD_DISABLED = 'add_password_disabled';
 
+    public const IDENTIFIER_LOCKED = 'identifier_locked';
+
     // Verification
     public const FORM_CODE_INCORRECT = 'form_code_incorrect';
 

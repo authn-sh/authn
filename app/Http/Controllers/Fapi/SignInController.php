@@ -26,6 +26,7 @@ use App\Models\Verification;
 use App\Services\Client\ClientResolver;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
+use App\Services\SignIn\IdentifierResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 /**
  * FAPI sign-in state-machine controller. The factor verification surface
  * (formerly prepare-/attempt-first-factor and reset-password) is now
- * served by ChallengeController under `/sign-ins/{sid}/challenges`.
+ * served by SignInChallengeController under `/sign-ins/{sid}/challenges`.
  *
  * Endpoints:
  *   POST   /v1/client/sign-ins
@@ -144,12 +145,8 @@ final class SignInController
      */
     private function shouldTransferToSignUp(Environment $env, string $identifier): bool
     {
-        $email = EmailAddress::query()
-            ->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->where('email_address', strtolower($identifier))
-            ->exists();
-        if ($email) {
+        $user = IdentifierResolver::resolve($env, $identifier);
+        if ($user !== null) {
             return false;
         }
 
