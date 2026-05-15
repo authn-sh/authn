@@ -85,11 +85,8 @@ final class SmsPipeline
 
         $body = $this->renderer->renderSms($template, $environment, $vars);
 
-        $userSettings = is_array($environment->user_settings) ? $environment->user_settings : [];
-        $smsCfg = is_array($userSettings['sms'] ?? null) ? $userSettings['sms'] : [];
-        $envFromNumber = is_string($smsCfg['from_number'] ?? null) ? (string) $smsCfg['from_number'] : null;
         $globalFrom = (string) (config('authn-sms.default_from_number') ?? '');
-        $fromNumber = $template->from_number_override ?: ($envFromNumber ?: $globalFrom);
+        $fromNumber = $template->from_number_override ?: $globalFrom;
 
         $envelope = new SmsEnvelope(
             toNumber: $toNumber,
@@ -109,7 +106,7 @@ final class SmsPipeline
             return new SmsReceipt(id: null, driver: 'webhook', accepted: true, meta: ['template' => $template->slug]);
         }
 
-        $receipt = $this->drivers->for($environment)->send($envelope);
+        $receipt = $this->drivers->default()->send($envelope);
         $this->emitter->emit('sms.created', $this->smsEventPayload($template, $envelope, deliveredByUs: true, receipt: $receipt), $environment);
 
         return $receipt;

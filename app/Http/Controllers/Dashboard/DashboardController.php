@@ -8,7 +8,6 @@ use App\Auth\Oauth\Exceptions\OauthDiscoveryFailedException;
 use App\Auth\Oauth\OauthProviderResolver;
 use App\Auth\Oauth\PresetRegistry;
 use App\Http\Resources\OauthProviderResource;
-use App\Jobs\Sms\SendSmsTemplate;
 use App\Localization\CanonicalSchema;
 use App\Models\AllowlistIdentifier;
 use App\Models\ApiKey;
@@ -18,7 +17,6 @@ use App\Models\EmailTemplate;
 use App\Models\EnterpriseAccount;
 use App\Models\EnterpriseConnection;
 use App\Models\Environment;
-use App\Models\ExternalAccount;
 use App\Models\Invitation;
 use App\Models\JwtTemplate;
 use App\Models\OauthApplication;
@@ -39,6 +37,7 @@ use App\Models\WebhookEndpoint;
 use App\Models\WebhookEvent;
 use App\Services\Keys\KeyGenerator;
 use App\Settings\MultiFactorSettings;
+use App\Settings\PasskeySettings;
 use App\Support\RoutingLabel;
 use App\Support\Url;
 use App\Webhooks\Emitter;
@@ -238,136 +237,117 @@ final class DashboardController
         ]);
     }
 
-    public function allowlist(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    public function restrictions(string $project_slug, string $env_slug, ?string $tab = null): InertiaResponse|RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
+        $tab = in_array($tab, ['allowlist', 'blocklist'], true) ? $tab : 'allowlist';
 
-        return Inertia::render('Dashboard/Allowlist', [
+        if ($tab === 'blocklist') {
+            return Inertia::render('Dashboard/Configure/Restrictions/Blocklist', [
+                'rows' => BlocklistIdentifier::query()->withoutGlobalScopes()->where('environment_id', $env->id)->get()
+                    ->map(fn (BlocklistIdentifier $r) => ['id' => $r->id, 'identifier' => $r->identifier])->all(),
+            ]);
+        }
+
+        return Inertia::render('Dashboard/Configure/Restrictions/Allowlist', [
             'rows' => AllowlistIdentifier::query()->withoutGlobalScopes()->where('environment_id', $env->id)->get()
                 ->map(fn (AllowlistIdentifier $r) => ['id' => $r->id, 'identifier' => $r->identifier, 'notify' => (bool) $r->notify])->all(),
         ]);
     }
 
-    public function blocklist(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    public function usersTab(Request $request, string $project_slug, string $env_slug, ?string $tab = null): InertiaResponse|RedirectResponse
     {
-        $env = $this->env($project_slug, $env_slug);
-        if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/create-project');
-        }
-
-        return Inertia::render('Dashboard/Blocklist', [
-            'rows' => BlocklistIdentifier::query()->withoutGlobalScopes()->where('environment_id', $env->id)->get()
-                ->map(fn (BlocklistIdentifier $r) => ['id' => $r->id, 'identifier' => $r->identifier])->all(),
-        ]);
+        return match ($tab) {
+            'invitations' => $this->invitations($project_slug, $env_slug),
+            'sessions' => $this->sessions($project_slug, $env_slug),
+            default => $this->users($request, $project_slug, $env_slug),
+        };
     }
 
-    public function configure(string $project_slug, string $env_slug, string $section = 'attributes'): InertiaResponse|RedirectResponse
+    private const AUTH_SECTIONS = ['sign-in', 'sign-up', 'mfa', 'providers', 'enterprise-sso', 'jwt-templates'];
+
+    private const BRANDING_SECTIONS = ['appearance', 'localization'];
+
+    public function authentication(string $project_slug, string $env_slug, ?string $section = null): InertiaResponse|RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
-
+        $section = in_array($section, self::AUTH_SECTIONS, true) ? $section : 'sign-in';
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
-        $smsCfg = is_array($userSettings['sms'] ?? null) ? $userSettings['sms'] : [];
-        $attributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
-        $smsTemplates = SmsTemplate::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->orderBy('slug')
-            ->get(['id', 'slug', 'body', 'delivered_by_us', 'from_number_override']);
-        $oauthRows = OauthProvider::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->orderBy('provider_kind')
-            ->orderBy('provider_key')
-            ->get();
 
-        $enterpriseRows = EnterpriseConnection::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->orderBy('organization_id')
-            ->orderBy('protocol')
-            ->orderBy('name')
-            ->get();
+        return match ($section) {
+            'sign-in' => Inertia::render('Dashboard/Configure/Authentication/SignIn'),
+            'sign-up' => Inertia::render('Dashboard/Configure/Authentication/SignUp'),
+            'mfa' => Inertia::render('Dashboard/Configure/Authentication/Mfa', [
+                'multi_factor' => MultiFactorSettings::fromUserSettings($userSettings)->toArray(),
+                'passkey_enabled' => PasskeySettings::fromUserSettings($userSettings)->enabled,
+            ]),
+            'providers' => Inertia::render('Dashboard/Configure/Authentication/Providers', [
+                'oauth_providers' => OauthProvider::query()->withoutGlobalScopes()
+                    ->where('environment_id', $env->id)
+                    ->orderBy('provider_kind')
+                    ->orderBy('provider_key')
+                    ->get()
+                    ->map(fn (OauthProvider $p) => $this->oauthRowShape($p))->all(),
+                'oauth_preset_keys' => $this->oauthPresets->keys(),
+            ]),
+            'enterprise-sso' => Inertia::render('Dashboard/Configure/Authentication/EnterpriseSso', [
+                'enterprise_connections' => EnterpriseConnection::query()->withoutGlobalScopes()
+                    ->where('environment_id', $env->id)
+                    ->orderBy('organization_id')
+                    ->orderBy('protocol')
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn (EnterpriseConnection $c) => $this->enterpriseConnectionRowShape($c))->all(),
+            ]),
+            'jwt-templates' => Inertia::render('Dashboard/Configure/Authentication/JwtTemplates', [
+                'jwt_templates' => JwtTemplate::query()->withoutGlobalScopes()
+                    ->where('environment_id', $env->id)
+                    ->whereNull('removed_at')
+                    ->orderBy('name')
+                    ->get()
+                    ->map(fn (JwtTemplate $t) => [
+                        'id' => $t->id,
+                        'name' => $t->name,
+                        'claims' => is_array($t->claims) ? $t->claims : [],
+                        'lifetime' => $t->lifetime,
+                        'allowed_clock_skew' => $t->allowed_clock_skew,
+                        'signing_algorithm' => $t->signing_algorithm,
+                        'has_custom_signing_key' => $t->custom_signing_key !== null && $t->custom_signing_key !== '',
+                        'last_used_at' => $t->last_used_at?->getTimestampMs(),
+                        'created_at' => $t->created_at?->getTimestampMs(),
+                    ])->all(),
+            ]),
+        };
+    }
 
-        $jwtTemplateRows = JwtTemplate::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->whereNull('removed_at')
-            ->orderBy('name')
-            ->get();
+    public function branding(string $project_slug, string $env_slug, ?string $section = null): InertiaResponse|RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $section = in_array($section, self::BRANDING_SECTIONS, true) ? $section : 'appearance';
 
-        $oauthAppRows = OauthApplication::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->whereNull('removed_at')
-            ->orderBy('name')
-            ->get();
-        $grantCounts = AuthorizationGrant::query()->withoutGlobalScopes()
-            ->whereIn('oauth_application_id', $oauthAppRows->pluck('id'))
-            ->whereNull('revoked_at')
-            ->selectRaw('oauth_application_id, count(*) as c')
-            ->groupBy('oauth_application_id')
-            ->pluck('c', 'oauth_application_id');
-
-        return Inertia::render('Dashboard/Configure', [
-            'section' => $section,
-            'user_settings' => $userSettings,
-            'allowed_origins' => is_array($env->allowed_origins) ? $env->allowed_origins : [],
-            'appearance' => is_array($env->appearance) ? $env->appearance : [],
-            'signup_mode' => $env->signup_mode,
-            'multi_factor' => MultiFactorSettings::fromUserSettings($userSettings)->toArray(),
-            'attributes' => [
-                'phone_number' => is_string($attributes['phone_number'] ?? null)
-                    ? (string) $attributes['phone_number']
-                    : 'off',
-            ],
-            'sms' => [
-                'driver' => $smsCfg['driver'] ?? null,
-                'from_number' => $smsCfg['from_number'] ?? null,
-                'twilio_account_sid' => $smsCfg['twilio']['account_sid'] ?? null,
-                'twilio_auth_token_set' => isset($smsCfg['twilio']['auth_token']) && $smsCfg['twilio']['auth_token'] !== '',
-                'vonage_api_key' => $smsCfg['vonage']['api_key'] ?? null,
-                'vonage_api_secret_set' => isset($smsCfg['vonage']['api_secret']) && $smsCfg['vonage']['api_secret'] !== '',
-            ],
-            'sms_templates' => $smsTemplates->map(fn (SmsTemplate $t) => [
-                'id' => $t->id,
-                'slug' => $t->slug,
-                'body' => $t->body,
-                'delivered_by_us' => (bool) $t->delivered_by_us,
-                'from_number_override' => $t->from_number_override,
-            ])->all(),
-            'oauth_providers' => $oauthRows->map(fn (OauthProvider $p) => $this->oauthRowShape($p))->all(),
-            'oauth_preset_keys' => $this->oauthPresets->keys(),
-            'enterprise_connections' => $enterpriseRows->map(fn (EnterpriseConnection $c) => $this->enterpriseConnectionRowShape($c))->all(),
-            'jwt_templates' => $jwtTemplateRows->map(fn (JwtTemplate $t) => [
-                'id' => $t->id,
-                'name' => $t->name,
-                'claims' => is_array($t->claims) ? $t->claims : [],
-                'lifetime' => $t->lifetime,
-                'allowed_clock_skew' => $t->allowed_clock_skew,
-                'signing_algorithm' => $t->signing_algorithm,
-                'has_custom_signing_key' => $t->custom_signing_key !== null && $t->custom_signing_key !== '',
-                'last_used_at' => $t->last_used_at?->getTimestampMs(),
-                'created_at' => $t->created_at?->getTimestampMs(),
-            ])->all(),
-            'oauth_applications' => $oauthAppRows->map(fn (OauthApplication $a) => [
-                'id' => $a->id,
-                'name' => $a->name,
-                'client_id' => $a->client_id,
-                'callback_urls' => is_array($a->callback_urls) ? array_values($a->callback_urls) : [],
-                'scopes' => is_array($a->scopes) ? array_values($a->scopes) : [],
-                'is_public' => (bool) $a->is_public,
-                'grants_count' => (int) ($grantCounts[$a->id] ?? 0),
-                'created_at' => $a->created_at?->getTimestampMs(),
-            ])->all(),
-            'localization' => $this->localizationShape($env),
-            'localization_canonical' => [
-                'shipped_locales' => CanonicalSchema::SHIPPED_LOCALES,
-                'fallback_locale' => CanonicalSchema::FALLBACK_LOCALE,
-                'keys' => CanonicalSchema::keys(),
-                'en_us_catalog' => CanonicalSchema::catalog('en-US'),
-            ],
-        ]);
+        return match ($section) {
+            'appearance' => Inertia::render('Dashboard/Configure/Branding/Appearance', [
+                'appearance' => is_array($env->appearance) ? $env->appearance : [],
+            ]),
+            'localization' => Inertia::render('Dashboard/Configure/Branding/Localization', [
+                'localization' => $this->localizationShape($env),
+                'localization_canonical' => [
+                    'shipped_locales' => CanonicalSchema::SHIPPED_LOCALES,
+                    'fallback_locale' => CanonicalSchema::FALLBACK_LOCALE,
+                    'keys' => CanonicalSchema::keys(),
+                    'en_us_catalog' => CanonicalSchema::catalog('en-US'),
+                ],
+            ]),
+        };
     }
 
     /**
@@ -416,6 +396,7 @@ final class DashboardController
                 'required', 'integer',
                 'between:'.MultiFactorSettings::MIN_BACKUP_CODE_COUNT.','.MultiFactorSettings::MAX_BACKUP_CODE_COUNT,
             ],
+            'phone_code.enabled' => ['required', 'boolean'],
         ]);
 
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
@@ -426,6 +407,7 @@ final class DashboardController
                 'enabled' => $request->boolean('backup_codes.enabled'),
                 'default_count' => (int) $request->input('backup_codes.default_count'),
             ],
+            'phone_code' => ['enabled' => $request->boolean('phone_code.enabled')],
         ]);
         $userSettings['multi_factor'] = $next->toArray();
         $env->forceFill(['user_settings' => $userSettings])->save();
@@ -434,25 +416,23 @@ final class DashboardController
             ->with('multi_factor_saved', true);
     }
 
-    public function updateAttributes(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    public function updatePasskeyEnabled(Request $request, string $project_slug, string $env_slug): RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
-
-        $request->validate([
-            'phone_number' => ['required', 'in:required,optional,off'],
-        ]);
+        $request->validate(['enabled' => ['required', 'boolean']]);
 
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
-        $attributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
-        $attributes['phone_number'] = (string) $request->input('phone_number');
-        $userSettings['attributes'] = $attributes;
+        $strategies = is_array($userSettings['authentication_strategies'] ?? null)
+            ? $userSettings['authentication_strategies']
+            : [];
+        $strategies['passkey'] = ['enabled' => $request->boolean('enabled')];
+        $userSettings['authentication_strategies'] = $strategies;
         $env->forceFill(['user_settings' => $userSettings])->save();
 
-        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/attributes")
-            ->with('attributes_saved', true);
+        return back(303)->with('authentication_strategy_saved', 'passkey');
     }
 
     public function updateAppearance(Request $request, string $project_slug, string $env_slug): RedirectResponse
@@ -571,78 +551,6 @@ final class DashboardController
             ->with('localization_saved', true);
     }
 
-    public function updateSms(Request $request, string $project_slug, string $env_slug): RedirectResponse
-    {
-        $env = $this->env($project_slug, $env_slug);
-        if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/create-project');
-        }
-
-        $request->validate([
-            'driver' => ['nullable', 'in:twilio,vonage'],
-            'from_number' => ['nullable', 'string', 'max:32'],
-            'twilio.account_sid' => ['nullable', 'string', 'max:255'],
-            'twilio.auth_token' => ['nullable', 'string', 'max:255'],
-            'vonage.api_key' => ['nullable', 'string', 'max:255'],
-            'vonage.api_secret' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
-        $sms = is_array($userSettings['sms'] ?? null) ? $userSettings['sms'] : [];
-
-        $sms['driver'] = $request->input('driver');
-        $sms['from_number'] = $request->input('from_number');
-
-        // Credential write-only semantics: empty / null leaves the stored value
-        // untouched (so the UI can render `•••• rotate` placeholders without
-        // wiping the secret on every save). Operators that need to clear a
-        // secret should rotate via the BAPI `Environment` patch.
-        foreach (['twilio' => ['account_sid', 'auth_token'], 'vonage' => ['api_key', 'api_secret']] as $vendor => $keys) {
-            $vendorBlock = is_array($sms[$vendor] ?? null) ? $sms[$vendor] : [];
-            foreach ($keys as $field) {
-                if (! $request->has("{$vendor}.{$field}")) {
-                    continue;
-                }
-                $value = $request->input("{$vendor}.{$field}");
-                if ($value === '' || $value === null) {
-                    continue;
-                }
-                $vendorBlock[$field] = $value;
-            }
-            if ($vendorBlock !== []) {
-                $sms[$vendor] = $vendorBlock;
-            }
-        }
-
-        $userSettings['sms'] = $sms;
-        $env->forceFill(['user_settings' => $userSettings])->save();
-
-        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/sms")
-            ->with('sms_saved', true);
-    }
-
-    public function sendTestSms(Request $request, string $project_slug, string $env_slug): RedirectResponse
-    {
-        $env = $this->env($project_slug, $env_slug);
-        if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/create-project');
-        }
-
-        $request->validate([
-            'to_number' => ['required', 'string', 'regex:/^\+[1-9][0-9]{7,14}$/'],
-        ]);
-
-        SendSmsTemplate::dispatch(
-            $env->id,
-            SmsTemplate::SLUG_VERIFICATION_CODE,
-            (string) $request->input('to_number'),
-            ['otp_code' => '424242', 'expiry_minutes' => 10],
-        );
-
-        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/sms")
-            ->with('sms_test_dispatched', true);
-    }
-
     public function updateSmsTemplate(Request $request, string $project_slug, string $env_slug, string $slug): RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
@@ -673,6 +581,58 @@ final class DashboardController
 
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/sms")
             ->with('sms_template_saved', true);
+    }
+
+    public function provider(string $project_slug, string $env_slug, string $provider_key): InertiaResponse|RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $row = OauthProvider::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->where('provider_key', $provider_key)
+            ->first();
+        $preset = $this->oauthPresets->get($provider_key);
+
+        if ($row === null && $preset === null) {
+            abort(404);
+        }
+
+        return Inertia::render('Dashboard/Provider', [
+            'provider' => $row !== null ? $this->oauthRowShape($row) : null,
+            'preset' => $preset === null ? null : [
+                'key' => $preset->key(),
+                'name' => $preset->name(),
+                'default_scopes' => $preset->defaultScopes(),
+                'authorization_endpoint' => $preset->authorizationEndpoint(),
+                'token_endpoint' => $preset->tokenEndpoint(),
+                'userinfo_endpoint' => $preset->userinfoEndpoint(),
+                'issuer' => $preset->issuer(),
+            ],
+            'provider_key' => $provider_key,
+            'docs_url' => "https://authn.sh/docs/providers/{$provider_key}",
+        ]);
+    }
+
+    public function newCustomOauthProvider(Request $request, string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $kind = (string) $request->route()->defaults['kind'];
+
+        return Inertia::render('Dashboard/Provider', [
+            'provider' => null,
+            'preset' => null,
+            'provider_key' => null,
+            'new_kind' => $kind,
+            'docs_url' => $kind === 'custom_oidc'
+                ? 'https://authn.sh/docs/providers/custom-oidc'
+                : 'https://authn.sh/docs/providers/custom-oauth2',
+        ]);
     }
 
     public function storeOauthProvider(Request $request, string $project_slug, string $env_slug): RedirectResponse
@@ -831,37 +791,6 @@ final class DashboardController
             ->with('oauth_provider_saved', true);
     }
 
-    public function destroyOauthProvider(string $project_slug, string $env_slug, string $oauth_provider_id): RedirectResponse
-    {
-        $env = $this->env($project_slug, $env_slug);
-        if ($env === null) {
-            return redirect(Url::dashboardPathPrefix().'/create-project');
-        }
-        $row = OauthProvider::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->where('id', $oauth_provider_id)
-            ->first();
-        if ($row === null) {
-            return redirect()->back()->withErrors(['oauth_provider_id' => 'Provider not found.']);
-        }
-
-        $linked = ExternalAccount::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->where('oauth_provider_id', $row->id)
-            ->exists();
-        if ($linked) {
-            return redirect()->back()->withErrors(['oauth_provider_id' => 'ExternalAccount rows still link to this provider.']);
-        }
-
-        $snapshot = OauthProviderResource::from($row);
-        $row->delete();
-
-        app(Emitter::class)->emit('oauthProvider.deleted', $snapshot, $env);
-
-        return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/social-providers")
-            ->with('oauth_provider_saved', true);
-    }
-
     public function testOauthProvider(string $project_slug, string $env_slug, string $oauth_provider_id): RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
@@ -926,14 +855,31 @@ final class DashboardController
         ];
     }
 
-    public function emailTemplates(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    public function templates(string $project_slug, string $env_slug, ?string $tab = null): InertiaResponse|RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
+        $tab = in_array($tab, ['email', 'sms'], true) ? $tab : 'email';
 
-        return Inertia::render('Dashboard/EmailTemplates', [
+        if ($tab === 'sms') {
+            return Inertia::render('Dashboard/Configure/Templates/Sms', [
+                'templates' => SmsTemplate::query()->withoutGlobalScopes()
+                    ->where('environment_id', $env->id)
+                    ->orderBy('slug')
+                    ->get(['id', 'slug', 'body', 'delivered_by_us', 'from_number_override'])
+                    ->map(fn (SmsTemplate $t) => [
+                        'id' => $t->id,
+                        'slug' => $t->slug,
+                        'body' => $t->body,
+                        'delivered_by_us' => (bool) $t->delivered_by_us,
+                        'from_number_override' => $t->from_number_override,
+                    ])->all(),
+            ]);
+        }
+
+        return Inertia::render('Dashboard/Configure/Templates/Email', [
             'templates' => EmailTemplate::query()->withoutGlobalScopes()
                 ->where('environment_id', $env->id)
                 ->orderBy('slug')
@@ -946,6 +892,75 @@ final class DashboardController
                     'updated_at' => $t->updated_at?->getTimestampMs(),
                 ])->all(),
         ]);
+    }
+
+    public function domains(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    {
+        if ($this->env($project_slug, $env_slug) === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        return Inertia::render('Dashboard/Domains', []);
+    }
+
+    public function redirects(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    {
+        if ($this->env($project_slug, $env_slug) === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        return Inertia::render('Dashboard/Redirects', []);
+    }
+
+    public function idpAttributes(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    {
+        if ($this->env($project_slug, $env_slug) === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        return Inertia::render('Dashboard/IdpAttributes', []);
+    }
+
+    public function applications(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $rows = OauthApplication::query()->withoutGlobalScopes()
+            ->where('environment_id', $env->id)
+            ->whereNull('removed_at')
+            ->orderBy('name')
+            ->get();
+        $grantCounts = AuthorizationGrant::query()->withoutGlobalScopes()
+            ->whereIn('oauth_application_id', $rows->pluck('id'))
+            ->whereNull('revoked_at')
+            ->selectRaw('oauth_application_id, count(*) as c')
+            ->groupBy('oauth_application_id')
+            ->pluck('c', 'oauth_application_id');
+
+        return Inertia::render('Dashboard/Applications', [
+            'applications' => $rows->map(fn (OauthApplication $a) => [
+                'id' => $a->id,
+                'name' => $a->name,
+                'client_id' => $a->client_id,
+                'callback_urls' => is_array($a->callback_urls) ? array_values($a->callback_urls) : [],
+                'scopes' => is_array($a->scopes) ? array_values($a->scopes) : [],
+                'is_public' => (bool) $a->is_public,
+                'grants_count' => (int) ($grantCounts[$a->id] ?? 0),
+                'created_at' => $a->created_at?->getTimestampMs(),
+            ])->all(),
+        ]);
+    }
+
+    public function newApplication(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    {
+        if ($this->env($project_slug, $env_slug) === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        return Inertia::render('Dashboard/NewApplication');
     }
 
     public function apiKeys(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
@@ -995,40 +1010,50 @@ final class DashboardController
             ->with('rotated_secret', $plaintext);
     }
 
-    public function webhooks(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    public function webhooks(string $project_slug, string $env_slug, ?string $tab = null): InertiaResponse|RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
-        $endpoints = WebhookEndpoint::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->latest('created_at')
-            ->get();
-        $deliveries = WebhookDelivery::query()
-            ->whereIn('webhook_endpoint_id', $endpoints->pluck('id'))
-            ->latest('created_at')
-            ->limit(50)
-            ->get();
+        $tab = in_array($tab, ['endpoints', 'deliveries'], true) ? $tab : 'endpoints';
 
-        return Inertia::render('Dashboard/Webhooks', [
-            'endpoints' => $endpoints->map(fn (WebhookEndpoint $e) => [
-                'id' => $e->id,
-                'url' => $e->url,
-                'enabled' => (bool) $e->enabled,
-                'enabled_event_types' => is_array($e->enabled_event_types) ? $e->enabled_event_types : [],
-                'signing_secret_prefix' => $e->secretPrefix(),
-                'rotation_window_expires_at' => $e->prior_signing_secret_expires_at?->getTimestampMs(),
-            ])->all(),
-            'deliveries' => $deliveries->map(fn (WebhookDelivery $d) => [
-                'id' => $d->id,
-                'webhook_endpoint_id' => $d->webhook_endpoint_id,
-                'webhook_event_id' => $d->webhook_event_id,
-                'attempt' => $d->attempt,
-                'status' => $d->status,
-                'response_status' => $d->response_status,
-                'created_at' => $d->created_at?->getTimestampMs(),
-            ])->all(),
+        if ($tab === 'deliveries') {
+            $endpointIds = WebhookEndpoint::query()->withoutGlobalScopes()
+                ->where('environment_id', $env->id)
+                ->pluck('id');
+
+            return Inertia::render('Dashboard/Configure/Webhooks/Deliveries', [
+                'deliveries' => WebhookDelivery::query()
+                    ->whereIn('webhook_endpoint_id', $endpointIds)
+                    ->latest('created_at')
+                    ->limit(100)
+                    ->get()
+                    ->map(fn (WebhookDelivery $d) => [
+                        'id' => $d->id,
+                        'webhook_endpoint_id' => $d->webhook_endpoint_id,
+                        'webhook_event_id' => $d->webhook_event_id,
+                        'attempt' => $d->attempt,
+                        'status' => $d->status,
+                        'response_status' => $d->response_status,
+                        'created_at' => $d->created_at?->getTimestampMs(),
+                    ])->all(),
+            ]);
+        }
+
+        return Inertia::render('Dashboard/Configure/Webhooks/Endpoints', [
+            'endpoints' => WebhookEndpoint::query()->withoutGlobalScopes()
+                ->where('environment_id', $env->id)
+                ->latest('created_at')
+                ->get()
+                ->map(fn (WebhookEndpoint $e) => [
+                    'id' => $e->id,
+                    'url' => $e->url,
+                    'enabled' => (bool) $e->enabled,
+                    'enabled_event_types' => is_array($e->enabled_event_types) ? $e->enabled_event_types : [],
+                    'signing_secret_prefix' => $e->secretPrefix(),
+                    'rotation_window_expires_at' => $e->prior_signing_secret_expires_at?->getTimestampMs(),
+                ])->all(),
         ]);
     }
 
@@ -1219,45 +1244,47 @@ final class DashboardController
         ]);
     }
 
-    public function rolesAndPermissions(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
+    public function authorization(string $project_slug, string $env_slug, ?string $tab = null): InertiaResponse|RedirectResponse
     {
+        $tab = in_array($tab, ['roles', 'permissions'], true) ? $tab : 'roles';
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
-        $roles = Role::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->with('permissions')
-            ->orderBy('is_system', 'desc')
-            ->orderBy('key')
-            ->get()
-            ->map(fn (Role $r) => [
-                'id' => $r->id,
-                'key' => $r->key,
-                'name' => $r->name,
-                'description' => $r->description,
-                'is_system' => (bool) $r->is_system,
-                'is_default' => (bool) $r->is_default,
-                'is_creator_eligible' => (bool) $r->is_creator_eligible,
-                'permissions' => $r->permissions->pluck('key')->all(),
-            ])->all();
+        if ($tab === 'permissions') {
+            return Inertia::render('Dashboard/Configure/Authorization/Permissions', [
+                'permissions' => Permission::query()->withoutGlobalScopes()
+                    ->where('environment_id', $env->id)
+                    ->orderBy('key')
+                    ->get()
+                    ->map(fn (Permission $p) => [
+                        'id' => $p->id,
+                        'key' => $p->key,
+                        'name' => $p->name,
+                        'description' => $p->description,
+                        'is_system' => (bool) $p->is_system,
+                    ])->all(),
+            ]);
+        }
 
-        $permissions = Permission::query()->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->orderBy('key')
-            ->get()
-            ->map(fn (Permission $p) => [
-                'id' => $p->id,
-                'key' => $p->key,
-                'name' => $p->name,
-                'description' => $p->description,
-                'is_system' => (bool) $p->is_system,
-            ])->all();
-
-        return Inertia::render('Dashboard/RolesAndPermissions', [
-            'roles' => $roles,
-            'permissions' => $permissions,
+        return Inertia::render('Dashboard/Configure/Authorization/Roles', [
+            'roles' => Role::query()->withoutGlobalScopes()
+                ->where('environment_id', $env->id)
+                ->with('permissions')
+                ->orderBy('is_system', 'desc')
+                ->orderBy('key')
+                ->get()
+                ->map(fn (Role $r) => [
+                    'id' => $r->id,
+                    'key' => $r->key,
+                    'name' => $r->name,
+                    'description' => $r->description,
+                    'is_system' => (bool) $r->is_system,
+                    'is_default' => (bool) $r->is_default,
+                    'is_creator_eligible' => (bool) $r->is_creator_eligible,
+                    'permissions' => $r->permissions->pluck('key')->all(),
+                ])->all(),
         ]);
     }
 

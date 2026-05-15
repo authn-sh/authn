@@ -46,6 +46,27 @@ final class HandleDashboardInertia
             $activeEnv = $activeProject->environments()->where('slug', $envSlug)->first();
         }
 
+        $projects = [];
+        if ($workspace instanceof OrganizationMembership) {
+            $projects = Project::query()
+                ->withoutGlobalScopes()
+                ->where('is_system', false)
+                ->where('owner_organization_id', $workspace->organization_id)
+                ->orderBy('name')
+                ->get(['id', 'slug', 'name'])
+                ->map(fn ($p) => ['id' => $p->id, 'slug' => $p->slug, 'name' => $p->name])
+                ->all();
+        }
+
+        $environments = [];
+        if ($activeProject !== null) {
+            $environments = $activeProject->environments()
+                ->orderBy('kind')
+                ->get(['id', 'slug', 'kind'])
+                ->map(fn ($e) => ['id' => $e->id, 'slug' => $e->slug, 'kind' => $e->kind])
+                ->all();
+        }
+
         Inertia::share([
             'dashboard_prefix' => Url::dashboardPathPrefix(),
             'operator' => $operator !== null ? [
@@ -81,6 +102,8 @@ final class HandleDashboardInertia
                 'kind' => $activeEnv->kind,
                 'frontend_api_host' => $activeEnv->frontend_api_host,
             ] : null,
+            'projects' => $projects,
+            'environments' => $environments,
         ]);
 
         return $next($request);

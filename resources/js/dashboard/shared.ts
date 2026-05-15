@@ -19,6 +19,9 @@ export type ActiveEnvironment = {
     frontend_api_host: string
 } | null
 
+export type ProjectSummary = { id: string; slug: string; name: string }
+export type EnvironmentSummary = { id: string; slug: string; kind: string }
+
 export type DashboardSharedProps = {
     dashboard_prefix: string
     operator: Operator | null
@@ -26,6 +29,8 @@ export type DashboardSharedProps = {
     sign_in_url: string | null
     active_project: ActiveProject
     active_environment: ActiveEnvironment
+    projects: ProjectSummary[]
+    environments: EnvironmentSummary[]
 }
 
 export function useDashboard() {

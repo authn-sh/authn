@@ -1,3 +1,6 @@
+import { Badge } from '@authn-sh/ui'
+import { Page } from '../components/Page'
+
 type Props = {
     organization: {
         id: string
@@ -17,18 +20,24 @@ type Props = {
 
 export default function Organization({ organization, tab, members, invitations, membership_requests, domains }: Props) {
     return (
-        <div>
-            <header>
-                <h1>{organization.name}</h1>
-                <p><code>{organization.slug}</code> · {organization.members_count} members · {organization.pending_invitations_count} pending invites</p>
-            </header>
-
+        <Page
+            title={organization.name}
+            subtitle={
+                <>
+                    <code>{organization.slug}</code> · {organization.members_count} members · {organization.pending_invitations_count} pending invites
+                </>
+            }
+        >
             {tab === 'members' && (
-                <section>
-                    <h2>Members</h2>
-                    <table>
-                        <thead><tr><th>User</th><th>Role</th></tr></thead>
+                <div className="authn-table-wrap">
+                    <table className="authn-table">
+                        <thead>
+                            <tr><th>User</th><th>Role</th></tr>
+                        </thead>
                         <tbody>
+                            {members.length === 0 && (
+                                <tr><td colSpan={2}><div className="authn-empty-state">No members yet.</div></td></tr>
+                            )}
                             {members.map((m) => (
                                 <tr key={m.id}>
                                     <td>{m.username || [m.first_name, m.last_name].filter(Boolean).join(' ') || m.user_id}</td>
@@ -37,61 +46,77 @@ export default function Organization({ organization, tab, members, invitations, 
                             ))}
                         </tbody>
                     </table>
-                </section>
+                </div>
             )}
 
             {tab === 'invitations' && (
-                <section>
-                    <h2>Pending invitations</h2>
-                    <table>
-                        <thead><tr><th>Email</th><th>Role</th><th>Status</th></tr></thead>
+                <div className="authn-table-wrap">
+                    <table className="authn-table">
+                        <thead>
+                            <tr><th>Email</th><th>Role</th><th>Status</th></tr>
+                        </thead>
                         <tbody>
+                            {invitations.length === 0 && (
+                                <tr><td colSpan={3}><div className="authn-empty-state">No pending invitations.</div></td></tr>
+                            )}
                             {invitations.map((i) => (
                                 <tr key={i.id}>
                                     <td>{i.email_address}</td>
                                     <td>{i.role ?? '—'}</td>
-                                    <td>{i.status}</td>
+                                    <td>
+                                        <Badge tone={i.status === 'pending' ? 'warning' : i.status === 'accepted' ? 'success' : 'neutral'}>
+                                            {i.status}
+                                        </Badge>
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                </section>
+                </div>
             )}
 
             {tab === 'requests' && (
-                <section>
-                    <h2>Membership requests</h2>
-                    <table>
-                        <thead><tr><th>User id</th><th>Status</th></tr></thead>
+                <div className="authn-table-wrap">
+                    <table className="authn-table">
+                        <thead>
+                            <tr><th>User</th><th>Status</th></tr>
+                        </thead>
                         <tbody>
+                            {membership_requests.length === 0 && (
+                                <tr><td colSpan={2}><div className="authn-empty-state">No membership requests.</div></td></tr>
+                            )}
                             {membership_requests.map((r) => (
                                 <tr key={r.id}>
-                                    <td>{r.user_id}</td>
-                                    <td>{r.status}</td>
+                                    <td><code>{r.user_id}</code></td>
+                                    <td><Badge tone={r.status === 'pending' ? 'warning' : 'neutral'}>{r.status}</Badge></td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                </section>
+                </div>
             )}
 
             {tab === 'domains' && (
-                <section>
-                    <h2>Domains</h2>
-                    <table>
-                        <thead><tr><th>Domain</th><th>Verified</th><th>Mode</th></tr></thead>
+                <div className="authn-table-wrap">
+                    <table className="authn-table">
+                        <thead>
+                            <tr><th>Domain</th><th>Verified</th><th>Mode</th></tr>
+                        </thead>
                         <tbody>
+                            {domains.length === 0 && (
+                                <tr><td colSpan={3}><div className="authn-empty-state">No domains configured.</div></td></tr>
+                            )}
                             {domains.map((d) => (
                                 <tr key={d.id}>
                                     <td>{d.name}</td>
-                                    <td>{d.verified ? 'yes' : 'no'}</td>
+                                    <td><Badge tone={d.verified ? 'success' : 'warning'}>{d.verified ? 'yes' : 'no'}</Badge></td>
                                     <td>{d.enrollment_mode}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                </section>
+                </div>
             )}
-        </div>
+        </Page>
     )
 }

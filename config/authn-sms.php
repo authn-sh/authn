@@ -2,20 +2,11 @@
 
 declare(strict_types=1);
 
-/**
- * SMS pipeline configuration (PLAN §15.2). Mirror of `authn-mail.php`.
- *
- * The driver applied per request is resolved by `App\Sms\DriverManager` —
- * `Environment.user_settings.sms.driver` may override the global default.
- */
 return [
     'default_driver' => env('AUTHN_SMS_DRIVER', 'null'),
 
     'default_from_number' => env('AUTHN_DEFAULT_FROM_NUMBER'),
 
-    /**
-     * Per-driver settings. Each driver pulls only its own block.
-     */
     'drivers' => [
         'twilio' => [
             'account_sid' => env('AUTHN_SMS_TWILIO_ACCOUNT_SID'),

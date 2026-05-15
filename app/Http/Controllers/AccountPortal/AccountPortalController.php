@@ -9,6 +9,7 @@ use App\Models\Environment;
 use App\Models\Session;
 use App\Services\Client\ClientResolver;
 use App\Services\Sessions\SessionLifecycle;
+use App\Services\Sessions\SessionTokenVerifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
@@ -37,6 +38,7 @@ final class AccountPortalController
     public function __construct(
         private readonly ClientResolver $clientResolver,
         private readonly SessionLifecycle $lifecycle,
+        private readonly SessionTokenVerifier $sessionTokenVerifier,
     ) {}
 
     public function signIn(Request $request, ?string $step = null): InertiaResponse|RedirectResponse
@@ -180,6 +182,10 @@ final class AccountPortalController
     {
         $client = $this->resolveClient($request, $env);
         if ($client === null || ! $this->hasLiveSession($client)) {
+            return null;
+        }
+        $token = (string) ($request->cookie('__session') ?? '');
+        if ($token === '' || $this->sessionTokenVerifier->verify($token, $env) === null) {
             return null;
         }
         $appearance = is_array($env->appearance) ? $env->appearance : [];

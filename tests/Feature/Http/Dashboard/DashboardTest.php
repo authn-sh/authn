@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Jobs\Sms\SendSmsTemplate;
 use App\Models\ApiKey;
 use App\Models\Client;
 use App\Models\EmailAddress;
@@ -21,7 +20,6 @@ use App\Services\Keys\SigningKeyGenerator;
 use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 
 function reloadDashboardRoutes(): void
@@ -193,18 +191,19 @@ it('overview / users / sessions / api keys / webhooks pages render for authed op
     foreach ([
         'overview' => 'Dashboard/Overview',
         'users' => 'Dashboard/Users',
-        'sessions' => 'Dashboard/Sessions',
-        'invitations' => 'Dashboard/Invitations',
-        'allowlist' => 'Dashboard/Allowlist',
-        'blocklist' => 'Dashboard/Blocklist',
-        'configure/attributes' => 'Dashboard/Configure',
-        'configure/organizations' => 'Dashboard/Configure',
-        'email-templates' => 'Dashboard/EmailTemplates',
-        'api-keys' => 'Dashboard/ApiKeys',
-        'webhooks' => 'Dashboard/Webhooks',
+        'users/sessions' => 'Dashboard/Sessions',
+        'users/invitations' => 'Dashboard/Invitations',
+        'configure/restrictions/allowlist' => 'Dashboard/Configure/Restrictions/Allowlist',
+        'configure/restrictions/blocklist' => 'Dashboard/Configure/Restrictions/Blocklist',
+        'configure/templates/email' => 'Dashboard/Configure/Templates/Email',
+        'configure/templates/sms' => 'Dashboard/Configure/Templates/Sms',
+        'configure/webhooks/endpoints' => 'Dashboard/Configure/Webhooks/Endpoints',
+        'configure/webhooks/deliveries' => 'Dashboard/Configure/Webhooks/Deliveries',
+        'configure/authorization/roles' => 'Dashboard/Configure/Authorization/Roles',
+        'configure/authorization/permissions' => 'Dashboard/Configure/Authorization/Permissions',
+        'configure/api-keys' => 'Dashboard/ApiKeys',
         'audit-log' => 'Dashboard/AuditLog',
         'organizations' => 'Dashboard/Organizations',
-        'roles' => 'Dashboard/RolesAndPermissions',
     ] as $segment => $component) {
         $r = $this->withHeaders(dashHeaders($bs['jwt']))
             ->get("http://dashboard.authn.local/acme/production/{$segment}");
@@ -239,7 +238,7 @@ it('rotates an API key and stashes the secret in the flash bag', function (): vo
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->post("http://dashboard.authn.local/acme/production/api-keys/{$apiKey->id}/rotate");
+        ->post("http://dashboard.authn.local/acme/production/configure/api-keys/{$apiKey->id}/rotate");
     $r->assertRedirect();
     expect(session('rotated_secret'))->toStartWith('sk_live_');
     expect($apiKey->fresh()->hashed_secret)->not->toBe(hash('sha256', 'sk_live_old'));
@@ -258,7 +257,7 @@ it('creates a webhook endpoint with the secret returned in the flash bag', funct
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->post('http://dashboard.authn.local/acme/production/webhooks', [
+        ->post('http://dashboard.authn.local/acme/production/configure/webhooks', [
             'url' => 'https://customer.example.com/hook',
         ]);
     $r->assertRedirect();
@@ -304,11 +303,15 @@ it('roles panel returns the seeded system roles + permissions', function (): voi
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->get('http://dashboard.authn.local/acme/production/roles');
-    $r->assertOk()->assertJsonPath('component', 'Dashboard/RolesAndPermissions');
+        ->get('http://dashboard.authn.local/acme/production/configure/authorization/roles');
+    $r->assertOk()->assertJsonPath('component', 'Dashboard/Configure/Authorization/Roles');
     $keys = array_column($r->json('props.roles'), 'key');
     expect($keys)->toContain('org:admin', 'org:member');
-    expect(count($r->json('props.permissions')))->toBe(13);
+
+    $r2 = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/configure/authorization/permissions');
+    $r2->assertOk()->assertJsonPath('component', 'Dashboard/Configure/Authorization/Permissions');
+    expect(count($r2->json('props.permissions')))->toBe(13);
 });
 
 it('redirects on unknown organization id back to organizations list', function (): void {
@@ -329,7 +332,7 @@ it('redirects on unknown organization id back to organizations list', function (
     expect($r->headers->get('Location'))->toContain('/acme/production/organizations');
 });
 
-it('Configure renders the multi-factor subsection with spec defaults when user_settings.multi_factor is unset', function (): void {
+it('Configure renders the MFA subsection with spec defaults when user_settings.multi_factor is unset', function (): void {
     $f = bootAdminEnv();
     $bs = operatorWithMembership($f['env']);
     $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
@@ -342,11 +345,10 @@ it('Configure renders the multi-factor subsection with spec defaults when user_s
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->get('http://dashboard.authn.local/acme/production/configure/multi-factor');
+        ->get('http://dashboard.authn.local/acme/production/configure/authentication/mfa');
 
     $r->assertOk()
-        ->assertJsonPath('component', 'Dashboard/Configure')
-        ->assertJsonPath('props.section', 'multi-factor')
+        ->assertJsonPath('component', 'Dashboard/Configure/Authentication/Mfa')
         ->assertJsonPath('props.multi_factor.totp.enabled', true)
         ->assertJsonPath('props.multi_factor.backup_codes.enabled', true)
         ->assertJsonPath('props.multi_factor.backup_codes.default_count', 10);
@@ -368,6 +370,7 @@ it('PATCH /configure/multi-factor writes the toggles through to user_settings.mu
         ->patch('http://dashboard.authn.local/acme/production/configure/multi-factor', [
             'totp' => ['enabled' => false],
             'backup_codes' => ['enabled' => true, 'default_count' => 16],
+            'phone_code' => ['enabled' => false],
         ]);
 
     $r->assertRedirect();
@@ -392,52 +395,12 @@ it('PATCH /configure/multi-factor rejects default_count outside 4..24 with valid
         ->patch('http://dashboard.authn.local/acme/production/configure/multi-factor', [
             'totp' => ['enabled' => true],
             'backup_codes' => ['enabled' => true, 'default_count' => 3],
+            'phone_code' => ['enabled' => false],
         ]);
 
     $r->assertStatus(422);
     $errors = $r->json('errors');
     expect($errors)->toHaveKey('backup_codes.default_count');
-});
-
-it('PATCH /configure/attributes writes phone_number tri-state through to user_settings.attributes', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
-    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
-    $env = Environment::create([
-        'project_id' => $project->id,
-        'kind' => Environment::KIND_PRODUCTION,
-        'slug' => 'production',
-        'routing_label' => 'acme',
-        'allowed_origins' => [],
-    ]);
-
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->patch('http://dashboard.authn.local/acme/production/configure/attributes', [
-            'phone_number' => 'optional',
-        ]);
-
-    $r->assertRedirect();
-    expect($env->fresh()->user_settings['attributes']['phone_number'])->toBe('optional');
-});
-
-it('PATCH /configure/attributes rejects unknown phone_number values', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
-    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
-    Environment::create([
-        'project_id' => $project->id,
-        'kind' => Environment::KIND_PRODUCTION,
-        'slug' => 'production',
-        'routing_label' => 'acme',
-        'allowed_origins' => [],
-    ]);
-
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->patch('http://dashboard.authn.local/acme/production/configure/attributes', [
-            'phone_number' => 'maybe',
-        ]);
-
-    $r->assertStatus(422);
 });
 
 it('PATCH /configure/appearance writes the three axes through to Environment.appearance', function (): void {
@@ -524,86 +487,6 @@ it('PATCH /configure/localization rejects an override key not in CanonicalSchema
     expect(session('errors')->get('overrides'))->not->toBeEmpty();
 });
 
-it('PATCH /configure/sms writes driver + from_number + credentials through with rotate semantics', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
-    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
-    $env = Environment::create([
-        'project_id' => $project->id,
-        'kind' => Environment::KIND_PRODUCTION,
-        'slug' => 'production',
-        'routing_label' => 'acme',
-        'allowed_origins' => [],
-    ]);
-
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->patch('http://dashboard.authn.local/acme/production/configure/sms', [
-            'driver' => 'twilio',
-            'from_number' => '+15555550100',
-            'twilio' => ['account_sid' => 'AC123', 'auth_token' => 'tok-1'],
-        ]);
-
-    $r->assertRedirect();
-    $sms = $env->fresh()->user_settings['sms'];
-    expect($sms['driver'])->toBe('twilio');
-    expect($sms['from_number'])->toBe('+15555550100');
-    expect($sms['twilio']['account_sid'])->toBe('AC123');
-    expect($sms['twilio']['auth_token'])->toBe('tok-1');
-
-    // Empty auth_token leaves the stored value untouched.
-    $r2 = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->patch('http://dashboard.authn.local/acme/production/configure/sms', [
-            'driver' => 'twilio',
-            'from_number' => '+15555550100',
-            'twilio' => ['account_sid' => 'AC123', 'auth_token' => ''],
-        ]);
-    $r2->assertRedirect();
-    expect($env->fresh()->user_settings['sms']['twilio']['auth_token'])->toBe('tok-1');
-});
-
-it('POST /configure/sms/test dispatches a SendSmsTemplate job', function (): void {
-    Queue::fake();
-
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
-    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
-    Environment::create([
-        'project_id' => $project->id,
-        'kind' => Environment::KIND_PRODUCTION,
-        'slug' => 'production',
-        'routing_label' => 'acme',
-        'allowed_origins' => [],
-    ]);
-
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->post('http://dashboard.authn.local/acme/production/configure/sms/test', [
-            'to_number' => '+15555550100',
-        ]);
-
-    $r->assertRedirect();
-    Queue::assertPushed(SendSmsTemplate::class);
-});
-
-it('POST /configure/sms/test 422s on non-E.164 input', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
-    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
-    Environment::create([
-        'project_id' => $project->id,
-        'kind' => Environment::KIND_PRODUCTION,
-        'slug' => 'production',
-        'routing_label' => 'acme',
-        'allowed_origins' => [],
-    ]);
-
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->post('http://dashboard.authn.local/acme/production/configure/sms/test', [
-            'to_number' => 'bad',
-        ]);
-
-    $r->assertStatus(422);
-});
-
 it('PATCH /configure/sms-templates/{slug} updates the template body', function (): void {
     $f = bootAdminEnv();
     $bs = operatorWithMembership($f['env']);
@@ -629,28 +512,6 @@ it('PATCH /configure/sms-templates/{slug} updates the template body', function (
     expect($row->body)->toBe('Custom: {{otp_code}}');
 });
 
-it('Configure renders the sms section with seeded templates + null driver default', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
-    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
-    Environment::create([
-        'project_id' => $project->id,
-        'kind' => Environment::KIND_PRODUCTION,
-        'slug' => 'production',
-        'routing_label' => 'acme',
-        'allowed_origins' => [],
-    ]);
-
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->get('http://dashboard.authn.local/acme/production/configure/sms');
-
-    $r->assertOk()
-        ->assertJsonPath('component', 'Dashboard/Configure')
-        ->assertJsonPath('props.section', 'sms')
-        ->assertJsonPath('props.sms.driver', null)
-        ->assertJsonCount(3, 'props.sms_templates');
-});
-
 it('Configure renders the social-providers section with the seeded preset rows + preset keys', function (): void {
     $f = bootAdminEnv();
     $bs = operatorWithMembership($f['env']);
@@ -664,11 +525,10 @@ it('Configure renders the social-providers section with the seeded preset rows +
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->get('http://dashboard.authn.local/acme/production/configure/social-providers');
+        ->get('http://dashboard.authn.local/acme/production/configure/authentication/providers');
 
     $r->assertOk()
-        ->assertJsonPath('component', 'Dashboard/Configure')
-        ->assertJsonPath('props.section', 'social-providers');
+        ->assertJsonPath('component', 'Dashboard/Configure/Authentication/Providers');
     $keys = collect($r->json('props.oauth_providers'))->pluck('provider_key')->sort()->values()->all();
     expect($keys)->toBe([
         'apple', 'discord', 'facebook', 'github', 'gitlab',
@@ -803,27 +663,6 @@ it('POST /configure/oauth-providers runs OIDC discovery for custom_oidc', functi
         ->where('environment_id', $env->id)->where('provider_key', 'acmeoidc')->first();
     expect($row)->not->toBeNull();
     expect($row->authorization_endpoint)->toBe('https://idp.acme.test/authorize');
-});
-
-it('DELETE /configure/oauth-providers/{id} removes the row when no ExternalAccounts link', function (): void {
-    $f = bootAdminEnv();
-    $bs = operatorWithMembership($f['env']);
-    $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
-    $env = Environment::create([
-        'project_id' => $project->id,
-        'kind' => Environment::KIND_PRODUCTION,
-        'slug' => 'production',
-        'routing_label' => 'acme',
-        'allowed_origins' => [],
-    ]);
-    $row = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)->where('provider_key', 'google')->firstOrFail();
-
-    $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->delete('http://dashboard.authn.local/acme/production/configure/oauth-providers/'.$row->id);
-
-    $r->assertRedirect();
-    expect(OauthProvider::query()->withoutGlobalScopes()->where('id', $row->id)->whereNull('deleted_at')->exists())->toBeFalse();
 });
 
 it('PATCH /configure/oauth-providers/{id} emits oauthProvider.updated', function (): void {
