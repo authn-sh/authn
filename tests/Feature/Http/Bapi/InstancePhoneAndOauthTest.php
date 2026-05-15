@@ -38,33 +38,34 @@ it('PATCH /instance emits instance.config.multi_factor_updated when phone_code f
     expect($events)->toHaveCount(1);
 });
 
-it('PATCH /instance accepts attributes.phone_number tri-state and emits attributes_updated', function (): void {
+it('PATCH /instance accepts sign_up_methods.phone and emits sign_up_methods_updated', function (): void {
     $f = BapiTestSupport::bootEnv();
 
     $this->withHeaders(BapiTestSupport::headers($f['token']))
         ->patchJson(BapiTestSupport::url('/instance'), [
-            'attributes' => ['phone_number' => 'optional'],
+            'sign_up_methods' => ['phone' => ['enabled' => true, 'required' => false]],
         ])
         ->assertOk()
         ->assertJsonPath('attribute_settings.phone_number.enabled', true)
         ->assertJsonPath('attribute_settings.phone_number.required', false);
 
     $env = Environment::query()->withoutGlobalScopes()->where('id', $f['env']->id)->first();
-    $this->assertSame('optional', $env->user_settings['attributes']['phone_number']);
+    $this->assertTrue($env->user_settings['sign_up_methods']['phone']['enabled']);
+    $this->assertFalse($env->user_settings['sign_up_methods']['phone']['required']);
 
     $events = WebhookEvent::query()->withoutGlobalScopes()
         ->where('environment_id', $f['env']->id)
-        ->where('type', 'instance.config.attributes_updated')
+        ->where('type', 'instance.config.sign_up_methods_updated')
         ->get();
     expect($events)->toHaveCount(1);
 });
 
-it('PATCH /instance rejects unknown phone_number values', function (): void {
+it('PATCH /instance rejects non-boolean phone enabled/required values', function (): void {
     $f = BapiTestSupport::bootEnv();
 
     $this->withHeaders(BapiTestSupport::headers($f['token']))
         ->patchJson(BapiTestSupport::url('/instance'), [
-            'attributes' => ['phone_number' => 'maybe'],
+            'sign_up_methods' => ['phone' => ['enabled' => 'maybe']],
         ])
         ->assertStatus(422);
 });
@@ -74,16 +75,28 @@ it('GET /environment narrows first_factors and oauth_providers based on env stat
 
     $this->withHeaders(BapiTestSupport::headers($f['token']))
         ->patchJson(BapiTestSupport::url('/instance'), [
-            'attributes' => ['phone_number' => 'optional'],
+            'sign_up_methods' => ['phone' => ['enabled' => true, 'required' => false]],
             'multi_factor' => ['phone_code' => ['enabled' => true]],
         ])
         ->assertOk();
 
-    // AU-4's seeder pre-creates the four preset rows; flip Google to enabled.
-    OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $f['env']->id)
-        ->where('provider_key', 'google')
-        ->update(['enabled' => true, 'client_id' => 'gid', 'encrypted_client_secret' => 'gsecret']);
+    // Operator explicitly configures the Google preset row (no longer pre-seeded).
+    OauthProvider::query()->withoutGlobalScopes()->create([
+        'environment_id' => $f['env']->id,
+        'provider_kind' => OauthProvider::KIND_PRESET,
+        'provider_key' => 'google',
+        'name' => 'Google',
+        'enabled' => true,
+        'client_id' => 'gid',
+        'encrypted_client_secret' => 'gsecret',
+        'scopes' => ['openid', 'email', 'profile'],
+        'attribute_mapping' => [],
+        'additional_authorization_params' => [],
+        'authorization_endpoint' => 'https://accounts.google.com/o/oauth2/v2/auth',
+        'token_endpoint' => 'https://oauth2.googleapis.com/token',
+        'userinfo_endpoint' => 'https://openidconnect.googleapis.com/v1/userinfo',
+        'id_token_signing_algs' => ['RS256'],
+    ]);
 
     // Render the resource directly — full FAPI route reload would clobber
     // the BAPI routes the bootEnv() above just installed.
