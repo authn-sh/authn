@@ -24,6 +24,7 @@ use App\Http\Controllers\Fapi\OauthConsentController;
 use App\Http\Controllers\Fapi\OauthTokenController;
 use App\Http\Controllers\Fapi\OauthUserinfoController;
 use App\Http\Controllers\Fapi\OrganizationController as FapiOrganizationController;
+use App\Http\Controllers\Fapi\OrganizationDomainController as FapiOrganizationDomainController;
 use App\Http\Controllers\Fapi\OrganizationEnterpriseConnectionController;
 use App\Http\Controllers\Fapi\OrganizationInvitationController as FapiOrganizationInvitationController;
 use App\Http\Controllers\Fapi\OrganizationMembershipController as FapiOrganizationMembershipController;
@@ -257,6 +258,25 @@ Route::prefix('v1')->group(function (): void {
         Route::post('/organizations/{organization_id}/membership-requests/{request_id}/reject', [FapiOrganizationMembershipRequestController::class, 'reject'])
             ->middleware(EnsureOrgPermission::class.':org:sys_memberships:manage')
             ->name('fapi.organizations.membership_requests.reject');
+
+        // Per-org domains (AU-13 / OA-1). Drives the <OrganizationProfile />
+        // Domains section in sdk-react. BAPI hosts the verification-challenge
+        // sub-resource — FAPI only exposes the CRUD on the domain rows.
+        Route::get('/organizations/{organization_id}/domains', [FapiOrganizationDomainController::class, 'index'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_domains:read')
+            ->name('fapi.organizations.domains.index');
+        Route::post('/organizations/{organization_id}/domains', [FapiOrganizationDomainController::class, 'store'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_domains:manage')
+            ->name('fapi.organizations.domains.store');
+        Route::get('/organizations/{organization_id}/domains/{domain_id}', [FapiOrganizationDomainController::class, 'show'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_domains:read')
+            ->name('fapi.organizations.domains.show');
+        Route::patch('/organizations/{organization_id}/domains/{domain_id}', [FapiOrganizationDomainController::class, 'update'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_domains:manage')
+            ->name('fapi.organizations.domains.update');
+        Route::delete('/organizations/{organization_id}/domains/{domain_id}', [FapiOrganizationDomainController::class, 'destroy'])
+            ->middleware(EnsureOrgPermission::class.':org:sys_domains:manage')
+            ->name('fapi.organizations.domains.destroy');
 
         // Per-org enterprise SSO connections (AU-6 / OA-5). Drives the
         // <OrganizationProfile /> SSO section in sdk-react.
