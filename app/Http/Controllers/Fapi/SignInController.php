@@ -26,6 +26,7 @@ use App\Models\Verification;
 use App\Services\Client\ClientResolver;
 use App\Services\Sessions\SessionLifecycle;
 use App\Services\Sessions\SessionTokenIssuer;
+use App\Services\SignIn\IdentifierResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -144,7 +145,7 @@ final class SignInController
      */
     private function shouldTransferToSignUp(Environment $env, string $identifier): bool
     {
-        $user = \App\Services\SignIn\IdentifierResolver::resolve($env, $identifier);
+        $user = IdentifierResolver::resolve($env, $identifier);
         if ($user !== null) {
             return false;
         }

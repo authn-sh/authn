@@ -6,7 +6,6 @@ namespace App\Http\Resources;
 
 use App\Auth\EnterpriseSso\EnterpriseConnectionService;
 use App\Models\BackupCode;
-use App\Models\EmailAddress;
 use App\Models\EnterpriseConnection;
 use App\Models\Passkey;
 use App\Models\PhoneNumber;

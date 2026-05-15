@@ -8,6 +8,8 @@ use App\Models\Environment;
 use App\Models\OauthProvider;
 use App\Settings\MultiFactorSettings;
 use App\Settings\RedirectsSettings;
+use App\Settings\SignInMethodsSettings;
+use App\Settings\SignUpMethodsSettings;
 
 /**
  * The public-facing shape returned by `GET /v1/environment`. The SDK
@@ -30,8 +32,8 @@ final class EnvironmentResource
         $localization = is_array($environment->localization) ? $environment->localization : [];
         $multiFactor = MultiFactorSettings::fromUserSettings($userSettings);
 
-        $signUp = \App\Settings\SignUpMethodsSettings::fromUserSettings($userSettings);
-        $signIn = \App\Settings\SignInMethodsSettings::fromUserSettings($userSettings);
+        $signUp = SignUpMethodsSettings::fromUserSettings($userSettings);
+        $signIn = SignInMethodsSettings::fromUserSettings($userSettings);
         $emailReq = match (true) {
             $signUp->emailEnabled && $signUp->emailRequired => 'required',
             $signUp->emailEnabled => 'optional',

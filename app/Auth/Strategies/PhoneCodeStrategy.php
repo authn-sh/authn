@@ -6,12 +6,12 @@ namespace App\Auth\Strategies;
 
 use App\Auth\ErrorCodes;
 use App\Jobs\Sms\SendVerificationSms;
-use App\Models\EmailAddress;
 use App\Models\PhoneNumber;
 use App\Models\SignInAttempt;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
+use App\Services\SignIn\IdentifierResolver;
 use App\Services\Verification\VerificationManager;
 
 /**
@@ -178,6 +178,6 @@ final class PhoneCodeStrategy implements Strategy
             return null;
         }
 
-        return \App\Services\SignIn\IdentifierResolver::resolve($attempt->environment, (string) $attempt->identifier);
+        return IdentifierResolver::resolve($attempt->environment, (string) $attempt->identifier);
     }
 }
