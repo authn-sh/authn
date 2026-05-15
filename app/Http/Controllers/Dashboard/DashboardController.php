@@ -435,7 +435,7 @@ final class DashboardController
         return back(303)->with('authentication_strategy_saved', 'passkey');
     }
 
-public function updateAppearance(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    public function updateAppearance(Request $request, string $project_slug, string $env_slug): RedirectResponse
     {
         $env = $this->env($project_slug, $env_slug);
         if ($env === null) {

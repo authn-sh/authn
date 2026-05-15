@@ -20,7 +20,6 @@ use App\Services\Keys\SigningKeyGenerator;
 use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 
 function reloadDashboardRoutes(): void
@@ -483,9 +482,6 @@ it('PATCH /configure/localization rejects an override key not in CanonicalSchema
     expect(session('errors')->get('overrides'))->not->toBeEmpty();
 });
 
-
-
-
 it('PATCH /configure/sms-templates/{slug} updates the template body', function (): void {
     $f = bootAdminEnv();
     $bs = operatorWithMembership($f['env']);
@@ -510,7 +506,6 @@ it('PATCH /configure/sms-templates/{slug} updates the template body', function (
         ->firstOrFail();
     expect($row->body)->toBe('Custom: {{otp_code}}');
 });
-
 
 it('Configure renders the social-providers section with the seeded preset rows + preset keys', function (): void {
     $f = bootAdminEnv();
