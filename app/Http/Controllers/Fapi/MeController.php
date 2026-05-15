@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Fapi;
 
 use App\Auth\ErrorCodes;
+use App\Http\Requests\Bapi\Users\ProfileImageRequest;
 use App\Http\Resources\ClientResource;
 use App\Http\Resources\EmailAddressResource;
 use App\Http\Resources\UserResource;
@@ -17,6 +18,7 @@ use App\Models\User;
 use App\Services\Sessions\SessionLifecycle;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * `/v1/me` — the authenticated end-user's view of themselves. Powers the
@@ -32,6 +34,10 @@ final class MeController
     private const WRITABLE_PROFILE_FIELDS = [
         'first_name', 'last_name', 'username', 'image_url', 'locale',
     ];
+
+    private const IMAGE_DISK = 's3';
+
+    private const ALLOWED_IMAGE_MIMES = ['image/png', 'image/jpeg', 'image/webp'];
 
     public function __construct(
         private readonly SessionLifecycle $lifecycle,
@@ -268,7 +274,102 @@ final class MeController
         return $this->clientEnvelope(['object' => 'change_password', 'success' => true]);
     }
 
+    public function removeMyPassword(Request $request): JsonResponse
+    {
+        $session = app(Session::class);
+        if ($session->isImpersonation()) {
+            return $this->error(403, ErrorCodes::ACTOR_SESSION_FORBIDDEN, 'Impersonation sessions cannot remove the password.');
+        }
+
+        $user = app(User::class);
+        if ($user->password_hash === null) {
+            return $this->error(422, ErrorCodes::FORM_PASSWORD_VALIDATION_FAILED, 'No password set on this user.');
+        }
+
+        $env = app(Environment::class);
+        if ($this->environmentRequiresPassword($env)) {
+            return $this->error(422, ErrorCodes::FORM_PASSWORD_VALIDATION_FAILED, 'This environment requires a password.');
+        }
+
+        $current = $request->input('current_password');
+        if (! is_string($current) || $current === '' || ! $user->checkPassword($current)) {
+            return $this->error(422, ErrorCodes::FORM_PASSWORD_INCORRECT, 'Current password is incorrect.');
+        }
+
+        $user->forceFill(['password_hash' => null])->save();
+
+        return $this->clientEnvelope(UserResource::from($user->fresh()));
+    }
+
+    /* -------------------- profile image -------------------- */
+
+    public function uploadMyProfileImage(ProfileImageRequest $request): JsonResponse
+    {
+        $session = app(Session::class);
+        if ($session->isImpersonation()) {
+            return $this->error(403, ErrorCodes::ACTOR_SESSION_FORBIDDEN, 'Impersonation sessions cannot mutate the profile image.');
+        }
+
+        $user = app(User::class);
+        $file = $request->file('file');
+        if ($file === null) {
+            return $this->error(422, ErrorCodes::FORM_PARAM_NIL, 'A file is required.');
+        }
+
+        $info = @getimagesize($file->getRealPath());
+        $detectedMime = is_array($info) ? ($info['mime'] ?? null) : null;
+        if (! is_string($detectedMime) || ! in_array($detectedMime, self::ALLOWED_IMAGE_MIMES, true)) {
+            return $this->error(415, ErrorCodes::FORM_PARAM_FORMAT_INVALID, 'File must be one of: '.implode(', ', self::ALLOWED_IMAGE_MIMES));
+        }
+
+        $disk = Storage::disk(self::IMAGE_DISK);
+        $extension = $file->getClientOriginalExtension() ?: pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION) ?: 'png';
+        $path = "user-images/{$user->environment_id}/{$user->id}.{$extension}";
+        $disk->put($path, file_get_contents($file->getRealPath()), 'public');
+        $url = method_exists($disk, 'url') ? $disk->url($path) : $path;
+
+        $user->forceFill(['image_url' => $url, 'has_image' => true])->save();
+
+        return $this->clientEnvelope(UserResource::from($user->fresh()));
+    }
+
+    public function deleteMyProfileImage(): JsonResponse
+    {
+        $session = app(Session::class);
+        if ($session->isImpersonation()) {
+            return $this->error(403, ErrorCodes::ACTOR_SESSION_FORBIDDEN, 'Impersonation sessions cannot mutate the profile image.');
+        }
+
+        $user = app(User::class);
+        if ($user->image_url !== null) {
+            $disk = Storage::disk(self::IMAGE_DISK);
+            $candidates = [
+                "user-images/{$user->environment_id}/{$user->id}.png",
+                "user-images/{$user->environment_id}/{$user->id}.jpg",
+                "user-images/{$user->environment_id}/{$user->id}.jpeg",
+                "user-images/{$user->environment_id}/{$user->id}.webp",
+            ];
+            foreach ($candidates as $path) {
+                if ($disk->exists($path)) {
+                    $disk->delete($path);
+                }
+            }
+        }
+        $user->forceFill(['image_url' => null, 'has_image' => false])->save();
+
+        return $this->clientEnvelope(UserResource::from($user->fresh()));
+    }
+
     /* -------------------- helpers -------------------- */
+
+    private function environmentRequiresPassword(Environment $env): bool
+    {
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $attributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
+        $password = is_array($attributes['password'] ?? null) ? $attributes['password'] : [];
+
+        return ($password['enabled'] ?? true) === true && ($password['required'] ?? true) === true;
+    }
 
     private function loadEmail(Request $request): EmailAddress|JsonResponse
     {

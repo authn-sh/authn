@@ -7,6 +7,8 @@ use App\Models\Session;
 use App\Models\User;
 use App\Models\Verification;
 use App\Models\VerificationCode;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Me\MeTestSupport;
 
@@ -152,4 +154,152 @@ it('GET /v1/me/sessions lists the user sessions', function (): void {
     $r->assertOk()
         ->assertJsonPath('total_count', 1)
         ->assertJsonPath('data.0.id', $auth['session']->id);
+});
+
+it('DELETE /v1/me/password clears the password hash when env permits it', function (): void {
+    $f = MeTestSupport::bootEnv([
+        'attributes' => ['password' => ['enabled' => true, 'required' => false]],
+    ]);
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
+
+    meReq('DELETE', '/me/password', $auth['jwt'], [
+        'current_password' => 'super-secret-password',
+    ])->assertOk()
+        ->assertJsonPath('response.password_enabled', false);
+
+    expect(User::query()->withoutGlobalScopes()->where('id', $auth['user']->id)->first()->password_hash)->toBeNull();
+});
+
+it('DELETE /v1/me/password returns 422 form_password_incorrect on wrong current password', function (): void {
+    $f = MeTestSupport::bootEnv([
+        'attributes' => ['password' => ['enabled' => true, 'required' => false]],
+    ]);
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
+
+    meReq('DELETE', '/me/password', $auth['jwt'], [
+        'current_password' => 'wrong',
+    ])->assertStatus(422)->assertJsonPath('errors.0.code', 'form_password_incorrect');
+});
+
+it('DELETE /v1/me/password returns 422 when the environment requires a password', function (): void {
+    $f = MeTestSupport::bootEnv();
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
+
+    meReq('DELETE', '/me/password', $auth['jwt'], [
+        'current_password' => 'super-secret-password',
+    ])->assertStatus(422)->assertJsonPath('errors.0.code', 'form_password_validation_failed');
+});
+
+it('DELETE /v1/me/password returns 422 when the user has no password set', function (): void {
+    $f = MeTestSupport::bootEnv([
+        'attributes' => ['password' => ['enabled' => true, 'required' => false]],
+    ]);
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
+    $auth['user']->forceFill(['password_hash' => null])->save();
+
+    meReq('DELETE', '/me/password', $auth['jwt'], [
+        'current_password' => 'super-secret-password',
+    ])->assertStatus(422)->assertJsonPath('errors.0.code', 'form_password_validation_failed');
+});
+
+it('DELETE /v1/me/password is forbidden for impersonation sessions', function (): void {
+    $f = MeTestSupport::bootEnv([
+        'attributes' => ['password' => ['enabled' => true, 'required' => false]],
+    ]);
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env'], [
+        'actor' => ['iss' => 'https://actor.example.com', 'sub' => 'admin', 'sid' => 'sess_admin'],
+    ]);
+
+    meReq('DELETE', '/me/password', $auth['jwt'], [
+        'current_password' => 'super-secret-password',
+    ])->assertStatus(403)->assertJsonPath('errors.0.code', 'actor_session_forbidden');
+});
+
+it('POST /v1/me/profile-image stores the image and updates image_url', function (): void {
+    Storage::fake('s3', ['url' => 'https://images.example.com']);
+    $f = MeTestSupport::bootEnv();
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
+
+    $file = UploadedFile::fake()->image('avatar.png', 64, 64);
+
+    test()->withCredentials()
+        ->withHeaders([
+            'Host' => 'acme.authn.local',
+            'Origin' => 'https://app.example.com',
+            'Authorization' => 'Bearer '.$auth['jwt'],
+            'Accept' => 'application/json',
+        ])
+        ->post('https://acme.authn.local/v1/me/profile-image', ['file' => $file])
+        ->assertOk()
+        ->assertJsonPath('response.has_image', true);
+
+    expect(User::query()->withoutGlobalScopes()->where('id', $auth['user']->id)->first()->image_url)->not->toBeNull();
+});
+
+it('POST /v1/me/profile-image returns 415 for an unsupported MIME', function (): void {
+    Storage::fake('s3', ['url' => 'https://images.example.com']);
+    $f = MeTestSupport::bootEnv();
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
+
+    $file = UploadedFile::fake()->create('avatar.txt', 4, 'text/plain');
+
+    test()->withCredentials()
+        ->withHeaders([
+            'Host' => 'acme.authn.local',
+            'Origin' => 'https://app.example.com',
+            'Authorization' => 'Bearer '.$auth['jwt'],
+            'Accept' => 'application/json',
+        ])
+        ->post('https://acme.authn.local/v1/me/profile-image', ['file' => $file])
+        ->assertStatus(415)
+        ->assertJsonPath('errors.0.code', 'form_param_format_invalid');
+});
+
+it('POST /v1/me/profile-image is forbidden for impersonation sessions', function (): void {
+    Storage::fake('s3', ['url' => 'https://images.example.com']);
+    $f = MeTestSupport::bootEnv();
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env'], [
+        'actor' => ['iss' => 'https://actor.example.com', 'sub' => 'admin', 'sid' => 'sess_admin'],
+    ]);
+
+    $file = UploadedFile::fake()->image('avatar.png', 64, 64);
+
+    test()->withCredentials()
+        ->withHeaders([
+            'Host' => 'acme.authn.local',
+            'Origin' => 'https://app.example.com',
+            'Authorization' => 'Bearer '.$auth['jwt'],
+            'Accept' => 'application/json',
+        ])
+        ->post('https://acme.authn.local/v1/me/profile-image', ['file' => $file])
+        ->assertStatus(403)
+        ->assertJsonPath('errors.0.code', 'actor_session_forbidden');
+});
+
+it('DELETE /v1/me/profile-image clears image_url and is idempotent', function (): void {
+    Storage::fake('s3', ['url' => 'https://images.example.com']);
+    $f = MeTestSupport::bootEnv();
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
+    $auth['user']->forceFill(['image_url' => 'https://example.com/avatar.png', 'has_image' => true])->save();
+
+    meReq('DELETE', '/me/profile-image', $auth['jwt'])
+        ->assertOk()
+        ->assertJsonPath('response.has_image', false);
+
+    expect(User::query()->withoutGlobalScopes()->where('id', $auth['user']->id)->first()->image_url)->toBeNull();
+
+    // Second call is idempotent — no error.
+    meReq('DELETE', '/me/profile-image', $auth['jwt'])->assertOk();
+});
+
+it('DELETE /v1/me/profile-image is forbidden for impersonation sessions', function (): void {
+    Storage::fake('s3', ['url' => 'https://images.example.com']);
+    $f = MeTestSupport::bootEnv();
+    $auth = MeTestSupport::makeAuthenticatedUser($f['env'], [
+        'actor' => ['iss' => 'https://actor.example.com', 'sub' => 'admin', 'sid' => 'sess_admin'],
+    ]);
+
+    meReq('DELETE', '/me/profile-image', $auth['jwt'])
+        ->assertStatus(403)
+        ->assertJsonPath('errors.0.code', 'actor_session_forbidden');
 });
