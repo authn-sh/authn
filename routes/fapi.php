@@ -187,6 +187,10 @@ Route::prefix('v1')->group(function (): void {
 
         Route::get('/me/sessions', [MeController::class, 'listSessions'])->name('fapi.me.sessions.list');
         Route::post('/me/change-password', [MeController::class, 'changePassword'])->name('fapi.me.change_password');
+        Route::delete('/me/password', [MeController::class, 'removeMyPassword'])->name('fapi.me.password.delete');
+
+        Route::post('/me/profile-image', [MeController::class, 'uploadMyProfileImage'])->name('fapi.me.profile_image.upload');
+        Route::delete('/me/profile-image', [MeController::class, 'deleteMyProfileImage'])->name('fapi.me.profile_image.delete');
 
         Route::post('/me/totp', [MeTotpController::class, 'start'])->name('fapi.me.totp.start');
         Route::post('/me/totp/verify', [MeTotpController::class, 'verify'])->name('fapi.me.totp.verify');
