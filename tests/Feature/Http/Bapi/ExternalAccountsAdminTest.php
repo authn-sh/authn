@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Http\Bapi;
 
 use App\Models\ExternalAccount;
-use App\Models\OauthProvider;
 use App\Models\User;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\OauthProviderFixtures;
 
 beforeEach(function (): void {
     Bus::fake();
@@ -18,10 +18,7 @@ function ea_boot(string $slug): array
 {
     $boot = BapiTestSupport::bootEnv($slug);
     $user = User::create(['environment_id' => $boot['env']->id]);
-    $provider = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $boot['env']->id)
-        ->where('provider_key', 'google')
-        ->firstOrFail();
+    $provider = OauthProviderFixtures::blankPreset($boot['env'], 'google');
     $ext = ExternalAccount::query()->withoutGlobalScopes()->create([
         'environment_id' => $boot['env']->id,
         'user_id' => $user->id,

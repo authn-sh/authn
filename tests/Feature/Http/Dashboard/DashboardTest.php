@@ -21,6 +21,7 @@ use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
+use Tests\Support\OauthProviderFixtures;
 
 function reloadDashboardRoutes(): void
 {
@@ -512,17 +513,21 @@ it('PATCH /configure/sms-templates/{slug} updates the template body', function (
     expect($row->body)->toBe('Custom: {{otp_code}}');
 });
 
-it('Configure renders the social-providers section with the seeded preset rows + preset keys', function (): void {
+it('Configure renders the social-providers section with persisted preset rows + preset keys', function (): void {
     $f = bootAdminEnv();
     $bs = operatorWithMembership($f['env']);
     $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
-    Environment::create([
+    $env = Environment::create([
         'project_id' => $project->id,
         'kind' => Environment::KIND_PRODUCTION,
         'slug' => 'production',
         'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
+    foreach (['apple', 'discord', 'facebook', 'github', 'gitlab',
+        'google', 'linkedin', 'microsoft', 'slack', 'x'] as $key) {
+        OauthProviderFixtures::blankPreset($env, $key);
+    }
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
         ->get('http://dashboard.authn.local/acme/production/configure/authentication/providers');
@@ -551,8 +556,7 @@ it('PATCH /configure/oauth-providers/{id} flips enabled + rotates client_secret'
         'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
-    $row = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)->where('provider_key', 'google')->firstOrFail();
+    $row = OauthProviderFixtures::blankPreset($env, 'google');
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
         ->patch('http://dashboard.authn.local/acme/production/configure/oauth-providers/'.$row->id, [
@@ -579,8 +583,7 @@ it('PATCH /configure/oauth-providers/{id} leaves client_secret untouched on empt
         'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
-    $row = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)->where('provider_key', 'google')->firstOrFail();
+    $row = OauthProviderFixtures::blankPreset($env, 'google');
     $row->forceFill(['encrypted_client_secret' => 'kept'])->save();
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
@@ -676,8 +679,7 @@ it('PATCH /configure/oauth-providers/{id} emits oauthProvider.updated', function
         'routing_label' => 'acme',
         'allowed_origins' => [],
     ]);
-    $row = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)->where('provider_key', 'google')->firstOrFail();
+    $row = OauthProviderFixtures::blankPreset($env, 'google');
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
         ->patch('http://dashboard.authn.local/acme/production/configure/oauth-providers/'.$row->id, [

@@ -19,6 +19,7 @@ use Lcobucci\JWT\Encoding\JoseEncoder;
 use Lcobucci\JWT\Signer\Key\InMemory;
 use Lcobucci\JWT\Signer\Rsa\Sha256;
 use Lcobucci\JWT\Token\Builder;
+use Tests\Support\OauthProviderFixtures;
 
 /**
  * AU-6.1: id_token JWS validation. Asserts that when the IdP returns
@@ -102,17 +103,10 @@ function au61Env(): Environment
 
 function au61EnableGoogle(Environment $env, string $clientId = 'goog-client-id'): OauthProvider
 {
-    $row = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)
-        ->where('provider_key', 'google')
-        ->firstOrFail();
-    $row->forceFill([
-        'enabled' => true,
+    return OauthProviderFixtures::configuredPreset($env, 'google', [
         'client_id' => $clientId,
         'encrypted_client_secret' => 'goog-client-secret',
-    ])->save();
-
-    return $row->refresh();
+    ]);
 }
 
 it('uses id_token sub + email_verified over tampered userinfo', function (): void {

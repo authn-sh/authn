@@ -12,6 +12,7 @@ use App\Auth\Oauth\Presets\XPreset;
 use App\Models\Environment;
 use App\Models\OauthProvider;
 use App\Models\Project;
+use Tests\Support\OauthProviderFixtures;
 
 function makeEnvForNewPresets(string $slug = 'env'): Environment
 {
@@ -31,22 +32,19 @@ it('registers all six new presets on PresetRegistry', function (): void {
     expect($keys)->toContain('discord', 'facebook', 'linkedin', 'x', 'gitlab', 'slack');
 });
 
-it('seeds the six new preset rows disabled-but-configured on env creation', function (): void {
+it('hydrates the six new preset shapes via the fixture helper', function (): void {
     $env = makeEnvForNewPresets();
 
-    $rows = OauthProvider::query()
-        ->withoutGlobalScopes()
-        ->where('environment_id', $env->id)
-        ->get()
-        ->keyBy('provider_key');
-
     foreach (['google', 'github', 'apple', 'microsoft', 'discord', 'facebook', 'linkedin', 'x', 'gitlab', 'slack'] as $key) {
-        expect($rows->has($key))->toBeTrue("missing preset row: {$key}");
-        expect($rows[$key]->enabled)->toBeFalse("preset {$key} should seed disabled");
-        expect($rows[$key]->client_id)->toBe('');
+        $row = OauthProviderFixtures::blankPreset($env, $key);
+        expect($row->provider_key)->toBe($key);
+        expect($row->enabled)->toBeFalse("preset {$key} should be disabled when blank");
+        expect($row->client_id)->toBe('');
+        expect($row->provider_kind)->toBe(OauthProvider::KIND_PRESET);
     }
 
-    expect($rows->count())->toBe(10);
+    $count = OauthProvider::query()->withoutGlobalScopes()->where('environment_id', $env->id)->count();
+    expect($count)->toBe(10);
 });
 
 it('Discord preset exposes OAuth2 endpoints + identify/email scopes', function (): void {
@@ -157,10 +155,7 @@ it('computes the redirect_uri off the env FAPI host for a new-preset row', funct
     config()->set('authn.app_port_suffix', '');
 
     $env = makeEnvForNewPresets('acme');
-    $row = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)
-        ->where('provider_key', 'discord')
-        ->firstOrFail();
+    $row = OauthProviderFixtures::blankPreset($env->refresh(), 'discord');
 
     expect($row->redirect_uri)->toBe('https://acme.authn.sh/v1/oauth-callback/discord');
 });

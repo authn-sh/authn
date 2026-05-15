@@ -5,7 +5,6 @@ declare(strict_types=1);
 use App\Jobs\Webhooks\DispatchWebhookDelivery;
 use App\Models\Environment;
 use App\Models\ExternalAccount;
-use App\Models\OauthProvider;
 use App\Models\PhoneNumber;
 use App\Models\WebhookEndpoint;
 use App\Models\WebhookEvent;
@@ -13,6 +12,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Bapi\BapiTestSupport;
 use Tests\Feature\Http\Me\MeTestSupport;
+use Tests\Support\OauthProviderFixtures;
 
 function au15Endpoint(Environment $env, array $types): WebhookEndpoint
 {
@@ -139,10 +139,7 @@ it('emits externalAccount.unlinked on DELETE /v1/me/external-accounts/{id}', fun
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     au15Endpoint($f['env'], ['externalAccount.unlinked']);
 
-    $provider = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $f['env']->id)
-        ->where('provider_key', 'google')
-        ->firstOrFail();
+    $provider = OauthProviderFixtures::blankPreset($f['env'], 'google');
     $external = ExternalAccount::query()->withoutGlobalScopes()->create([
         'environment_id' => $f['env']->id,
         'user_id' => $auth['user']->id,

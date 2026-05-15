@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 use App\Models\EmailAddress;
+use App\Models\Environment;
 use App\Models\ExternalAccount;
 use App\Models\OauthProvider;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\Me\MeTestSupport;
+use Tests\Support\OauthProviderFixtures;
 
 function meExtReq(string $method, string $path, string $jwt, array $body = []): TestResponse
 {
@@ -22,10 +24,9 @@ function meExtReq(string $method, string $path, string $jwt, array $body = []): 
 
 function makeProviderForExt(string $envId): OauthProvider
 {
-    return OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $envId)
-        ->where('provider_key', 'google')
-        ->firstOrFail();
+    $env = Environment::query()->withoutGlobalScopes()->findOrFail($envId);
+
+    return OauthProviderFixtures::blankPreset($env, 'google');
 }
 
 it('GET /v1/me/external-accounts lists rows for the current user', function (): void {

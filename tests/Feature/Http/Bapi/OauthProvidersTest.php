@@ -6,17 +6,21 @@ namespace Tests\Feature\Http\Bapi;
 
 use App\Models\Environment;
 use App\Models\ExternalAccount;
-use App\Models\OauthProvider;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\OauthProviderFixtures;
 use Tests\TestCase;
 
 final class OauthProvidersTest extends TestCase
 {
-    public function test_index_returns_the_seeded_preset_rows(): void
+    public function test_index_returns_persisted_preset_rows(): void
     {
         $boot = BapiTestSupport::bootEnv('oauthlist');
         app()->instance(Environment::class, $boot['env']);
+        foreach (['apple', 'discord', 'facebook', 'github', 'gitlab',
+            'google', 'linkedin', 'microsoft', 'slack', 'x'] as $key) {
+            OauthProviderFixtures::blankPreset($boot['env'], $key);
+        }
 
         $resp = $this->getJson(BapiTestSupport::url('/oauth-providers'), BapiTestSupport::headers($boot['token']));
 
@@ -32,10 +36,7 @@ final class OauthProvidersTest extends TestCase
     {
         $boot = BapiTestSupport::bootEnv('oauthshow');
         app()->instance(Environment::class, $boot['env']);
-        $row = OauthProvider::query()->withoutGlobalScopes()
-            ->where('environment_id', $boot['env']->id)
-            ->where('provider_key', 'google')
-            ->firstOrFail();
+        $row = OauthProviderFixtures::blankPreset($boot['env'], 'google');
 
         $resp = $this->getJson(
             BapiTestSupport::url('/oauth-providers/'.$row->id),
@@ -144,6 +145,7 @@ final class OauthProvidersTest extends TestCase
     {
         $boot = BapiTestSupport::bootEnv('oauthdup');
         app()->instance(Environment::class, $boot['env']);
+        OauthProviderFixtures::blankPreset($boot['env'], 'google');
 
         $resp = $this->postJson(
             BapiTestSupport::url('/oauth-providers'),
@@ -165,10 +167,7 @@ final class OauthProvidersTest extends TestCase
     {
         $boot = BapiTestSupport::bootEnv('oauthpatch');
         app()->instance(Environment::class, $boot['env']);
-        $row = OauthProvider::query()->withoutGlobalScopes()
-            ->where('environment_id', $boot['env']->id)
-            ->where('provider_key', 'google')
-            ->firstOrFail();
+        $row = OauthProviderFixtures::blankPreset($boot['env'], 'google');
 
         $resp = $this->patchJson(
             BapiTestSupport::url('/oauth-providers/'.$row->id),
@@ -187,10 +186,7 @@ final class OauthProvidersTest extends TestCase
     {
         $boot = BapiTestSupport::bootEnv('oauthimm');
         app()->instance(Environment::class, $boot['env']);
-        $row = OauthProvider::query()->withoutGlobalScopes()
-            ->where('environment_id', $boot['env']->id)
-            ->where('provider_key', 'google')
-            ->firstOrFail();
+        $row = OauthProviderFixtures::blankPreset($boot['env'], 'google');
 
         $resp = $this->patchJson(
             BapiTestSupport::url('/oauth-providers/'.$row->id),
@@ -205,10 +201,7 @@ final class OauthProvidersTest extends TestCase
     {
         $boot = BapiTestSupport::bootEnv('oauthdel');
         app()->instance(Environment::class, $boot['env']);
-        $row = OauthProvider::query()->withoutGlobalScopes()
-            ->where('environment_id', $boot['env']->id)
-            ->where('provider_key', 'google')
-            ->firstOrFail();
+        $row = OauthProviderFixtures::blankPreset($boot['env'], 'google');
         $user = User::query()->withoutGlobalScopes()->create(['environment_id' => $boot['env']->id]);
         ExternalAccount::query()->withoutGlobalScopes()->create([
             'environment_id' => $boot['env']->id,
@@ -233,10 +226,7 @@ final class OauthProvidersTest extends TestCase
     {
         $boot = BapiTestSupport::bootEnv('oauthdel2');
         app()->instance(Environment::class, $boot['env']);
-        $row = OauthProvider::query()->withoutGlobalScopes()
-            ->where('environment_id', $boot['env']->id)
-            ->where('provider_key', 'google')
-            ->firstOrFail();
+        $row = OauthProviderFixtures::blankPreset($boot['env'], 'google');
 
         $resp = $this->deleteJson(
             BapiTestSupport::url('/oauth-providers/'.$row->id),
@@ -256,10 +246,7 @@ final class OauthProvidersTest extends TestCase
 
         $boot = BapiTestSupport::bootEnv('oauthtest');
         app()->instance(Environment::class, $boot['env']);
-        $row = OauthProvider::query()->withoutGlobalScopes()
-            ->where('environment_id', $boot['env']->id)
-            ->where('provider_key', 'google')
-            ->firstOrFail();
+        $row = OauthProviderFixtures::blankPreset($boot['env'], 'google');
         $row->forceFill(['client_id' => 'real-client'])->save();
 
         $resp = $this->postJson(

@@ -14,6 +14,7 @@ use App\Models\Verification;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
+use Tests\Support\OauthProviderFixtures;
 
 function reloadOauthFapiRoutes(): void
 {
@@ -56,17 +57,10 @@ function reloadOauthFapiRoutesIfNeeded(): void
 
 function makeEnabledGoogleProvider(Environment $env): OauthProvider
 {
-    $row = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)
-        ->where('provider_key', 'google')
-        ->firstOrFail();
-    $row->forceFill([
-        'enabled' => true,
+    return OauthProviderFixtures::configuredPreset($env, 'google', [
         'client_id' => 'gid',
         'encrypted_client_secret' => 'gsecret',
-    ])->save();
-
-    return $row->refresh();
+    ]);
 }
 
 it('callback rejects invalid state with a 302 + __authn_error', function (): void {
