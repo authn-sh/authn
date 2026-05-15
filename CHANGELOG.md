@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.1] — 2026-05-15
+
+Patch release: contract gaps + fail-open fixes flagged in the cross-repo critical review.
+
+### Added
+
+- **FAPI `DELETE /v1/me/password` (AU-17)** — clears the user's password hash after verifying `current_password`. Returns 422 when the environment requires a password (`user_settings.attributes.password.required = true`) or when the user has no password set. Rejects impersonation sessions.
+- **FAPI `POST` + `DELETE /v1/me/profile-image` (AU-17)** — multipart upload (5 MiB cap, png/jpeg/webp via magic-byte sniff) + idempotent delete; re-uses BAPI `UsersController`'s storage path layout. Rejects impersonation sessions.
+- **FAPI `/v1/organizations/{org}/domains` CRUD (AU-18)** — full `index / store / show / update / destroy` surface on a new `Fapi\OrganizationDomainController`. Gated by `org:sys_domains:read` (GET) and `org:sys_domains:manage` (POST/PATCH/DELETE). Mirrors the BAPI logic and emits `ClientResponseEnvelope` on writes.
+- **SCIM 2.0 `/scim/v2/Users/{id}` PUT + PATCH (AU-16)** — RFC 7644 §3.5.1 full-replace + §3.5.2 PATCH. Supports `op=replace` against `active` (the canonical IdP deprovisioning op), `displayName`, `userName`, `externalId`, `locale`, `name.{givenName,familyName}`, plus no-path replace with a full resource. Webhook `scimUser.updated` + `audit:auth.enterprise_sso.scim_updated` log entry on every successful write. Groups POST/PUT/PATCH/DELETE retargeted to v0.8 (see #293).
+
+### Removed
+
+- **`Environment.sms` from `GET /v1/environment` (AU-19)** — `authn-sh/openapi#109` dropped the `sms` block from the FAPI spec (driver / credentials are system-only, never read by the SDK at boot). `EnvironmentResource` was still emitting it, producing 10 contract violations on every PR after the openapi merge. Drop the bootstrap projection and the corresponding helper.
+
 ## [0.7.0] — 2026-05-12
 
 JWT templates + OAuth provider mode (authn.sh as IdP) + v0.5/v0.6 deferral cleanup.
