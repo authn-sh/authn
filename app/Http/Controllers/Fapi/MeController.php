@@ -252,6 +252,13 @@ final class MeController
             if (! is_string($current) || $current === '' || ! $user->checkPassword($current)) {
                 return $this->error(422, ErrorCodes::FORM_PASSWORD_INCORRECT, 'Current password is incorrect.');
             }
+        } else {
+            // Adding a password to a user who doesn't have one is gated by
+            // user_settings.sign_up_methods.password.add_password (#281).
+            $signUpMethods = \App\Settings\SignUpMethodsSettings::fromUserSettings(app(\App\Models\Environment::class)->user_settings);
+            if (! $signUpMethods->addPassword) {
+                return $this->error(403, ErrorCodes::ADD_PASSWORD_DISABLED, 'Adding a password is disabled for this environment.');
+            }
         }
         if (! is_string($new) || strlen($new) < 8) {
             return $this->error(422, ErrorCodes::FORM_PASSWORD_VALIDATION_FAILED, 'Password must be at least 8 characters.');

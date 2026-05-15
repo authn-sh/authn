@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Auth\SignUp;
 
 use App\Models\Environment;
+use App\Settings\SignUpMethodsSettings;
 
 /**
  * Validates a sign-up payload against the env's `user_settings.attributes`
@@ -120,6 +121,16 @@ final class StageRequirements
                 continue;
             }
             $matrix[$attr] = array_merge($matrix[$attr] ?? [], $cfg);
+        }
+
+        // Honour the new sign_up_methods.password.{enabled,signup_with_password}
+        // toggles (#281). When either is off, password is skipped at sign-up
+        // entirely — the user lands without a password_hash and can add one
+        // later via /me/password (subject to add_password).
+        $signUpMethods = SignUpMethodsSettings::fromUserSettings($userSettings);
+        if (! $signUpMethods->passwordEnabled || ! $signUpMethods->signupWithPassword) {
+            $matrix['password']['enabled'] = false;
+            $matrix['password']['required'] = false;
         }
 
         return $matrix;

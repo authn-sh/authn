@@ -39,6 +39,7 @@ use App\Services\Keys\KeyGenerator;
 use App\Settings\MultiFactorSettings;
 use App\Settings\RedirectsSettings;
 use App\Settings\SignInMethodsSettings;
+use App\Settings\SignUpMethodsSettings;
 use App\Settings\PasskeySettings;
 use App\Support\RoutingLabel;
 use App\Support\Url;
@@ -286,7 +287,9 @@ final class DashboardController
             'sign-in' => Inertia::render('Dashboard/Configure/Authentication/SignIn', [
                 'sign_in_methods' => SignInMethodsSettings::fromUserSettings($userSettings)->toArray(),
             ]),
-            'sign-up' => Inertia::render('Dashboard/Configure/Authentication/SignUp'),
+            'sign-up' => Inertia::render('Dashboard/Configure/Authentication/SignUp', [
+                'sign_up_methods' => SignUpMethodsSettings::fromUserSettings($userSettings)->toArray(),
+            ]),
             'mfa' => Inertia::render('Dashboard/Configure/Authentication/Mfa', [
                 'multi_factor' => MultiFactorSettings::fromUserSettings($userSettings)->toArray(),
                 'passkey_enabled' => PasskeySettings::fromUserSettings($userSettings)->enabled,
@@ -418,6 +421,49 @@ final class DashboardController
 
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/multi-factor")
             ->with('multi_factor_saved', true);
+    }
+
+    public function updateSignUpMethods(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $request->validate([
+            'password.enabled' => ['sometimes', 'boolean'],
+            'password.signup_with_password' => ['sometimes', 'boolean'],
+            'password.add_password' => ['sometimes', 'boolean'],
+            'phone.enabled' => ['sometimes', 'boolean'],
+            'phone.required' => ['sometimes', 'boolean'],
+        ]);
+
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $previous = SignUpMethodsSettings::fromUserSettings($userSettings);
+        $patch = [];
+        $passwordPatch = [];
+        foreach (['enabled', 'signup_with_password', 'add_password'] as $key) {
+            if ($request->has("password.{$key}")) {
+                $passwordPatch[$key] = $request->boolean("password.{$key}");
+            }
+        }
+        if ($passwordPatch !== []) {
+            $patch['password'] = $passwordPatch;
+        }
+        $phonePatch = [];
+        foreach (['enabled', 'required'] as $key) {
+            if ($request->has("phone.{$key}")) {
+                $phonePatch[$key] = $request->boolean("phone.{$key}");
+            }
+        }
+        if ($phonePatch !== []) {
+            $patch['phone'] = $phonePatch;
+        }
+        $next = $previous->withPatch($patch);
+        $signUpMethods = is_array($userSettings['sign_up_methods'] ?? null) ? $userSettings['sign_up_methods'] : [];
+        $userSettings['sign_up_methods'] = array_replace_recursive($signUpMethods, $next->toArray());
+        $env->forceFill(['user_settings' => $userSettings])->save();
+
+        return back(303)->with('sign_up_methods_saved', true);
     }
 
     public function updateSignInMethods(Request $request, string $project_slug, string $env_slug): RedirectResponse
