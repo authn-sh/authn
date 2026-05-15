@@ -1,3 +1,5 @@
+import { Page } from '../components/Page'
+
 type Props = {
     counts: {
         users: number
@@ -8,13 +10,7 @@ type Props = {
 
 export default function Overview({ counts }: Props) {
     return (
-        <>
-            <div className="authn-page-header">
-                <div>
-                    <h1 className="authn-page-title">Overview</h1>
-                    <p className="authn-page-subtitle">A snapshot of the active environment.</p>
-                </div>
-            </div>
+        <Page title="Overview" subtitle="A snapshot of the active environment.">
             <div className="authn-stats-grid">
                 <div className="authn-stat">
                     <p className="authn-stat-label">Users</p>
@@ -29,6 +25,6 @@ export default function Overview({ counts }: Props) {
                     <p className="authn-stat-value">{counts.invitations_pending.toLocaleString()}</p>
                 </div>
             </div>
-        </>
+        </Page>
     )
 }

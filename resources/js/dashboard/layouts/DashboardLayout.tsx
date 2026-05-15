@@ -17,7 +17,6 @@ import {
     FileTextIcon,
     HomeIcon,
     KeyIcon,
-    MailIcon,
     MonitorIcon,
     MoonIcon,
     PlusIcon,
@@ -33,7 +32,7 @@ import {
 import { useDashboard, useDashboardUrl } from '../shared'
 
 type IconCmp = (props: { className?: string }) => React.ReactElement
-type NavItem = { label: string; slug: string; Icon: IconCmp }
+type NavItem = { label: string; slug: string; Icon: IconCmp; matches?: string[] }
 type NavSection = { label?: string; items: NavItem[] }
 
 const NAV: NavSection[] = [
@@ -42,31 +41,23 @@ const NAV: NavSection[] = [
             { label: 'Overview', slug: 'overview', Icon: HomeIcon },
             { label: 'Users', slug: 'users', Icon: UsersIcon },
             { label: 'Organizations', slug: 'organizations', Icon: BuildingIcon },
-            { label: 'Sessions', slug: 'sessions', Icon: KeyIcon },
-            { label: 'Invitations', slug: 'invitations', Icon: MailIcon },
-        ],
-    },
-    {
-        label: 'Policies',
-        items: [
-            { label: 'Allowlist', slug: 'allowlist', Icon: ShieldCheckIcon },
-            { label: 'Blocklist', slug: 'blocklist', Icon: ShieldOffIcon },
-            { label: 'Roles & permissions', slug: 'roles', Icon: ShieldIcon },
+            { label: 'Audit log', slug: 'audit-log', Icon: ScrollIcon },
         ],
     },
     {
         label: 'Configure',
         items: [
-            { label: 'Configure', slug: 'configure', Icon: SlidersIcon },
-            { label: 'Email templates', slug: 'email-templates', Icon: FileTextIcon },
-            { label: 'API keys', slug: 'api-keys', Icon: KeyIcon },
-            { label: 'Webhooks', slug: 'webhooks', Icon: WebhookIcon },
-        ],
-    },
-    {
-        label: 'Activity',
-        items: [
-            { label: 'Audit log', slug: 'audit-log', Icon: ScrollIcon },
+            { label: 'Authentication', slug: 'configure/authentication', Icon: ShieldCheckIcon },
+            { label: 'Authorization', slug: 'configure/authorization', Icon: ShieldIcon },
+            { label: 'Applications', slug: 'configure/applications', Icon: BoxIcon },
+            { label: 'Restrictions', slug: 'configure/restrictions', Icon: ShieldOffIcon },
+            { label: 'Domains', slug: 'configure/domains', Icon: BuildingIcon },
+            { label: 'Redirects', slug: 'configure/redirects', Icon: WebhookIcon },
+            { label: 'API Keys', slug: 'configure/api-keys', Icon: KeyIcon },
+            { label: 'IdP Attributes', slug: 'configure/idp-attributes', Icon: SlidersIcon },
+            { label: 'Branding', slug: 'configure/branding', Icon: SlidersIcon },
+            { label: 'Templates', slug: 'configure/templates', Icon: FileTextIcon },
+            { label: 'Webhooks', slug: 'configure/webhooks', Icon: WebhookIcon },
         ],
     },
 ]
@@ -164,9 +155,12 @@ export function DashboardLayout({ children }: { children: ReactNode }) {
                                             <p className="authn-shell-section-title">{section.label}</p>
                                         )}
                                         <nav className="authn-shell-nav">
-                                            {section.items.map(({ label, slug, Icon }) => {
+                                            {section.items.map(({ label, slug, Icon, matches }) => {
                                                 const href = url(`/${projectSlug}/${envSlug}/${slug}`)
-                                                const active = currentUrl.startsWith(href)
+                                                const matchPrefixes = [slug, ...(matches ?? [])]
+                                                const active = matchPrefixes.some((m) =>
+                                                    currentUrl.startsWith(url(`/${projectSlug}/${envSlug}/${m}`)),
+                                                )
                                                 return (
                                                     <Link
                                                         key={slug}

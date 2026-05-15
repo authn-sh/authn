@@ -42,6 +42,11 @@ if [ -n "${REDIS_HOST:-}" ]; then
     wait_for_tcp "${REDIS_HOST}" "${REDIS_PORT:-6379}" "Redis"
 fi
 
+if [ "${APP_ENV:-production}" = "local" ] && [ -f composer.lock ]; then
+    log "Dev: syncing vendor against bind-mounted composer.lock…"
+    composer install --no-interaction --no-progress --no-scripts || log "composer install failed; continuing"
+fi
+
 if [ "${AUTHN_RUN_MIGRATIONS:-false}" = "true" ]; then
     log "Running database migrations…"
     php artisan migrate --force --no-interaction

@@ -1,5 +1,6 @@
 import { usePage } from '@inertiajs/react'
 import { Alert, Badge } from '@authn-sh/ui'
+import { Page } from '../components/Page'
 
 type Props = {
     keys: Array<{ id: string; kind: string; prefix: string; name: string | null }>
@@ -8,10 +9,7 @@ type Props = {
 export default function ApiKeys({ keys }: Props) {
     const { props } = usePage<{ flash?: { rotated_secret?: string } }>()
     return (
-        <>
-            <div className="authn-page-header">
-                <h1 className="authn-page-title">API keys</h1>
-            </div>
+        <Page title="API keys">
             <div className="authn-stack">
                 {props.flash?.rotated_secret && (
                     <Alert tone="warning">
@@ -42,6 +40,6 @@ export default function ApiKeys({ keys }: Props) {
                     </table>
                 </div>
             </div>
-        </>
+        </Page>
     )
 }

@@ -46,7 +46,7 @@ type SharedProps = {
     } | null
 }
 
-const pages = import.meta.glob<PageModule>('./pages/*.tsx')
+const pages = import.meta.glob<PageModule>('./pages/**/*.tsx')
 
 createInertiaApp({
     resolve: async (name) => {

@@ -181,3 +181,69 @@ export function BookIcon(p: SVGProps<SVGSVGElement>) {
         </svg>
     )
 }
+export function AtIcon(p: SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...base} {...p}>
+            <circle cx="12" cy="12" r="4" />
+            <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94" />
+        </svg>
+    )
+}
+export function UserIcon(p: SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...base} {...p}>
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 21v-2a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v2" />
+        </svg>
+    )
+}
+export function PhoneIcon(p: SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...base} {...p}>
+            <rect x="7" y="2" width="10" height="20" rx="2" />
+            <path d="M11 18h2" />
+        </svg>
+    )
+}
+export function FingerprintIcon(p: SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...base} {...p}>
+            <path d="M12 11v2a9 9 0 0 1-2.4 6" />
+            <path d="M8 22q2-3 2-9" />
+            <path d="M14 22q2-4 2-9V11a4 4 0 0 0-8 0" />
+            <path d="M5 18a18 18 0 0 0 1-7 6 6 0 0 1 11-3.65" />
+            <path d="M19 13.5a18 18 0 0 1-1 6.5" />
+        </svg>
+    )
+}
+export function LinkIcon(p: SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...base} {...p}>
+            <path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1" />
+            <path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1" />
+        </svg>
+    )
+}
+export function ClockIcon(p: SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...base} {...p}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" />
+        </svg>
+    )
+}
+export function HashIcon(p: SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...base} {...p}>
+            <path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18" />
+        </svg>
+    )
+}
+export function GlobeIcon(p: SVGProps<SVGSVGElement>) {
+    return (
+        <svg {...base} {...p}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+        </svg>
+    )
+}

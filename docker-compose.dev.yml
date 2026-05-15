@@ -37,6 +37,8 @@ x-dev: &dev-base
     - ./resources:/var/www/html/resources
     - ./routes:/var/www/html/routes
     - ./tests:/var/www/html/tests
+    - ./composer.json:/var/www/html/composer.json
+    - ./composer.lock:/var/www/html/composer.lock
     # `public/` is a named volume shared with the vite container so the
     # `public/hot` file vite writes on startup is visible to the app
     # container — that file is what flips the Laravel Vite plugin from

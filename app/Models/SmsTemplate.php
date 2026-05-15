@@ -21,8 +21,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *     webhook event (`sms.created`) instead of the configured driver, so
  *     operators can ship through their own gateway.
  *   - `from_number_override` lets a specific template ship from a
- *     different sender than the env-wide default; null falls back to
- *     `Environment.sms.from_number`.
+ *     different sender than the system default; null falls back to
+ *     `config('authn-sms.default_from_number')`.
  *
  * @property string $id
  * @property string $environment_id

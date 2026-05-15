@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react'
 import { Badge } from '@authn-sh/ui'
+import { Page } from '../components/Page'
 import { useDashboard, useDashboardUrl } from '../shared'
 
 type Entry = {
@@ -36,13 +37,7 @@ export default function AuditLog({ note, filter, entries }: Props) {
         : '/audit-log'
 
     return (
-        <>
-            <div className="authn-page-header">
-                <div>
-                    <h1 className="authn-page-title">Audit log</h1>
-                    <p className="authn-page-subtitle">{note}</p>
-                </div>
-            </div>
+        <Page title="Audit log" subtitle={note}>
             <nav className="authn-chip-group">
                 {FACETS.map((f) => {
                     const active = filter === f.slug
@@ -96,6 +91,6 @@ export default function AuditLog({ note, filter, entries }: Props) {
                     </tbody>
                 </table>
             </div>
-        </>
+        </Page>
     )
 }

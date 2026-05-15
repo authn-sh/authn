@@ -1,13 +1,11 @@
 import { Badge } from '@authn-sh/ui'
+import { Page } from '../components/Page'
 
 type Props = { membership: { organization_id: string; role: string } }
 
 export default function WorkspaceSettings({ membership }: Props) {
     return (
-        <>
-            <div className="authn-page-header">
-                <h1 className="authn-page-title">Workspace settings</h1>
-            </div>
+        <Page title="Workspace settings">
             <div className="authn-stack">
                 <div className="authn-stats-grid">
                     <div className="authn-stat">
@@ -27,6 +25,6 @@ export default function WorkspaceSettings({ membership }: Props) {
                     Member management UI lands with <code>&lt;OrganizationProfile /&gt;</code>.
                 </p>
             </div>
-        </>
+        </Page>
     )
 }

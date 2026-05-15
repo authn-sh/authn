@@ -1,4 +1,5 @@
 import { Badge } from '@authn-sh/ui'
+import { Page } from '../components/Page'
 
 type Props = {
     organization: {
@@ -19,16 +20,14 @@ type Props = {
 
 export default function Organization({ organization, tab, members, invitations, membership_requests, domains }: Props) {
     return (
-        <>
-            <div className="authn-page-header">
-                <div>
-                    <h1 className="authn-page-title">{organization.name}</h1>
-                    <p className="authn-page-subtitle">
-                        <code>{organization.slug}</code> · {organization.members_count} members · {organization.pending_invitations_count} pending invites
-                    </p>
-                </div>
-            </div>
-
+        <Page
+            title={organization.name}
+            subtitle={
+                <>
+                    <code>{organization.slug}</code> · {organization.members_count} members · {organization.pending_invitations_count} pending invites
+                </>
+            }
+        >
             {tab === 'members' && (
                 <div className="authn-table-wrap">
                     <table className="authn-table">
@@ -118,6 +117,6 @@ export default function Organization({ organization, tab, members, invitations, 
                     </table>
                 </div>
             )}
-        </>
+        </Page>
     )
 }

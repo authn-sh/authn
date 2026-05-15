@@ -1,18 +1,24 @@
 import { Badge } from '@authn-sh/ui'
+import { Page } from '../components/Page'
+import { PageTabs, type PageTab } from '../components/PageTabs'
 
 type Props = {
     invitations: Array<{ id: string; email_address: string; status: string }>
 }
 
+const TABS: PageTab[] = [
+    { value: 'users', label: 'Users', path: '/users' },
+    { value: 'invitations', label: 'Invitations', path: '/users/invitations' },
+    { value: 'sessions', label: 'Sessions', path: '/users/sessions' },
+]
+
 export default function Invitations({ invitations }: Props) {
     return (
-        <>
-            <div className="authn-page-header">
-                <div>
-                    <h1 className="authn-page-title">Invitations</h1>
-                    <p className="authn-page-subtitle">{invitations.length} invitation{invitations.length === 1 ? '' : 's'}.</p>
-                </div>
-            </div>
+        <Page
+            title="Users"
+            subtitle={`${invitations.length} invitation${invitations.length === 1 ? '' : 's'}.`}
+            tabs={<PageTabs tabs={TABS} active="invitations" />}
+        >
             <div className="authn-table-wrap">
                 <table className="authn-table">
                     <thead>
@@ -39,6 +45,6 @@ export default function Invitations({ invitations }: Props) {
                     </tbody>
                 </table>
             </div>
-        </>
+        </Page>
     )
 }

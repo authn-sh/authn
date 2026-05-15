@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react'
+import { Page } from '../components/Page'
 
 type Org = {
     id: string
@@ -21,10 +22,7 @@ export default function Organizations({ organizations, query, dashboard_prefix, 
     const base = `${dashboard_prefix ?? ''}/${active_project?.slug ?? ''}/${active_environment?.slug ?? ''}/organizations`
 
     return (
-        <>
-            <div className="authn-page-header">
-                <h1 className="authn-page-title">Organizations</h1>
-            </div>
+        <Page title="Organizations">
             <div className="authn-filter-bar">
                 <span>Filter:</span>
                 <code>{query || '—'}</code>
@@ -62,6 +60,6 @@ export default function Organizations({ organizations, query, dashboard_prefix, 
                     </tbody>
                 </table>
             </div>
-        </>
+        </Page>
     )
 }

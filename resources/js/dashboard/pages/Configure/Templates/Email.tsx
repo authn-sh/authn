@@ -1,15 +1,19 @@
 import { Badge } from '@authn-sh/ui'
+import { TemplatesConfigurePage } from '../../../components/TemplatesConfigurePage'
 
-type Props = {
-    templates: Array<{ id: string; slug: string; subject: string; delivered_by_us: boolean }>
+type EmailTemplate = {
+    id: string
+    slug: string
+    subject: string
+    delivered_by_us: boolean
+    updated_at: number | null
 }
 
-export default function EmailTemplates({ templates }: Props) {
+type Props = { templates: EmailTemplate[] }
+
+export default function Email({ templates }: Props) {
     return (
-        <>
-            <div className="authn-page-header">
-                <h1 className="authn-page-title">Email templates</h1>
-            </div>
+        <TemplatesConfigurePage active="email">
             <div className="authn-table-wrap">
                 <table className="authn-table">
                     <thead>
@@ -17,11 +21,7 @@ export default function EmailTemplates({ templates }: Props) {
                     </thead>
                     <tbody>
                         {templates.length === 0 && (
-                            <tr>
-                                <td colSpan={3}>
-                                    <div className="authn-empty-state">No email templates configured.</div>
-                                </td>
-                            </tr>
+                            <tr><td colSpan={3}><div className="authn-empty-state">No email templates configured.</div></td></tr>
                         )}
                         {templates.map((t) => (
                             <tr key={t.id}>
@@ -37,6 +37,6 @@ export default function EmailTemplates({ templates }: Props) {
                     </tbody>
                 </table>
             </div>
-        </>
+        </TemplatesConfigurePage>
     )
 }

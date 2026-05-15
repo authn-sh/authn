@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Sms;
 
-use App\Models\Environment;
 use App\Sms\Drivers\NullDriver;
 use App\Sms\Drivers\SmsDriver;
 use App\Sms\Drivers\TwilioDriver;
@@ -12,13 +11,6 @@ use App\Sms\Drivers\VonageDriver;
 use Closure;
 use InvalidArgumentException;
 
-/**
- * Resolves the SmsDriver instance for a given Environment. The env's
- * `user_settings.sms.driver` overrides the global default
- * (`config('authn-sms.default_driver')`).
- *
- * Mirror of `App\Mail\DriverManager`.
- */
 final class DriverManager
 {
     /**
@@ -30,22 +22,12 @@ final class DriverManager
         NullDriver::NAME => NullDriver::class,
     ];
 
-    /**
-     * Operator-supplied factories keyed by driver name. Lets tests +
-     * the Dashboard "Send test SMS" path register one-off drivers
-     * without touching the static map.
-     *
-     * @var array<string, Closure(): SmsDriver>
-     */
+    /** @var array<string, Closure(): SmsDriver> */
     private array $extensions = [];
 
-    public function for(Environment $environment): SmsDriver
+    public function default(): SmsDriver
     {
-        $userSettings = is_array($environment->user_settings) ? $environment->user_settings : [];
-        $smsCfg = is_array($userSettings['sms'] ?? null) ? $userSettings['sms'] : [];
-        $name = (string) ($smsCfg['driver'] ?? config('authn-sms.default_driver'));
-
-        return $this->resolve($name);
+        return $this->resolve((string) config('authn-sms.default_driver'));
     }
 
     public function resolve(string $name): SmsDriver
@@ -62,9 +44,6 @@ final class DriverManager
     }
 
     /**
-     * Register a driver factory under `$name`. Subsequent `resolve()`
-     * calls return the factory's product.
-     *
      * @param  Closure(): SmsDriver  $factory
      */
     public function extend(string $name, Closure $factory): void

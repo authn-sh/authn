@@ -1,16 +1,21 @@
 import { Badge } from '@authn-sh/ui'
+import { Page } from '../components/Page'
+import { PageTabs, type PageTab } from '../components/PageTabs'
 
 type Props = {
     users: Array<{ id: string; first_name: string | null; last_name: string | null; username: string | null; banned: boolean; locked: boolean }>
     query: string
 }
 
+const TABS: PageTab[] = [
+    { value: 'users', label: 'Users', path: '/users' },
+    { value: 'invitations', label: 'Invitations', path: '/users/invitations' },
+    { value: 'sessions', label: 'Sessions', path: '/users/sessions' },
+]
+
 export default function Users({ users, query }: Props) {
     return (
-        <>
-            <div className="authn-page-header">
-                <h1 className="authn-page-title">Users</h1>
-            </div>
+        <Page title="Users" tabs={<PageTabs tabs={TABS} active="users" />}>
             <div className="authn-filter-bar">
                 <span>Filter:</span>
                 <code>{query || '—'}</code>
@@ -42,6 +47,6 @@ export default function Users({ users, query }: Props) {
                     </tbody>
                 </table>
             </div>
-        </>
+        </Page>
     )
 }
