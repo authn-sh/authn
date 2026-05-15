@@ -10,6 +10,7 @@ use App\Models\Session;
 use App\Models\User;
 use App\Services\Client\ClientResolver;
 use App\Services\Keys\SigningKeyGenerator;
+use App\Services\Sessions\SessionTokenIssuer;
 use Illuminate\Routing\RouteCollection;
 use Illuminate\Support\Facades\Route;
 
@@ -74,8 +75,9 @@ function makeAccountPortalSession(Environment $env): array
         'user_id' => $user->id,
         'status' => Session::STATUS_ACTIVE,
     ]);
+    $jwt = app(SessionTokenIssuer::class)->mint($session->fresh())['jwt'];
 
-    return ['client' => $client, 'cookie' => $cookie, 'user' => $user, 'session' => $session];
+    return ['client' => $client, 'cookie' => $cookie, 'user' => $user, 'session' => $session, 'jwt' => $jwt];
 }
 
 it('GET /sign-in returns the Inertia page with the bootstrap props', function (): void {
@@ -109,6 +111,7 @@ it('GET /sign-in already-signed-in redirects to after_sign_in_url', function ():
 
     $r = $this->withCredentials()
         ->withUnencryptedCookie('__client', $bs['cookie'])
+        ->withUnencryptedCookie('__session', $bs['jwt'])
         ->withHeaders(['Host' => 'acme.authn.local'])
         ->get('https://acme.authn.local/sign-in');
 

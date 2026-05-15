@@ -26,16 +26,20 @@ function bootEditorsEnv(): array
     return ['env' => $env, 'project' => $project, 'jwt' => $bs['jwt'], 'workspace' => $bs['workspace']];
 }
 
-it('renders JWT Templates + OAuth Applications subsections on Configure', function (): void {
+it('renders JWT Templates + Applications pages with the seeded rows', function (): void {
     $f = bootEditorsEnv();
     JwtTemplate::factory()->create(['environment_id' => $f['env']->id, 'name' => 'supabase']);
     OauthApplication::factory()->create(['environment_id' => $f['env']->id, 'name' => 'Acme Dashboard']);
 
     $r = $this->withHeaders(DashboardTestSupport::headers($f['jwt']))
-        ->get('http://dashboard.authn.local/acme/production/configure/jwt-templates');
-    $r->assertOk()->assertJsonPath('component', 'Dashboard/Configure');
+        ->get('http://dashboard.authn.local/acme/production/configure/authentication/jwt-templates');
+    $r->assertOk()->assertJsonPath('component', 'Dashboard/Configure/Authentication/JwtTemplates');
     expect($r->json('props.jwt_templates.0.name'))->toBe('supabase');
-    expect($r->json('props.oauth_applications.0.name'))->toBe('Acme Dashboard');
+
+    $r2 = $this->withHeaders(DashboardTestSupport::headers($f['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/configure/applications');
+    $r2->assertOk()->assertJsonPath('component', 'Dashboard/Applications');
+    expect($r2->json('props.applications.0.name'))->toBe('Acme Dashboard');
 });
 
 it('stores a JWT template via the dashboard endpoint', function (): void {

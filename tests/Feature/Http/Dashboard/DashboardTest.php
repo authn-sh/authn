@@ -238,7 +238,7 @@ it('rotates an API key and stashes the secret in the flash bag', function (): vo
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->post("http://dashboard.authn.local/acme/production/api-keys/{$apiKey->id}/rotate");
+        ->post("http://dashboard.authn.local/acme/production/configure/api-keys/{$apiKey->id}/rotate");
     $r->assertRedirect();
     expect(session('rotated_secret'))->toStartWith('sk_live_');
     expect($apiKey->fresh()->hashed_secret)->not->toBe(hash('sha256', 'sk_live_old'));
@@ -257,7 +257,7 @@ it('creates a webhook endpoint with the secret returned in the flash bag', funct
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->post('http://dashboard.authn.local/acme/production/webhooks', [
+        ->post('http://dashboard.authn.local/acme/production/configure/webhooks', [
             'url' => 'https://customer.example.com/hook',
         ]);
     $r->assertRedirect();
@@ -303,11 +303,15 @@ it('roles panel returns the seeded system roles + permissions', function (): voi
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->get('http://dashboard.authn.local/acme/production/roles');
-    $r->assertOk()->assertJsonPath('component', 'Dashboard/RolesAndPermissions');
+        ->get('http://dashboard.authn.local/acme/production/configure/authorization/roles');
+    $r->assertOk()->assertJsonPath('component', 'Dashboard/Configure/Authorization/Roles');
     $keys = array_column($r->json('props.roles'), 'key');
     expect($keys)->toContain('org:admin', 'org:member');
-    expect(count($r->json('props.permissions')))->toBe(13);
+
+    $r2 = $this->withHeaders(dashHeaders($bs['jwt']))
+        ->get('http://dashboard.authn.local/acme/production/configure/authorization/permissions');
+    $r2->assertOk()->assertJsonPath('component', 'Dashboard/Configure/Authorization/Permissions');
+    expect(count($r2->json('props.permissions')))->toBe(13);
 });
 
 it('redirects on unknown organization id back to organizations list', function (): void {
@@ -328,7 +332,7 @@ it('redirects on unknown organization id back to organizations list', function (
     expect($r->headers->get('Location'))->toContain('/acme/production/organizations');
 });
 
-it('Configure renders the multi-factor subsection with spec defaults when user_settings.multi_factor is unset', function (): void {
+it('Configure renders the MFA subsection with spec defaults when user_settings.multi_factor is unset', function (): void {
     $f = bootAdminEnv();
     $bs = operatorWithMembership($f['env']);
     $project = Project::create(['name' => 'Acme', 'slug' => 'acme', 'owner_organization_id' => $bs['workspace']->id]);
@@ -341,11 +345,10 @@ it('Configure renders the multi-factor subsection with spec defaults when user_s
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->get('http://dashboard.authn.local/acme/production/configure/multi-factor');
+        ->get('http://dashboard.authn.local/acme/production/configure/authentication/mfa');
 
     $r->assertOk()
-        ->assertJsonPath('component', 'Dashboard/Configure')
-        ->assertJsonPath('props.section', 'multi-factor')
+        ->assertJsonPath('component', 'Dashboard/Configure/Authentication/Mfa')
         ->assertJsonPath('props.multi_factor.totp.enabled', true)
         ->assertJsonPath('props.multi_factor.backup_codes.enabled', true)
         ->assertJsonPath('props.multi_factor.backup_codes.default_count', 10);
@@ -367,6 +370,7 @@ it('PATCH /configure/multi-factor writes the toggles through to user_settings.mu
         ->patch('http://dashboard.authn.local/acme/production/configure/multi-factor', [
             'totp' => ['enabled' => false],
             'backup_codes' => ['enabled' => true, 'default_count' => 16],
+            'phone_code' => ['enabled' => false],
         ]);
 
     $r->assertRedirect();
@@ -391,6 +395,7 @@ it('PATCH /configure/multi-factor rejects default_count outside 4..24 with valid
         ->patch('http://dashboard.authn.local/acme/production/configure/multi-factor', [
             'totp' => ['enabled' => true],
             'backup_codes' => ['enabled' => true, 'default_count' => 3],
+            'phone_code' => ['enabled' => false],
         ]);
 
     $r->assertStatus(422);
@@ -520,11 +525,10 @@ it('Configure renders the social-providers section with the seeded preset rows +
     ]);
 
     $r = $this->withHeaders(dashHeaders($bs['jwt']))
-        ->get('http://dashboard.authn.local/acme/production/configure/social-providers');
+        ->get('http://dashboard.authn.local/acme/production/configure/authentication/providers');
 
     $r->assertOk()
-        ->assertJsonPath('component', 'Dashboard/Configure')
-        ->assertJsonPath('props.section', 'social-providers');
+        ->assertJsonPath('component', 'Dashboard/Configure/Authentication/Providers');
     $keys = collect($r->json('props.oauth_providers'))->pluck('provider_key')->sort()->values()->all();
     expect($keys)->toBe([
         'apple', 'discord', 'facebook', 'github', 'gitlab',
