@@ -19,9 +19,9 @@ use App\Auth\Oauth\Presets\XPreset;
 /**
  * Canonical list of preset providers. Adding a new preset is a one-line
  * change here plus the corresponding implementation under
- * `app/Auth/Oauth/Presets/`. Every registered key gets a row seeded
- * (disabled, blank credentials) on every freshly-created environment by
- * `OauthProviderSeeder`.
+ * `app/Auth/Oauth/Presets/`. Presets are the source-of-truth for the
+ * built-in catalog; an `OauthProvider` row is only persisted once the
+ * operator supplies credentials.
  */
 final class PresetRegistry
 {

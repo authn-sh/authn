@@ -46,6 +46,21 @@ final class GooglePreset implements PresetContract
         return ['openid', 'email', 'profile'];
     }
 
+    public function availableScopes(): array
+    {
+        return [
+            'openid',
+            'email',
+            'profile',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile',
+            'https://www.googleapis.com/auth/calendar.readonly',
+            'https://www.googleapis.com/auth/drive.readonly',
+            'https://www.googleapis.com/auth/contacts.readonly',
+            'https://www.googleapis.com/auth/gmail.readonly',
+        ];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

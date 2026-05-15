@@ -52,6 +52,22 @@ final class XPreset implements PresetContract
         return ['tweet.read', 'users.read'];
     }
 
+    public function availableScopes(): array
+    {
+        return [
+            'tweet.read',
+            'tweet.write',
+            'users.read',
+            'follows.read',
+            'follows.write',
+            'offline.access',
+            'space.read',
+            'mute.read',
+            'bookmark.read',
+            'like.read',
+        ];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

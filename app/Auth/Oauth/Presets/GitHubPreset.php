@@ -47,6 +47,21 @@ final class GitHubPreset implements PresetContract
         return ['read:user', 'user:email'];
     }
 
+    public function availableScopes(): array
+    {
+        return [
+            'read:user',
+            'user',
+            'user:email',
+            'read:org',
+            'repo',
+            'public_repo',
+            'gist',
+            'read:packages',
+            'admin:org',
+        ];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

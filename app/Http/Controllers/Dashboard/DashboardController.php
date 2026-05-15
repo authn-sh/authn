@@ -606,6 +606,7 @@ final class DashboardController
                 'key' => $preset->key(),
                 'name' => $preset->name(),
                 'default_scopes' => $preset->defaultScopes(),
+                'available_scopes' => $preset->availableScopes(),
                 'authorization_endpoint' => $preset->authorizationEndpoint(),
                 'token_endpoint' => $preset->tokenEndpoint(),
                 'userinfo_endpoint' => $preset->userinfoEndpoint(),

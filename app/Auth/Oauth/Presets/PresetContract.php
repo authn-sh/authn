@@ -48,6 +48,15 @@ interface PresetContract
     public function defaultScopes(): array;
 
     /**
+     * Full catalog of scopes the IdP supports. The dashboard renders
+     * this as a multi-select; `defaultScopes()` is the pre-checked
+     * subset. Operators may also add arbitrary custom scopes.
+     *
+     * @return list<string>
+     */
+    public function availableScopes(): array;
+
+    /**
      * `<our shape> => <userinfo claim path>` map applied when the
      * stored `attribute_mapping` is empty.
      *

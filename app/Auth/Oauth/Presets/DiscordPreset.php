@@ -51,6 +51,19 @@ final class DiscordPreset implements PresetContract
         return ['identify', 'email'];
     }
 
+    public function availableScopes(): array
+    {
+        return [
+            'identify',
+            'email',
+            'guilds',
+            'guilds.members.read',
+            'connections',
+            'gdm.join',
+            'messages.read',
+        ];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

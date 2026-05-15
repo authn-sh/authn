@@ -53,6 +53,11 @@ final class LinkedInPreset implements PresetContract
         return ['openid', 'profile', 'email'];
     }
 
+    public function availableScopes(): array
+    {
+        return ['openid', 'profile', 'email', 'w_member_social'];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

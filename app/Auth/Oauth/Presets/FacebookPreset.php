@@ -51,6 +51,20 @@ final class FacebookPreset implements PresetContract
         return ['public_profile', 'email'];
     }
 
+    public function availableScopes(): array
+    {
+        return [
+            'public_profile',
+            'email',
+            'user_birthday',
+            'user_friends',
+            'user_gender',
+            'user_hometown',
+            'user_link',
+            'user_location',
+        ];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [
