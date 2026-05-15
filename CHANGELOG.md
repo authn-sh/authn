@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.7.2] — 2026-05-15
+
+First wave of dashboard backend persistence + cleanup follow-ups behind the v0.7.1 UI rebuild. Issue references on GitHub.
+
+### Added
+
+- **`SignInMethodsSettings` value object + `PATCH /configure/sign-in-methods`** (#277) — `user_settings.sign_in_methods.email.{enabled, code}`. `SignInResource` and `ChallengeController` filter `email_code` / `reset_password_email_code` from the supported-strategies list when the parent toggles are off so the SDK never advertises a strategy the server will refuse.
+- **`SignUpMethodsSettings` value object + `PATCH /configure/sign-up-methods`** (#281) — `user_settings.sign_up_methods.password.{enabled, signup_with_password, add_password}` and `phone.{enabled, required}`. `StageRequirements` skips the password attribute when `signup_with_password` is off; FAPI `/me/password` returns `403 add_password_disabled` when a passwordless user tries to set one and `add_password` is off.
+- **`RedirectsSettings` value object + `PATCH /configure/redirects`** (#286) — 5 SDK fallback URLs (`after_sign_up`, `after_sign_in`, `home`, `after_create_organization`, `after_leave_organization`) under `user_settings.redirects`. URL origins must match the env's `allowed_origins` (refuses to plant open-redirect targets). `EnvironmentResource.display_config.redirects` carries the resolved tree to the SDK at boot.
+- **`PresetContract::availableScopes()`** (#284) — every preset enumerates the full scope catalog the IdP supports. Dashboard Provider page renders scopes as a multi-select (with a custom-scope add input) instead of a free-text field. `defaultScopes()` continues to seed the pre-checked subset.
+
+### Changed
+
+- **System org permission keys drop the `sys_` infix** (#287) — `org:sys_profile:read` → `org:profile:read` across the 13 system permission keys. `Permission.is_system` continues to distinguish system vs custom. Data migration renames existing rows in place. OpenAPI examples follow (`authn-sh/openapi#aa69d83`).
+- **Phone storage migrated** (#282) — flips from the legacy `user_settings.attributes.phone_number` tri-state to `user_settings.sign_up_methods.phone.{enabled, required}`. `EnvironmentResource` and BAPI `/instance` PATCH switch to the new shape; webhook event renames from `instance.config.attributes_updated` → `instance.config.sign_up_methods_updated`. BAPI `/instance` GET continues to surface the inflated `attribute_settings.phone_number` shape for back-compat consumers. Data migration converts existing rows (`off` → `{enabled:false}`, `optional` → `{enabled:true, required:false}`, `required` → `{enabled:true, required:true}`).
+- **OAuth providers no longer pre-seeded per environment** (#284) — `OauthProviderSeeder` deleted; `OauthProvider` rows now only exist for *configured* providers. `PresetRegistry` is the source-of-truth for the built-in catalog (Google, GitHub, Apple, Microsoft, Discord, Facebook, LinkedIn, X, GitLab, Slack). One-shot migration deletes existing empty seeded rows. Dashboard provider list already unioned presets with persisted rows; phantom rows just disappear.
+- **JS SDK packages pinned to `^0.7.1` stable** — exits the alpha cycle from v0.7.1.
+
+### Removed
+
+- **`email_link` first-factor / sign-up verification strategy** (#283) — drops `STRATEGY_EMAIL_LINK`, `PURPOSE_MAGIC_LINK`, `EmailLinkStrategy`, `MagicLinkController` + `MagicLinkIssuer` + `MagicLinkVerifier`, the `SendMagicLinkEmail` job, `SLUG_MAGIC_LINK_SIGN_IN` / `SLUG_MAGIC_LINK_SIGN_UP` / `SLUG_MAGIC_LINK_USER_PROFILE` email templates, the `/v1/client/magic-link/redeem` route, the `clients.token_version` column (sole consumer was the cross-device magic-link flow), `SignIn` / `SignUp` `EmailLinkTest` suites, and every `email_link` branch in `ChallengeController` / `StrategyResolver`. `Verification::STATUS_TRANSFERABLE` stays (used by ticket and OAuth transfer); invitation email-links stay (separate flow, carries state); `reset_password_email_code` stays. OpenAPI strips `email_link` from FAPI schemas (`authn-sh/openapi#dd92a81`).
+
 ## [0.7.1] — 2026-05-15
 
 Patch release: contract gaps + fail-open fixes flagged in the cross-repo critical review, plus a Dashboard / Account Portal UI rebuild.
