@@ -49,13 +49,14 @@ final class EnvironmentResource
             $signUp->usernameEnabled => 'optional',
             default => 'off',
         };
-        $firstFactors = ['password', 'ticket'];
+        $firstFactors = ['password'];
         if ($signIn->emailCodeAllowed()) {
             $firstFactors[] = 'email_code';
         }
         if ($signIn->emailEnabled) {
             $firstFactors[] = 'reset_password_email_code';
         }
+        $firstFactors[] = 'ticket';
         if ($signUp->phoneEnabled) {
             $firstFactors[] = 'phone_code';
         }
