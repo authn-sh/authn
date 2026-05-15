@@ -53,6 +53,7 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
             ->name('dashboard.configure.restrictions');
         Route::get('/domains', [DashboardController::class, 'domains'])->name('dashboard.configure.domains');
         Route::get('/redirects', [DashboardController::class, 'redirects'])->name('dashboard.configure.redirects');
+        Route::patch('/redirects', [DashboardController::class, 'updateRedirects'])->name('dashboard.configure.redirects.update');
         Route::get('/idp-attributes', [DashboardController::class, 'idpAttributes'])->name('dashboard.configure.idp_attributes');
         Route::get('/branding/{section?}', [DashboardController::class, 'branding'])->name('dashboard.configure.branding');
         Route::get('/templates/{tab?}', [DashboardController::class, 'templates'])->name('dashboard.configure.templates');
@@ -67,6 +68,8 @@ Route::prefix('{project_slug}/{env_slug}')->group(function (): void {
     Route::get('/audit-log', [DashboardController::class, 'auditLog'])->name('dashboard.audit_log');
 
     Route::patch('/configure/multi-factor', [DashboardController::class, 'updateMultiFactor'])->name('dashboard.configure.multi_factor.update');
+    Route::patch('/configure/sign-in-methods', [DashboardController::class, 'updateSignInMethods'])->name('dashboard.configure.sign_in_methods.update');
+    Route::patch('/configure/sign-up-methods', [DashboardController::class, 'updateSignUpMethods'])->name('dashboard.configure.sign_up_methods.update');
     Route::patch('/configure/strategies/passkey', [DashboardController::class, 'updatePasskeyEnabled'])->name('dashboard.configure.strategies.passkey.update');
     Route::patch('/configure/appearance', [DashboardController::class, 'updateAppearance'])->name('dashboard.configure.appearance.update');
     Route::post('/configure/appearance/preview', [AppearancePreviewController::class, 'store'])->name('dashboard.configure.appearance.preview');

@@ -40,6 +40,7 @@ type PresetMeta = {
     key: string
     name: string
     default_scopes: string[]
+    available_scopes: string[]
     authorization_endpoint: string
     token_endpoint: string
     userinfo_endpoint: string
@@ -84,7 +85,7 @@ export default function Provider(props: Props) {
     const isEdit = props.provider !== null
 
     const initialName = props.provider?.name ?? props.preset?.name ?? ''
-    const initialScopes = (props.provider?.scopes ?? props.preset?.default_scopes ?? []).join(' ')
+    const initialScopes: string[] = props.provider?.scopes ?? props.preset?.default_scopes ?? []
 
     const form = useForm({
         provider_kind: kind,
@@ -96,7 +97,8 @@ export default function Provider(props: Props) {
         block_email_subaddresses: props.provider?.block_email_subaddresses ?? false,
         client_id: props.provider?.client_id ?? '',
         client_secret: '',
-        scopes: initialScopes,
+        scopes: initialScopes as string[],
+        custom_scope: '',
         issuer: props.provider?.issuer ?? '',
         authorization_endpoint: props.provider?.authorization_endpoint ?? '',
         token_endpoint: props.provider?.token_endpoint ?? '',
@@ -105,9 +107,26 @@ export default function Provider(props: Props) {
         userinfo_auth: 'bearer',
     })
 
+    const toggleScope = (scope: string) => {
+        const next = form.data.scopes.includes(scope)
+            ? form.data.scopes.filter((s) => s !== scope)
+            : [...form.data.scopes, scope]
+        form.setData('scopes', next)
+    }
+    const addCustomScope = () => {
+        const v = form.data.custom_scope.trim()
+        if (v === '' || form.data.scopes.includes(v)) {
+            form.setData('custom_scope', '')
+            return
+        }
+        form.setData('scopes', [...form.data.scopes, v])
+        form.setData('custom_scope', '')
+    }
+    const availableScopes = props.preset?.available_scopes ?? []
+    const extraScopes = form.data.scopes.filter((s) => !availableScopes.includes(s))
+
     const onSubmit = (e: React.FormEvent) => {
         e.preventDefault()
-        const scopeList = form.data.scopes.trim() === '' ? [] : form.data.scopes.trim().split(/\s+/)
         const payload: Record<string, unknown> = {
             name: form.data.name,
             enabled: form.data.enabled,
@@ -115,7 +134,7 @@ export default function Provider(props: Props) {
             allow_sign_up: form.data.allow_sign_up,
             block_email_subaddresses: form.data.block_email_subaddresses,
             client_id: form.data.client_id,
-            scopes: scopeList,
+            scopes: form.data.scopes,
         }
         if (form.data.client_secret !== '') payload.client_secret = form.data.client_secret
 
@@ -244,19 +263,71 @@ export default function Provider(props: Props) {
                                 placeholder={props.provider?.client_secret_set ? '•••• rotate' : ''}
                             />
                         </Field>
-                        <Field
-                            label="Scopes"
-                            htmlFor="provider-scopes"
-                            helper="Space-separated."
-                            error={form.errors.scopes as string | undefined}
-                        >
-                            <Input
-                                id="provider-scopes"
-                                type="text"
-                                value={form.data.scopes}
-                                onChange={(e) => form.setData('scopes', e.target.value)}
-                            />
-                        </Field>
+                        {isPreset && availableScopes.length > 0 ? (
+                            <Field
+                                label="Scopes"
+                                helper="Tick the scopes the IdP should grant. Add extras below if your IdP exposes more."
+                                error={form.errors.scopes as string | undefined}
+                            >
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    {availableScopes.map((scope) => (
+                                        <label key={scope} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={form.data.scopes.includes(scope)}
+                                                onChange={() => toggleScope(scope)}
+                                            />
+                                            <code>{scope}</code>
+                                        </label>
+                                    ))}
+                                    {extraScopes.map((scope) => (
+                                        <label key={scope} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <input
+                                                type="checkbox"
+                                                checked
+                                                onChange={() => toggleScope(scope)}
+                                            />
+                                            <code>{scope}</code>
+                                            <Badge tone="neutral">custom</Badge>
+                                        </label>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                    <Input
+                                        type="text"
+                                        value={form.data.custom_scope}
+                                        onChange={(e) => form.setData('custom_scope', e.target.value)}
+                                        placeholder="custom_scope"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault()
+                                                addCustomScope()
+                                            }
+                                        }}
+                                    />
+                                    <Button type="button" variant="secondary" onClick={addCustomScope}>+ Add custom scope</Button>
+                                </div>
+                            </Field>
+                        ) : (
+                            <Field
+                                label="Scopes"
+                                htmlFor="provider-scopes"
+                                helper="Space-separated."
+                                error={form.errors.scopes as string | undefined}
+                            >
+                                <Input
+                                    id="provider-scopes"
+                                    type="text"
+                                    value={form.data.scopes.join(' ')}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'scopes',
+                                            e.target.value.trim() === '' ? [] : e.target.value.trim().split(/\s+/),
+                                        )
+                                    }
+                                />
+                            </Field>
+                        )}
                     </CardBody>
                 </Card>
 

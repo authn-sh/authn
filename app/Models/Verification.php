@@ -14,9 +14,9 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * Polymorphic proof-of-ownership state. Each Verification row tracks one
- * outstanding challenge (an email code, a magic-link token, a password
- * attempt, an OAuth callback, …) attached to a parent (EmailAddress,
- * SignInAttempt, SignUpAttempt, …).
+ * outstanding challenge (an email code, a password attempt, an OAuth
+ * callback, …) attached to a parent (EmailAddress, SignInAttempt,
+ * SignUpAttempt, …).
  *
  * Lifecycle:
  *   created → unverified
@@ -69,8 +69,6 @@ class Verification extends Model
 
     public const STRATEGY_EMAIL_CODE = 'email_code';
 
-    public const STRATEGY_EMAIL_LINK = 'email_link';
-
     public const STRATEGY_RESET_PASSWORD_EMAIL_CODE = 'reset_password_email_code';
 
     public const STRATEGY_TICKET = 'ticket';
@@ -92,7 +90,6 @@ class Verification extends Model
     public const STRATEGIES = [
         self::STRATEGY_PASSWORD,
         self::STRATEGY_EMAIL_CODE,
-        self::STRATEGY_EMAIL_LINK,
         self::STRATEGY_RESET_PASSWORD_EMAIL_CODE,
         self::STRATEGY_TICKET,
         self::STRATEGY_DOMAIN_DNS_TXT,

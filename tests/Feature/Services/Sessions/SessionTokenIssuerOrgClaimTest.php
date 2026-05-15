@@ -60,9 +60,9 @@ it('embeds the org claim with id, slg, rol, per when active org is set', functio
     expect($orgClaim['rol'])->toBe('org:admin');
     // Admin has every system permission (13 from AU-2).
     expect($orgClaim['per'])->toContain(
-        'org:sys_profile:manage',
-        'org:sys_memberships:manage',
-        'org:sys_billing:manage',
+        'org:profile:manage',
+        'org:memberships:manage',
+        'org:billing:manage',
     );
     expect(count($orgClaim['per']))->toBe(13);
 });
@@ -85,18 +85,18 @@ it('reflects role permission changes on the next mint', function (): void {
 
     $first = app(SessionTokenIssuer::class)->mint($auth['session']->fresh());
     $firstClaims = decodeJwtClaims($first['jwt']);
-    expect($firstClaims['org']['per'])->not->toContain('org:sys_memberships:manage');
+    expect($firstClaims['org']['per'])->not->toContain('org:memberships:manage');
 
     // Operator grants the member role the manage permission.
     $managePerm = Permission::query()->withoutGlobalScopes()
         ->where('environment_id', $f['env']->id)
-        ->where('key', 'org:sys_memberships:manage')
+        ->where('key', 'org:memberships:manage')
         ->firstOrFail();
     $member->permissions()->attach($managePerm->id);
 
     $second = app(SessionTokenIssuer::class)->mint($auth['session']->fresh());
     $secondClaims = decodeJwtClaims($second['jwt']);
-    expect($secondClaims['org']['per'])->toContain('org:sys_memberships:manage');
+    expect($secondClaims['org']['per'])->toContain('org:memberships:manage');
 });
 
 it('omits the org claim when the user has no membership in the active org', function (): void {

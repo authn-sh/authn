@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Observers;
 
-use App\Auth\Oauth\OauthProviderSeeder;
 use App\Models\EmailTemplate;
 use App\Models\Environment;
 use App\Models\SmsTemplate;
@@ -12,8 +11,12 @@ use App\Services\Tenancy\RoleSeeder;
 
 /**
  * Seeds the per-env defaults — system permissions + default roles, plus
- * the active EmailTemplate / SmsTemplate sets + OauthProvider preset rows
- * — into every freshly-minted environment.
+ * the active EmailTemplate / SmsTemplate sets — into every freshly-minted
+ * environment.
+ *
+ * OAuth providers are not seeded; preset classes are the source of truth
+ * for the catalog of built-in IdPs, and an OauthProvider row only exists
+ * once the operator has supplied credentials.
  *
  * The bootstrap service calls RoleSeeder directly so it keeps a handle on
  * the seeded admin role for the workspace owner membership; everywhere
@@ -24,7 +27,6 @@ final class EnvironmentObserver
 {
     public function __construct(
         private readonly RoleSeeder $seeder,
-        private readonly OauthProviderSeeder $oauthSeeder,
     ) {}
 
     public function created(Environment $environment): void
@@ -32,7 +34,6 @@ final class EnvironmentObserver
         $this->seeder->seed($environment);
         $this->seedDefaultEmailTemplates($environment);
         $this->seedDefaultSmsTemplates($environment);
-        $this->oauthSeeder->seed($environment);
     }
 
     private function seedDefaultEmailTemplates(Environment $environment): void

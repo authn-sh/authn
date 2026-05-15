@@ -1,19 +1,45 @@
+import { useForm } from '@inertiajs/react'
 import * as React from 'react'
 import { AtIcon, KeyIcon, PhoneIcon, UserIcon } from '../../../icons'
 import { MethodCard } from '../../../components/MethodCard'
 import { MethodGrid, MethodToggle } from '../../../components/MethodToggle'
 import { AuthenticationConfigurePage } from '../../../components/AuthenticationConfigurePage'
+import { useDashboardUrl } from '../../../shared'
 
-export default function SignUp() {
+type SignUpMethods = {
+    password: { enabled: boolean; signup_with_password: boolean; add_password: boolean }
+    phone: { enabled: boolean; required: boolean }
+}
+
+type Props = {
+    sign_up_methods: SignUpMethods
+}
+
+export default function SignUp({ sign_up_methods }: Props) {
+    const url = useDashboardUrl()
+    const form = useForm<SignUpMethods>({
+        password: { ...sign_up_methods.password },
+        phone: { ...sign_up_methods.phone },
+    })
+    const persist = (next: SignUpMethods) => {
+        form.transform(() => next).patch(url('configure/sign-up-methods'), { preserveScroll: true })
+    }
+    const setPassword = (patch: Partial<SignUpMethods['password']>) => {
+        const next = { ...form.data, password: { ...form.data.password, ...patch } }
+        form.setData(next)
+        persist(next)
+    }
+    const setPhone = (patch: Partial<SignUpMethods['phone']>) => {
+        const next = { ...form.data, phone: { ...form.data.phone, ...patch } }
+        form.setData(next)
+        persist(next)
+    }
+
+    // Email / username cards persistence lands with the broader sign-up
+    // identifier matrix (#280).
     const [email, setEmail] = React.useState({
         enabled: true,
         required: true,
-        verify: true,
-        restrict_changes: false,
-    })
-    const [phone, setPhone] = React.useState({
-        enabled: false,
-        required: false,
         verify: true,
         restrict_changes: false,
     })
@@ -21,11 +47,6 @@ export default function SignUp() {
         enabled: false,
         required: false,
         restrict_changes: false,
-    })
-    const [password, setPassword] = React.useState({
-        enabled: true,
-        signup_with_password: true,
-        add_password: true,
     })
 
     return (
@@ -61,26 +82,14 @@ export default function SignUp() {
                     icon={<PhoneIcon />}
                     title="Phone"
                     description="Collect a phone number during sign-up."
-                    enabled={phone.enabled}
-                    onToggle={(next) => setPhone({ ...phone, enabled: next })}
+                    enabled={form.data.phone.enabled}
+                    onToggle={(next) => setPhone({ enabled: next })}
                 >
                     <MethodToggle
                         label="Require phone number"
                         description="Reject sign-ups that don't supply a phone number."
-                        checked={phone.required}
-                        onChange={(next) => setPhone({ ...phone, required: next })}
-                    />
-                    <MethodToggle
-                        label="Verify phone number"
-                        description="Send an SMS code to confirm the user owns the number."
-                        checked={phone.verify}
-                        onChange={(next) => setPhone({ ...phone, verify: next })}
-                    />
-                    <MethodToggle
-                        label="Restrict changes"
-                        description="Users can't change their phone number after sign-up."
-                        checked={phone.restrict_changes}
-                        onChange={(next) => setPhone({ ...phone, restrict_changes: next })}
+                        checked={form.data.phone.required}
+                        onChange={(next) => setPhone({ required: next })}
                     />
                 </MethodCard>
                 <MethodCard
@@ -107,20 +116,20 @@ export default function SignUp() {
                     icon={<KeyIcon />}
                     title="Password"
                     description="Allow users to set or add a password during sign-up."
-                    enabled={password.enabled}
-                    onToggle={(next) => setPassword({ ...password, enabled: next })}
+                    enabled={form.data.password.enabled}
+                    onToggle={(next) => setPassword({ enabled: next })}
                 >
                     <MethodToggle
                         label="Signup with password"
-                        description="Require a password during sign-up."
-                        checked={password.signup_with_password}
-                        onChange={(next) => setPassword({ ...password, signup_with_password: next })}
+                        description="Collect a password during sign-up. When off, users land without a password and can add one later."
+                        checked={form.data.password.signup_with_password}
+                        onChange={(next) => setPassword({ signup_with_password: next })}
                     />
                     <MethodToggle
                         label="Add password"
-                        description="Let users add a password after signing up without one."
-                        checked={password.add_password}
-                        onChange={(next) => setPassword({ ...password, add_password: next })}
+                        description="Let users without a password add one via the Account Portal."
+                        checked={form.data.password.add_password}
+                        onChange={(next) => setPassword({ add_password: next })}
                     />
                 </MethodCard>
             </MethodGrid>

@@ -170,7 +170,7 @@ it('DELETE removes the domain and returns the snapshot enveloped', function (): 
     expect(OrganizationDomain::query()->find($domain->id))->toBeNull();
 });
 
-it('rejects PATCH from members lacking org:sys_domains:manage', function (): void {
+it('rejects PATCH from members lacking org:domains:manage', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     // Pre-seed a domain via an admin so we can test the read-only role.

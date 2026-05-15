@@ -5,7 +5,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Org-scoped invitations. The single-use ticket carried on the magic-link
+ * Org-scoped invitations. The single-use ticket carried on the invitation
  * URL is materialised as a `verification_codes` row (`purpose=invitation_ticket`,
  * see PLAN §4 / §9.7) — `ticket_verification_code_id` points at it.
  *

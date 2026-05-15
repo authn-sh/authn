@@ -52,12 +52,6 @@ class EmailTemplate extends Model
 
     public const SLUG_PRIMARY_EMAIL_CHANGED = 'primary_email_address_changed';
 
-    public const SLUG_MAGIC_LINK_SIGN_IN = 'magic_link_sign_in';
-
-    public const SLUG_MAGIC_LINK_SIGN_UP = 'magic_link_sign_up';
-
-    public const SLUG_MAGIC_LINK_USER_PROFILE = 'magic_link_user_profile';
-
     public const SLUG_ORGANIZATION_INVITATION = 'organization_invitation';
 
     public const SLUG_ORGANIZATION_INVITATION_ACCEPTED = 'organization_invitation_accepted';
@@ -113,16 +107,6 @@ class EmailTemplate extends Model
             'subject' => 'Your {{app.name}} primary email was changed',
             'body_markup' => "<mjml><mj-body><mj-section><mj-column><mj-text>Hi {{user.first_name}},</mj-text><mj-text>The primary email on your account was changed. If this wasn't you, contact {{app.support_email}}.</mj-text></mj-column></mj-section></mj-body></mjml>",
             'body_html' => "<!doctype html><html><body><p>Hi {{user.first_name}},</p><p>The primary email on your account was changed. If this wasn't you, contact {{app.support_email}}.</p></body></html>",
-        ],
-        self::SLUG_MAGIC_LINK_SIGN_IN => [
-            'subject' => 'Your sign-in link for {{app.name}}',
-            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>Hi {{user.first_name}},</mj-text><mj-text>Click the button below to sign in to {{app.name}}.</mj-text><mj-button href="{{action_url}}">Sign in to {{app.name}}</mj-button><mj-text>This link expires {{expires_at_human}}. If you didn\'t request it, you can ignore this email.</mj-text></mj-column></mj-section></mj-body></mjml>',
-            'body_html' => '<!doctype html><html><body><p>Hi {{user.first_name}},</p><p>Click the button below to sign in to {{app.name}}.</p><p><a href="{{action_url}}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Sign in to {{app.name}}</a></p><p>This link expires {{expires_at_human}}. If you didn\'t request it, you can ignore this email.</p></body></html>',
-        ],
-        self::SLUG_MAGIC_LINK_SIGN_UP => [
-            'subject' => 'Finish creating your {{app.name}} account',
-            'body_markup' => '<mjml><mj-body><mj-section><mj-column><mj-text>Welcome to {{app.name}}.</mj-text><mj-text>Click the button below to finish creating your account.</mj-text><mj-button href="{{action_url}}">Continue to {{app.name}}</mj-button><mj-text>This link expires {{expires_at_human}}. If you didn\'t request it, you can ignore this email.</mj-text></mj-column></mj-section></mj-body></mjml>',
-            'body_html' => '<!doctype html><html><body><p>Welcome to {{app.name}}.</p><p>Click the button below to finish creating your account.</p><p><a href="{{action_url}}" style="display:inline-block;padding:12px 24px;background:#000;color:#fff;text-decoration:none;border-radius:4px;">Continue to {{app.name}}</a></p><p>This link expires {{expires_at_human}}. If you didn\'t request it, you can ignore this email.</p></body></html>',
         ],
         self::SLUG_ORGANIZATION_INVITATION => [
             'subject' => "You've been invited to join {{organization.name}}",

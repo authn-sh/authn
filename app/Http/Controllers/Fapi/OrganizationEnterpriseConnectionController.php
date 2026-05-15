@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Validator;
 use Throwable;
 
 /**
- * FAPI per-org Enterprise SSO connections — gated by `org:sys_sso:manage`
+ * FAPI per-org Enterprise SSO connections — gated by `org:sso:manage`
  * via `EnsureOrgPermission`. Drives the `<OrganizationProfile />` SSO
  * section in `sdk-react` (JS-3). Mirrors OA-5.
  *

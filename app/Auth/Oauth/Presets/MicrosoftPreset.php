@@ -57,6 +57,22 @@ final class MicrosoftPreset implements PresetContract
         return ['openid', 'email', 'profile'];
     }
 
+    public function availableScopes(): array
+    {
+        return [
+            'openid',
+            'email',
+            'profile',
+            'offline_access',
+            'User.Read',
+            'User.ReadBasic.All',
+            'Calendars.Read',
+            'Files.Read',
+            'Mail.Read',
+            'Contacts.Read',
+        ];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

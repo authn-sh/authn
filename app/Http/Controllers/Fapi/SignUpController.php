@@ -43,7 +43,7 @@ use Symfony\Component\HttpFoundation\Cookie;
  *   GET    /v1/client/sign-ups/{id}
  *   PATCH  /v1/client/sign-ups/{id}
  *
- * v0.2 verification strategies: email_code, email_link (challenge resource).
+ * v0.2 verification strategies: email_code (challenge resource).
  * Ticket flows still ride POST /sign-ups at create time. OAuth transfer,
  * phone, and organization-creation strategies land in later milestones.
  */
@@ -374,7 +374,7 @@ final class SignUpController
         $flags = [];
         $emailVerified = $attempt->challenges()
             ->where('status', Challenge::STATUS_VERIFIED)
-            ->whereIn('strategy', [Verification::STRATEGY_EMAIL_CODE, Verification::STRATEGY_EMAIL_LINK])
+            ->where('strategy', Verification::STRATEGY_EMAIL_CODE)
             ->exists();
         if ($emailVerified) {
             $flags['email_address'] = true;

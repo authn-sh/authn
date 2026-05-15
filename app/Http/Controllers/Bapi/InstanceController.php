@@ -109,27 +109,19 @@ final class InstanceController
             'password' => ['enabled' => true, 'required' => true, 'used_for_first_factor' => true, 'used_for_second_factor' => false, 'verifications' => [], 'verify_at_sign_up' => false],
         ];
 
-        $overrides = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
-        foreach ($overrides as $name => $cfg) {
-            if (! isset($defaults[$name])) {
-                continue;
-            }
-            // The v0.4 phone_number tri-state ships as a scalar enum
-            // (`required`/`optional`/`off`); inflate it into the
-            // attribute-row shape the rest of the dashboard reads.
-            if ($name === 'phone_number' && is_string($cfg)) {
-                $defaults[$name]['enabled'] = $cfg !== 'off';
-                $defaults[$name]['required'] = $cfg === 'required';
-                $defaults[$name]['used_for_first_factor'] = $cfg !== 'off';
-                $defaults[$name]['verifications'] = $cfg !== 'off' ? ['phone_code'] : [];
-                $defaults[$name]['verify_at_sign_up'] = $cfg !== 'off';
-
-                continue;
-            }
-            if (! is_array($cfg)) {
-                continue;
-            }
-            $defaults[$name] = array_merge($defaults[$name], $cfg);
+        // Phone is now stored under sign_up_methods.phone.{enabled, required};
+        // inflate it into the attribute-row shape so the BAPI response keeps
+        // returning the per-attribute matrix consumers expect.
+        $signUpMethods = is_array($userSettings['sign_up_methods'] ?? null) ? $userSettings['sign_up_methods'] : [];
+        $phoneMethod = is_array($signUpMethods['phone'] ?? null) ? $signUpMethods['phone'] : [];
+        $phoneEnabled = (bool) ($phoneMethod['enabled'] ?? false);
+        $phoneRequired = (bool) ($phoneMethod['required'] ?? false);
+        if ($phoneEnabled) {
+            $defaults['phone_number']['enabled'] = true;
+            $defaults['phone_number']['required'] = $phoneRequired;
+            $defaults['phone_number']['used_for_first_factor'] = true;
+            $defaults['phone_number']['verifications'] = ['phone_code'];
+            $defaults['phone_number']['verify_at_sign_up'] = true;
         }
 
         return $defaults;
@@ -142,7 +134,7 @@ final class InstanceController
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
         $previousTestMode = $userSettings['test_mode'] ?? null;
         $previousMultiFactor = MultiFactorSettings::fromUserSettings($userSettings);
-        $previousAttributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
+        $previousSignUpMethods = is_array($userSettings['sign_up_methods'] ?? null) ? $userSettings['sign_up_methods'] : [];
 
         if ($request->has('support_email')) {
             $appearance['support_email'] = $request->input('support_email');
@@ -157,22 +149,27 @@ final class InstanceController
             $userSettings = array_replace_recursive($userSettings, $request->input('user_settings'));
         }
 
-        $attributesChanged = false;
-        if ($request->has('attributes')) {
-            $patch = $request->input('attributes');
+        $signUpMethodsChanged = false;
+        if ($request->has('sign_up_methods')) {
+            $patch = $request->input('sign_up_methods');
             if (! is_array($patch)) {
-                throw ValidationException::withMessages(['attributes' => 'attributes must be an object.']);
+                throw ValidationException::withMessages(['sign_up_methods' => 'sign_up_methods must be an object.']);
             }
             Validator::make($patch, [
-                'phone_number' => 'sometimes|in:required,optional,off',
+                'phone' => 'sometimes|array',
+                'phone.enabled' => 'sometimes|boolean',
+                'phone.required' => 'sometimes|boolean',
             ])->validate();
 
-            $nextAttributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
-            if (array_key_exists('phone_number', $patch)) {
-                $nextAttributes['phone_number'] = (string) $patch['phone_number'];
+            $next = $previousSignUpMethods;
+            if (isset($patch['phone']) && is_array($patch['phone'])) {
+                $next['phone'] = array_replace(
+                    is_array($next['phone'] ?? null) ? $next['phone'] : [],
+                    $patch['phone'],
+                );
             }
-            $userSettings['attributes'] = $nextAttributes;
-            $attributesChanged = $nextAttributes != $previousAttributes;
+            $userSettings['sign_up_methods'] = $next;
+            $signUpMethodsChanged = $next != $previousSignUpMethods;
         }
 
         $multiFactorChanged = false;
@@ -241,19 +238,19 @@ final class InstanceController
             );
         }
 
-        if ($attributesChanged) {
-            $nextAttributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
-            Log::info('instance.config.attributes_updated', [
+        if ($signUpMethodsChanged) {
+            $nextSignUpMethods = is_array($userSettings['sign_up_methods'] ?? null) ? $userSettings['sign_up_methods'] : [];
+            Log::info('instance.config.sign_up_methods_updated', [
                 'environment_id' => $env->id,
-                'before' => $previousAttributes,
-                'after' => $nextAttributes,
+                'before' => $previousSignUpMethods,
+                'after' => $nextSignUpMethods,
             ]);
             app(Emitter::class)->emit(
-                'instance.config.attributes_updated',
+                'instance.config.sign_up_methods_updated',
                 [
                     'environment_id' => $env->id,
-                    'before' => $previousAttributes,
-                    'after' => $nextAttributes,
+                    'before' => $previousSignUpMethods,
+                    'after' => $nextSignUpMethods,
                 ],
                 $env,
             );

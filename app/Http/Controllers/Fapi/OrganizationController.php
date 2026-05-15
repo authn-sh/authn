@@ -29,8 +29,8 @@ use Illuminate\Support\Str;
  *
  *   POST   /v1/organizations
  *   GET    /v1/organizations/{organization_id}            (member only)
- *   PATCH  /v1/organizations/{organization_id}            (org:sys_profile:manage)
- *   DELETE /v1/organizations/{organization_id}            (org:sys_profile:delete)
+ *   PATCH  /v1/organizations/{organization_id}            (org:profile:manage)
+ *   DELETE /v1/organizations/{organization_id}            (org:profile:delete)
  *   POST   /v1/organizations/{organization_id}/leave
  */
 final class OrganizationController
@@ -109,7 +109,7 @@ final class OrganizationController
 
     public function show(): JsonResponse
     {
-        // EnsureOrgPermission(:org:sys_profile:read) already gated this and bound Organization.
+        // EnsureOrgPermission(:org:profile:read) already gated this and bound Organization.
         $org = app(Organization::class);
 
         return response()->json(OrganizationResource::from($org))

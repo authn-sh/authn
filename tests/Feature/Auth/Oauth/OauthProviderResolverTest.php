@@ -9,6 +9,7 @@ use App\Models\Environment;
 use App\Models\OauthProvider;
 use App\Models\Project;
 use Illuminate\Support\Facades\Http;
+use Tests\Support\OauthProviderFixtures;
 
 function makeEnvForResolver(string $slug = 'env'): Environment
 {
@@ -24,10 +25,7 @@ function makeEnvForResolver(string $slug = 'env'): Environment
 
 function blankPresetProvider(Environment $env, string $key): OauthProvider
 {
-    return OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)
-        ->where('provider_key', $key)
-        ->firstOrFail();
+    return OauthProviderFixtures::blankPreset($env, $key);
 }
 
 it('hydrates a Google preset row with the canonical endpoints + scopes', function (): void {
@@ -240,23 +238,14 @@ it('applies the default OIDC attribute mapping when none is stored', function ()
     expect($resolved->attributeMapping)->toBe(OauthProviderResolver::DEFAULT_OIDC_ATTRIBUTE_MAPPING);
 });
 
-it('seeds every preset row on environment creation, all disabled', function (): void {
+it('does not auto-seed preset rows on environment creation (#284)', function (): void {
     $env = makeEnvForResolver('seedme');
 
     $rows = OauthProvider::query()->withoutGlobalScopes()
         ->where('environment_id', $env->id)
-        ->orderBy('provider_key')
         ->get();
 
-    expect($rows->pluck('provider_key')->all())->toBe([
-        'apple', 'discord', 'facebook', 'github', 'gitlab',
-        'google', 'linkedin', 'microsoft', 'slack', 'x',
-    ]);
-    foreach ($rows as $row) {
-        expect($row->enabled)->toBeFalse();
-        expect($row->client_id)->toBe('');
-        expect($row->provider_kind)->toBe(OauthProvider::KIND_PRESET);
-    }
+    expect($rows)->toHaveCount(0);
 });
 
 it('OauthProvider::computeRedirectUri() builds the canonical callback URL', function (): void {

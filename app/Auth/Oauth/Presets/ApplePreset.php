@@ -55,6 +55,11 @@ final class ApplePreset implements PresetContract
         return ['name', 'email'];
     }
 
+    public function availableScopes(): array
+    {
+        return ['name', 'email'];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

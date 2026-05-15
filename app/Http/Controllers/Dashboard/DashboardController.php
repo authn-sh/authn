@@ -38,6 +38,9 @@ use App\Models\WebhookEvent;
 use App\Services\Keys\KeyGenerator;
 use App\Settings\MultiFactorSettings;
 use App\Settings\PasskeySettings;
+use App\Settings\RedirectsSettings;
+use App\Settings\SignInMethodsSettings;
+use App\Settings\SignUpMethodsSettings;
 use App\Support\RoutingLabel;
 use App\Support\Url;
 use App\Webhooks\Emitter;
@@ -281,8 +284,12 @@ final class DashboardController
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
 
         return match ($section) {
-            'sign-in' => Inertia::render('Dashboard/Configure/Authentication/SignIn'),
-            'sign-up' => Inertia::render('Dashboard/Configure/Authentication/SignUp'),
+            'sign-in' => Inertia::render('Dashboard/Configure/Authentication/SignIn', [
+                'sign_in_methods' => SignInMethodsSettings::fromUserSettings($userSettings)->toArray(),
+            ]),
+            'sign-up' => Inertia::render('Dashboard/Configure/Authentication/SignUp', [
+                'sign_up_methods' => SignUpMethodsSettings::fromUserSettings($userSettings)->toArray(),
+            ]),
             'mfa' => Inertia::render('Dashboard/Configure/Authentication/Mfa', [
                 'multi_factor' => MultiFactorSettings::fromUserSettings($userSettings)->toArray(),
                 'passkey_enabled' => PasskeySettings::fromUserSettings($userSettings)->enabled,
@@ -414,6 +421,77 @@ final class DashboardController
 
         return redirect(Url::dashboardPathPrefix()."/{$project_slug}/{$env_slug}/configure/multi-factor")
             ->with('multi_factor_saved', true);
+    }
+
+    public function updateSignUpMethods(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $request->validate([
+            'password.enabled' => ['sometimes', 'boolean'],
+            'password.signup_with_password' => ['sometimes', 'boolean'],
+            'password.add_password' => ['sometimes', 'boolean'],
+            'phone.enabled' => ['sometimes', 'boolean'],
+            'phone.required' => ['sometimes', 'boolean'],
+        ]);
+
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $previous = SignUpMethodsSettings::fromUserSettings($userSettings);
+        $patch = [];
+        $passwordPatch = [];
+        foreach (['enabled', 'signup_with_password', 'add_password'] as $key) {
+            if ($request->has("password.{$key}")) {
+                $passwordPatch[$key] = $request->boolean("password.{$key}");
+            }
+        }
+        if ($passwordPatch !== []) {
+            $patch['password'] = $passwordPatch;
+        }
+        $phonePatch = [];
+        foreach (['enabled', 'required'] as $key) {
+            if ($request->has("phone.{$key}")) {
+                $phonePatch[$key] = $request->boolean("phone.{$key}");
+            }
+        }
+        if ($phonePatch !== []) {
+            $patch['phone'] = $phonePatch;
+        }
+        $next = $previous->withPatch($patch);
+        $signUpMethods = is_array($userSettings['sign_up_methods'] ?? null) ? $userSettings['sign_up_methods'] : [];
+        $userSettings['sign_up_methods'] = array_replace_recursive($signUpMethods, $next->toArray());
+        $env->forceFill(['user_settings' => $userSettings])->save();
+
+        return back(303)->with('sign_up_methods_saved', true);
+    }
+
+    public function updateSignInMethods(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+        $request->validate([
+            'email.enabled' => ['sometimes', 'boolean'],
+            'email.code' => ['sometimes', 'boolean'],
+        ]);
+
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $previous = SignInMethodsSettings::fromUserSettings($userSettings);
+        $patch = ['email' => []];
+        if ($request->has('email.enabled')) {
+            $patch['email']['enabled'] = $request->boolean('email.enabled');
+        }
+        if ($request->has('email.code')) {
+            $patch['email']['code'] = $request->boolean('email.code');
+        }
+        $next = $previous->withPatch($patch);
+        $signInMethods = is_array($userSettings['sign_in_methods'] ?? null) ? $userSettings['sign_in_methods'] : [];
+        $userSettings['sign_in_methods'] = array_replace_recursive($signInMethods, $next->toArray());
+        $env->forceFill(['user_settings' => $userSettings])->save();
+
+        return back(303)->with('sign_in_methods_saved', true);
     }
 
     public function updatePasskeyEnabled(Request $request, string $project_slug, string $env_slug): RedirectResponse
@@ -606,6 +684,7 @@ final class DashboardController
                 'key' => $preset->key(),
                 'name' => $preset->name(),
                 'default_scopes' => $preset->defaultScopes(),
+                'available_scopes' => $preset->availableScopes(),
                 'authorization_endpoint' => $preset->authorizationEndpoint(),
                 'token_endpoint' => $preset->tokenEndpoint(),
                 'userinfo_endpoint' => $preset->userinfoEndpoint(),
@@ -905,11 +984,70 @@ final class DashboardController
 
     public function redirects(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse
     {
-        if ($this->env($project_slug, $env_slug) === null) {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
 
-        return Inertia::render('Dashboard/Redirects', []);
+        return Inertia::render('Dashboard/Redirects', [
+            'redirects' => RedirectsSettings::fromUserSettings($env->user_settings)->toArray(),
+            'allowed_origins' => is_array($env->allowed_origins) ? $env->allowed_origins : [],
+        ]);
+    }
+
+    public function updateRedirects(Request $request, string $project_slug, string $env_slug): RedirectResponse
+    {
+        $env = $this->env($project_slug, $env_slug);
+        if ($env === null) {
+            return redirect(Url::dashboardPathPrefix().'/create-project');
+        }
+
+        $rule = ['nullable', 'url:http,https', 'max:'.RedirectsSettings::MAX_URL_LENGTH];
+        $request->validate([
+            'after_sign_up' => $rule,
+            'after_sign_in' => $rule,
+            'home' => $rule,
+            'after_create_organization' => $rule,
+            'after_leave_organization' => $rule,
+        ]);
+
+        $allowedOrigins = is_array($env->allowed_origins) ? $env->allowed_origins : [];
+        foreach (['after_sign_up', 'after_sign_in', 'home', 'after_create_organization', 'after_leave_organization'] as $field) {
+            $value = $request->input($field);
+            if (is_string($value) && $value !== '' && ! $this->originAllowed($value, $allowedOrigins)) {
+                return back(303)->withErrors([$field => "URL origin is not in this environment's allowed_origins."]);
+            }
+        }
+
+        $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
+        $previous = RedirectsSettings::fromUserSettings($userSettings);
+        $next = $previous->withPatch($request->only([
+            'after_sign_up', 'after_sign_in', 'home', 'after_create_organization', 'after_leave_organization',
+        ]));
+        $userSettings['redirects'] = $next->toArray();
+        $env->forceFill(['user_settings' => $userSettings])->save();
+
+        return back(303)->with('redirects_saved', true);
+    }
+
+    /**
+     * @param  list<string>  $allowedOrigins
+     */
+    private function originAllowed(string $url, array $allowedOrigins): bool
+    {
+        if ($allowedOrigins === []) {
+            return true; // env has no CORS allowlist yet — accept anything.
+        }
+        $parsed = parse_url($url);
+        if (! is_array($parsed) || ! isset($parsed['scheme'], $parsed['host'])) {
+            return false;
+        }
+        $origin = $parsed['scheme'].'://'.$parsed['host'];
+        if (isset($parsed['port'])) {
+            $origin .= ':'.$parsed['port'];
+        }
+
+        return in_array($origin, $allowedOrigins, true);
     }
 
     public function idpAttributes(string $project_slug, string $env_slug): InertiaResponse|RedirectResponse

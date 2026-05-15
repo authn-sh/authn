@@ -51,6 +51,19 @@ final class GitLabPreset implements PresetContract
         return ['openid', 'profile', 'email'];
     }
 
+    public function availableScopes(): array
+    {
+        return [
+            'openid',
+            'profile',
+            'email',
+            'read_user',
+            'read_api',
+            'read_repository',
+            'api',
+        ];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

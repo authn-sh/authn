@@ -7,6 +7,7 @@ namespace App\Http\Resources;
 use App\Models\Environment;
 use App\Models\OauthProvider;
 use App\Settings\MultiFactorSettings;
+use App\Settings\RedirectsSettings;
 
 /**
  * The public-facing shape returned by `GET /v1/environment`. The SDK
@@ -29,10 +30,17 @@ final class EnvironmentResource
         $localization = is_array($environment->localization) ? $environment->localization : [];
         $multiFactor = MultiFactorSettings::fromUserSettings($userSettings);
 
-        $attributes = is_array($userSettings['attributes'] ?? null) ? $userSettings['attributes'] : [];
-        $phoneAttr = is_string($attributes['phone_number'] ?? null) ? (string) $attributes['phone_number'] : 'off';
+        $signUpMethods = is_array($userSettings['sign_up_methods'] ?? null) ? $userSettings['sign_up_methods'] : [];
+        $phoneMethod = is_array($signUpMethods['phone'] ?? null) ? $signUpMethods['phone'] : [];
+        $phoneEnabled = (bool) ($phoneMethod['enabled'] ?? false);
+        $phoneRequired = (bool) ($phoneMethod['required'] ?? false);
+        $phoneReq = match (true) {
+            $phoneEnabled && $phoneRequired => 'required',
+            $phoneEnabled => 'optional',
+            default => 'off',
+        };
         $firstFactors = ['password', 'email_code', 'reset_password_email_code', 'ticket'];
-        if ($phoneAttr !== 'off') {
+        if ($phoneEnabled) {
             $firstFactors[] = 'phone_code';
         }
         $oauthRows = OauthProvider::query()
@@ -52,7 +60,7 @@ final class EnvironmentResource
             'auth_config' => [
                 'identifier_requirements' => [
                     'email_address' => 'required',
-                    'phone_number' => $phoneAttr,
+                    'phone_number' => $phoneReq,
                     'username' => 'off',
                 ],
                 'first_factors' => $firstFactors,
@@ -67,6 +75,7 @@ final class EnvironmentResource
                 'brand_color' => $appearance['brand_color'] ?? null,
                 'logo_url' => $appearance['logo_url'] ?? null,
                 'favicon_url' => $appearance['favicon_url'] ?? null,
+                'redirects' => RedirectsSettings::fromUserSettings($userSettings)->toArray(),
             ],
 
             'user_settings' => [

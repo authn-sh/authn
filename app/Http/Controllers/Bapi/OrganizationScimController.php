@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Validator;
 /**
  * BAPI SCIM admin surface — operator-scoped mirror of the v0.6 FAPI per-org
  * SCIM management endpoints. Authentication is bearer-secret; the FAPI
- * `org:sys_provisioning:manage` permission check is intentionally absent
+ * `org:provisioning:manage` permission check is intentionally absent
  * since BAPI calls are operator-scoped, not member-scoped (operators may
  * act on any org in their env).
  *

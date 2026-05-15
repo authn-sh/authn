@@ -29,6 +29,8 @@ final class ErrorCodes
 
     public const FORM_PASSWORD_VALIDATION_FAILED = 'form_password_validation_failed';
 
+    public const ADD_PASSWORD_DISABLED = 'add_password_disabled';
+
     // Verification
     public const FORM_CODE_INCORRECT = 'form_code_incorrect';
 

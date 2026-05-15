@@ -183,7 +183,7 @@ it('PUT /v1/me/active-organization 404s for an org the user is not in', function
         ->assertStatus(404);
 });
 
-it('GET /v1/organizations/{id}/invitations gates on org:sys_memberships:read', function (): void {
+it('GET /v1/organizations/{id}/invitations gates on org:memberships:read', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = makeOrgWithMembership($f['env'], $auth['user'], 'org:admin');
@@ -285,7 +285,7 @@ it('POST /v1/organizations/{id}/membership-requests/{rid}/reject flips status', 
     Event::assertDispatched(OrganizationMembershipRequestRejected::class, 1);
 });
 
-it('non-admin members cannot create invitations on an org (sys_memberships:manage required)', function (): void {
+it('non-admin members cannot create invitations on an org (memberships:manage required)', function (): void {
     $f = MeTestSupport::bootEnv();
     $auth = MeTestSupport::makeAuthenticatedUser($f['env']);
     $org = makeOrgWithMembership($f['env'], $auth['user'], 'org:member');

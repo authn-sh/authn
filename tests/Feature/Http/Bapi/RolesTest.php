@@ -35,13 +35,13 @@ it('POST /v1/roles creates a custom role with permissions and fires RoleCreated'
         'key' => 'org:billing_admin',
         'name' => 'Billing admin',
         'description' => 'Manages org billing',
-        'permissions' => ['org:sys_billing:read', 'org:sys_billing:manage'],
+        'permissions' => ['org:billing:read', 'org:billing:manage'],
     ]);
     $r->assertStatus(201)
         ->assertJsonPath('object', 'role')
         ->assertJsonPath('key', 'org:billing_admin')
         ->assertJsonPath('is_system', false);
-    expect($r->json('permissions'))->toContain('org:sys_billing:read', 'org:sys_billing:manage');
+    expect($r->json('permissions'))->toContain('org:billing:read', 'org:billing:manage');
     Event::assertDispatched(RoleCreated::class, 1);
 });
 
@@ -68,7 +68,7 @@ it('POST /v1/roles 422s on unknown permission keys', function (): void {
     $f = BapiTestSupport::bootEnv();
     $this->withHeaders(BapiTestSupport::headers($f['token']))->postJson(BapiTestSupport::url('/roles'), [
         'key' => 'org:custom_one', 'name' => 'X',
-        'permissions' => ['org:sys_billing:read', 'org:nonsense:thing'],
+        'permissions' => ['org:billing:read', 'org:nonsense:thing'],
     ])->assertStatus(422);
 });
 
@@ -139,17 +139,17 @@ it('PUT /v1/roles/{id}/permissions replaces the permission set in one transactio
     $headers = BapiTestSupport::headers($f['token']);
     $created = $this->withHeaders($headers)->postJson(BapiTestSupport::url('/roles'), [
         'key' => 'org:permset', 'name' => 'PermSet',
-        'permissions' => ['org:sys_billing:read'],
+        'permissions' => ['org:billing:read'],
     ]);
     $id = $created->json('id');
 
     $r = $this->withHeaders($headers)->putJson(BapiTestSupport::url("/roles/{$id}/permissions"), [
-        'permissions' => ['org:sys_profile:read', 'org:sys_profile:manage'],
+        'permissions' => ['org:profile:read', 'org:profile:manage'],
     ]);
     $r->assertOk();
     expect($r->json('permissions'))
-        ->toContain('org:sys_profile:read', 'org:sys_profile:manage')
-        ->not->toContain('org:sys_billing:read');
+        ->toContain('org:profile:read', 'org:profile:manage')
+        ->not->toContain('org:billing:read');
     Event::assertDispatched(RolePermissionsChanged::class, 1);
 });
 
@@ -166,8 +166,8 @@ it('GET /v1/permissions returns the seeded system permissions', function (): voi
     $r = $this->withHeaders(BapiTestSupport::headers($f['token']))->getJson(BapiTestSupport::url('/permissions'));
     $r->assertOk()->assertJsonPath('total_count', 13);
     expect(array_column($r->json('data'), 'key'))->toContain(
-        'org:sys_profile:read', 'org:sys_profile:manage', 'org:sys_profile:delete',
-        'org:sys_memberships:manage', 'org:sys_billing:manage',
+        'org:profile:read', 'org:profile:manage', 'org:profile:delete',
+        'org:memberships:manage', 'org:billing:manage',
     );
 });
 

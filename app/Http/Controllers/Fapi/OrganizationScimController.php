@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Validator;
 
 /**
  * FAPI per-org SCIM management surface — what `<OrganizationProfile />`'s
- * Directory Sync section drives. Gated by `org:sys_provisioning:manage`
+ * Directory Sync section drives. Gated by `org:provisioning:manage`
  * via `EnsureOrgPermission` (registered on each route).
  *
  *   GET    /v1/organizations/{org_id}/scim/tokens

@@ -12,6 +12,7 @@ use App\Models\Verification;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\Http\SignIn\SignInTestSupport;
+use Tests\Support\OauthProviderFixtures;
 
 /**
  * AU-16: end-to-end OAuth sign-in / sign-up flows. Covers the full dance
@@ -20,20 +21,13 @@ use Tests\Feature\Http\SignIn\SignInTestSupport;
  */
 function au16EnableProvider(Environment $env, string $key, bool $allowSignUp = true, bool $blockSubaddresses = false): OauthProvider
 {
-    $row = OauthProvider::query()->withoutGlobalScopes()
-        ->where('environment_id', $env->id)
-        ->where('provider_key', $key)
-        ->firstOrFail();
-    $row->forceFill([
-        'enabled' => true,
+    return OauthProviderFixtures::configuredPreset($env, $key, [
         'allow_sign_in' => true,
         'allow_sign_up' => $allowSignUp,
         'block_email_subaddresses' => $blockSubaddresses,
         'client_id' => 'cid-'.$key,
         'encrypted_client_secret' => 'sec-'.$key,
-    ])->save();
-
-    return $row->refresh();
+    ]);
 }
 
 function au16SignInPost(array $f, array $body): TestResponse

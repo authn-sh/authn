@@ -50,6 +50,11 @@ final class SlackPreset implements PresetContract
         return ['openid', 'profile', 'email'];
     }
 
+    public function availableScopes(): array
+    {
+        return ['openid', 'profile', 'email'];
+    }
+
     public function defaultAttributeMapping(): array
     {
         return [

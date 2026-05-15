@@ -106,6 +106,6 @@ it('returns supported_strategies on identifier-only create', function (): void {
     $strategies = collect($response->json('response.supported_strategies'));
     expect($strategies->contains('password'))->toBeTrue();
     expect($strategies->contains('email_code'))->toBeTrue();
-    expect($strategies->contains('email_link'))->toBeTrue();
     expect($strategies->contains('reset_password_email_code'))->toBeTrue();
+    expect($strategies->contains('email_link'))->toBeFalse();
 });

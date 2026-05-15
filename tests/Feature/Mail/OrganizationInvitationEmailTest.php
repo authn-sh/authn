@@ -29,35 +29,17 @@ function bootOrgEmailEnv(): array
     return ['env' => $env];
 }
 
-it('seeds magic_link_sign_in / magic_link_sign_up / organization_invitation templates on env create', function (): void {
+it('seeds the organization_invitation template on env create', function (): void {
     $f = bootOrgEmailEnv();
 
-    foreach ([
-        EmailTemplate::SLUG_MAGIC_LINK_SIGN_IN,
-        EmailTemplate::SLUG_MAGIC_LINK_SIGN_UP,
-        EmailTemplate::SLUG_ORGANIZATION_INVITATION,
-    ] as $slug) {
-        $row = EmailTemplate::query()->withoutGlobalScopes()
-            ->where('environment_id', $f['env']->id)
-            ->where('slug', $slug)
-            ->first();
-        expect($row)->not->toBeNull();
-        expect($row->subject)->not->toBe('');
-        expect($row->body_markup)->toContain('<mjml>');
-        expect($row->body_html)->toContain('<!doctype html>');
-    }
-});
-
-it('magic_link_sign_in template renders the action_url + expires copy', function (): void {
-    $f = bootOrgEmailEnv();
-    $tmpl = EmailTemplate::query()->withoutGlobalScopes()
+    $row = EmailTemplate::query()->withoutGlobalScopes()
         ->where('environment_id', $f['env']->id)
-        ->where('slug', EmailTemplate::SLUG_MAGIC_LINK_SIGN_IN)
-        ->firstOrFail();
-    expect($tmpl->subject)->toContain('{{app.name}}');
-    expect($tmpl->body_markup)->toContain('{{action_url}}')
-        ->toContain('{{expires_at_human}}');
-    expect($tmpl->body_html)->toContain('{{action_url}}');
+        ->where('slug', EmailTemplate::SLUG_ORGANIZATION_INVITATION)
+        ->first();
+    expect($row)->not->toBeNull();
+    expect($row->subject)->not->toBe('');
+    expect($row->body_markup)->toContain('<mjml>');
+    expect($row->body_html)->toContain('<!doctype html>');
 });
 
 it('organization_invitation template renders inviter / organization / role / action_url', function (): void {
