@@ -741,15 +741,23 @@ final class ChallengeController
         $signInMethods = SignInMethodsSettings::fromUserSettings(
             is_array($attempt->environment?->user_settings) ? $attempt->environment->user_settings : [],
         );
+        $identifierType = is_string($attempt->identifier)
+            ? \App\Services\SignIn\IdentifierResolver::detect($attempt->identifier)
+            : null;
         $strategies = [
             Verification::STRATEGY_PASSWORD,
             Verification::STRATEGY_TICKET,
         ];
-        if ($signInMethods->emailCodeAllowed()) {
-            $strategies[] = Verification::STRATEGY_EMAIL_CODE;
+        if ($identifierType === \App\Services\SignIn\IdentifierResolver::TYPE_EMAIL) {
+            if ($signInMethods->emailCodeAllowed()) {
+                $strategies[] = Verification::STRATEGY_EMAIL_CODE;
+            }
+            if ($signInMethods->emailEnabled) {
+                $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
+            }
         }
-        if ($signInMethods->emailEnabled) {
-            $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
+        if ($identifierType === \App\Services\SignIn\IdentifierResolver::TYPE_PHONE && $signInMethods->phoneEnabled) {
+            $strategies[] = Verification::STRATEGY_PHONE_CODE;
         }
 
         return $strategies;
@@ -764,19 +772,15 @@ final class ChallengeController
      */
     private function signInPasskeyStrategies(SignInAttempt $attempt): array
     {
-        if ($attempt->identifier === null) {
+        if (! is_string($attempt->identifier) || $attempt->environment === null) {
             return [];
         }
-        $email = EmailAddress::query()
-            ->withoutGlobalScopes()
-            ->where('environment_id', $attempt->environment_id)
-            ->where('email_address', strtolower((string) $attempt->identifier))
-            ->first();
-        if ($email === null) {
+        $user = \App\Services\SignIn\IdentifierResolver::resolve($attempt->environment, $attempt->identifier);
+        if ($user === null) {
             return [];
         }
         $hasPasskey = Passkey::query()
-            ->where('user_id', $email->user_id)
+            ->where('user_id', $user->id)
             ->whereNotNull('verified_at')
             ->exists();
 

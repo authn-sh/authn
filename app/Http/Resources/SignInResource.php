@@ -14,6 +14,7 @@ use App\Models\SignInAttempt;
 use App\Models\TotpSecret;
 use App\Models\User;
 use App\Models\Verification;
+use App\Services\SignIn\IdentifierResolver;
 use App\Settings\SignInMethodsSettings;
 
 /**
@@ -38,7 +39,7 @@ final class SignInResource
             'id' => $attempt->id,
             'status' => $attempt->status,
             'identifier' => $attempt->identifier,
-            'supported_identifiers' => ['email_address'],
+            'supported_identifiers' => self::supportedIdentifiers($attempt),
             'supported_strategies' => self::supportedStrategies($attempt, $matchedConnection),
             'current_challenge_id' => $attempt->current_challenge_id,
             'user_data' => self::userDataPreview($attempt),
@@ -97,29 +98,70 @@ final class SignInResource
             return [];
         }
 
+        $signInMethods = SignInMethodsSettings::fromUserSettings(
+            is_array($attempt->environment?->user_settings) ? $attempt->environment->user_settings : [],
+        );
+        $identifierType = is_string($attempt->identifier)
+            ? IdentifierResolver::detect($attempt->identifier)
+            : null;
+
         $strategies = [];
         if ($user->password_hash !== null) {
             $strategies[] = Verification::STRATEGY_PASSWORD;
         }
-        $signInMethods = SignInMethodsSettings::fromUserSettings(
-            is_array($attempt->environment?->user_settings) ? $attempt->environment->user_settings : [],
-        );
-        if ($signInMethods->emailCodeAllowed()) {
-            $strategies[] = Verification::STRATEGY_EMAIL_CODE;
+        // Email-only strategies — gated by email parent + matching identifier type.
+        if ($identifierType === IdentifierResolver::TYPE_EMAIL) {
+            if ($signInMethods->emailCodeAllowed()) {
+                $strategies[] = Verification::STRATEGY_EMAIL_CODE;
+            }
+            if ($signInMethods->emailEnabled) {
+                $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
+            }
         }
-        if ($signInMethods->emailEnabled) {
-            $strategies[] = Verification::STRATEGY_RESET_PASSWORD_EMAIL_CODE;
+        // Phone-only first-factor — requires verified phone + sign_in_methods.phone.enabled.
+        if ($identifierType === IdentifierResolver::TYPE_PHONE && $signInMethods->phoneEnabled) {
+            $hasVerifiedPhone = PhoneNumber::query()
+                ->withoutGlobalScopes()
+                ->where('user_id', $user->id)
+                ->whereNotNull('verified_at')
+                ->exists();
+            if ($hasVerifiedPhone) {
+                $strategies[] = Verification::STRATEGY_PHONE_CODE;
+            }
         }
 
         $hasPasskey = Passkey::query()
             ->where('user_id', $user->id)
             ->whereNotNull('verified_at')
             ->exists();
-        if ($hasPasskey) {
+        if ($hasPasskey && $identifierType === IdentifierResolver::TYPE_EMAIL) {
+            // Passkey discovery still keys off the email identifier today.
             $strategies[] = Verification::STRATEGY_PASSKEY;
         }
 
         return $strategies;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function supportedIdentifiers(SignInAttempt $attempt): array
+    {
+        $signInMethods = SignInMethodsSettings::fromUserSettings(
+            is_array($attempt->environment?->user_settings) ? $attempt->environment->user_settings : [],
+        );
+        $supported = [];
+        if ($signInMethods->emailEnabled) {
+            $supported[] = 'email_address';
+        }
+        if ($signInMethods->phoneEnabled) {
+            $supported[] = 'phone_number';
+        }
+        if ($signInMethods->usernameEnabled) {
+            $supported[] = 'username';
+        }
+
+        return $supported === [] ? ['email_address'] : $supported;
     }
 
     /**
@@ -170,19 +212,11 @@ final class SignInResource
 
     private static function resolveUser(SignInAttempt $attempt): ?User
     {
-        if ($attempt->identifier === null) {
-            return null;
-        }
-        $email = EmailAddress::query()
-            ->withoutGlobalScopes()
-            ->where('environment_id', $attempt->environment_id)
-            ->where('email_address', strtolower($attempt->identifier))
-            ->first();
-        if ($email === null) {
+        if ($attempt->identifier === null || $attempt->environment === null) {
             return null;
         }
 
-        return User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
+        return IdentifierResolver::resolve($attempt->environment, $attempt->identifier);
     }
 
     /**
@@ -190,19 +224,7 @@ final class SignInResource
      */
     private static function userDataPreview(SignInAttempt $attempt): array
     {
-        if ($attempt->identifier === null) {
-            return [];
-        }
-
-        $email = EmailAddress::query()
-            ->withoutGlobalScopes()
-            ->where('environment_id', $attempt->environment_id)
-            ->where('email_address', strtolower($attempt->identifier))
-            ->first();
-        if ($email === null) {
-            return [];
-        }
-        $user = User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
+        $user = self::resolveUser($attempt);
         if ($user === null) {
             return [];
         }

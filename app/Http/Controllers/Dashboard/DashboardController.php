@@ -483,16 +483,27 @@ final class DashboardController
         $request->validate([
             'email.enabled' => ['sometimes', 'boolean'],
             'email.code' => ['sometimes', 'boolean'],
+            'phone.enabled' => ['sometimes', 'boolean'],
+            'username.enabled' => ['sometimes', 'boolean'],
         ]);
 
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
         $previous = SignInMethodsSettings::fromUserSettings($userSettings);
-        $patch = ['email' => []];
-        if ($request->has('email.enabled')) {
-            $patch['email']['enabled'] = $request->boolean('email.enabled');
-        }
-        if ($request->has('email.code')) {
-            $patch['email']['code'] = $request->boolean('email.code');
+        $patch = [];
+        foreach ([
+            'email' => ['enabled', 'code'],
+            'phone' => ['enabled'],
+            'username' => ['enabled'],
+        ] as $section => $keys) {
+            $sectionPatch = [];
+            foreach ($keys as $key) {
+                if ($request->has("{$section}.{$key}")) {
+                    $sectionPatch[$key] = $request->boolean("{$section}.{$key}");
+                }
+            }
+            if ($sectionPatch !== []) {
+                $patch[$section] = $sectionPatch;
+            }
         }
         $next = $previous->withPatch($patch);
         $signInMethods = is_array($userSettings['sign_in_methods'] ?? null) ? $userSettings['sign_in_methods'] : [];

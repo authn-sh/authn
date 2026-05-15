@@ -144,12 +144,8 @@ final class SignInController
      */
     private function shouldTransferToSignUp(Environment $env, string $identifier): bool
     {
-        $email = EmailAddress::query()
-            ->withoutGlobalScopes()
-            ->where('environment_id', $env->id)
-            ->where('email_address', strtolower($identifier))
-            ->exists();
-        if ($email) {
+        $user = \App\Services\SignIn\IdentifierResolver::resolve($env, $identifier);
+        if ($user !== null) {
             return false;
         }
 

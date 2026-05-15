@@ -138,6 +138,19 @@ final class PhoneCodeStrategy implements Strategy
             return $row;
         }
 
+        // First-factor: identifier itself is the phone number (E.164).
+        if (is_string($attempt->identifier)
+            && preg_match('/^\+[1-9]\d{6,14}$/', $attempt->identifier) === 1) {
+            $row = PhoneNumber::query()->withoutGlobalScopes()
+                ->where('environment_id', $attempt->environment_id)
+                ->where('phone_number', $attempt->identifier)
+                ->whereNotNull('verified_at')
+                ->first();
+            if ($row !== null) {
+                return $row;
+            }
+        }
+
         $user = $this->resolveUserFromAttempt($attempt);
         if ($user === null) {
             return StrategyResult::fail($attempt, ErrorCodes::FORM_PARAM_NIL, 'Cannot resolve a phone for this attempt; pass phone_number_id.', 422);
@@ -161,18 +174,10 @@ final class PhoneCodeStrategy implements Strategy
 
     private function resolveUserFromAttempt(SignInAttempt $attempt): ?User
     {
-        if ($attempt->identifier === null) {
-            return null;
-        }
-        $email = EmailAddress::query()
-            ->withoutGlobalScopes()
-            ->where('environment_id', $attempt->environment_id)
-            ->where('email_address', strtolower((string) $attempt->identifier))
-            ->first();
-        if ($email === null) {
+        if ($attempt->identifier === null || $attempt->environment === null) {
             return null;
         }
 
-        return User::query()->withoutGlobalScopes()->where('id', $email->user_id)->first();
+        return \App\Services\SignIn\IdentifierResolver::resolve($attempt->environment, (string) $attempt->identifier);
     }
 }
