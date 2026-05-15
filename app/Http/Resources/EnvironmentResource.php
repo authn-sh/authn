@@ -21,29 +21,6 @@ use App\Settings\MultiFactorSettings;
  */
 final class EnvironmentResource
 {
-    /**
-     * Public half of `Environment.sms`. Strips every credential field —
-     * `auth_token` / `api_secret` are write-only and never leak via the
-     * FAPI bootstrap.
-     *
-     * @param  array<string, mixed>  $userSettings
-     * @return array{driver: ?string, from_number: ?string}
-     */
-    private static function smsBootstrap(array $userSettings): array
-    {
-        $sms = is_array($userSettings['sms'] ?? null) ? $userSettings['sms'] : [];
-        $driver = $sms['driver'] ?? null;
-        if (! in_array($driver, ['twilio', 'vonage', null], true)) {
-            $driver = null;
-        }
-        $from = is_string($sms['from_number'] ?? null) ? (string) $sms['from_number'] : null;
-
-        return [
-            'driver' => $driver,
-            'from_number' => $from,
-        ];
-    }
-
     public static function from(Environment $environment): array
     {
         $appearance = is_array($environment->appearance) ? $environment->appearance : [];
@@ -165,8 +142,6 @@ final class EnvironmentResource
                     : null,
                 'strategy' => 'oauth_'.$p->provider_key,
             ])->all(),
-
-            'sms' => self::smsBootstrap($userSettings),
 
             'paths' => $appearance['paths'] ?? [],
 
