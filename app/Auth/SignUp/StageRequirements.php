@@ -123,11 +123,22 @@ final class StageRequirements
             $matrix[$attr] = array_merge($matrix[$attr] ?? [], $cfg);
         }
 
-        // Honour the new sign_up_methods.password.{enabled,signup_with_password}
-        // toggles (#281). When either is off, password is skipped at sign-up
-        // entirely — the user lands without a password_hash and can add one
-        // later via /me/password (subject to add_password).
+        // Honour the sign_up_methods tree (#280, #281). It's the source of
+        // truth for email / phone / username / password; the legacy
+        // attributes.* matrix is left in place for back-compat but
+        // sign_up_methods wins where it speaks.
         $signUpMethods = SignUpMethodsSettings::fromUserSettings($userSettings);
+
+        $matrix['email_address']['enabled'] = $signUpMethods->emailEnabled;
+        $matrix['email_address']['required'] = $signUpMethods->emailEnabled && $signUpMethods->emailRequired;
+        $matrix['email_address']['verify_at_sign_up'] = $signUpMethods->emailEnabled && $signUpMethods->emailVerify;
+        $matrix['email_address']['verifications'] = $signUpMethods->emailEnabled && $signUpMethods->emailVerify && $signUpMethods->emailVerifyCode
+            ? ['email_code']
+            : [];
+
+        $matrix['username']['enabled'] = $signUpMethods->usernameEnabled;
+        $matrix['username']['required'] = $signUpMethods->usernameEnabled && $signUpMethods->usernameRequired;
+
         if (! $signUpMethods->passwordEnabled || ! $signUpMethods->signupWithPassword) {
             $matrix['password']['enabled'] = false;
             $matrix['password']['required'] = false;

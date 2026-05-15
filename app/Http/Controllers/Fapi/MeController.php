@@ -60,6 +60,11 @@ final class MeController
         }
 
         $user = app(User::class);
+        $env = app(Environment::class);
+        $signUpMethods = SignUpMethodsSettings::fromUserSettings($env->user_settings);
+        if ($request->has('username') && $signUpMethods->usernameRestrictChanges) {
+            return $this->error(422, ErrorCodes::IDENTIFIER_LOCKED, 'Username changes are disabled for this environment.');
+        }
         foreach (self::WRITABLE_PROFILE_FIELDS as $field) {
             if ($request->has($field)) {
                 $value = $request->input($field);
@@ -134,6 +139,10 @@ final class MeController
         }
         $env = app(Environment::class);
         $user = app(User::class);
+        $signUpMethods = SignUpMethodsSettings::fromUserSettings($env->user_settings);
+        if ($signUpMethods->emailRestrictChanges) {
+            return $this->error(422, ErrorCodes::IDENTIFIER_LOCKED, 'Email-address changes are disabled for this environment.');
+        }
 
         $address = $request->input('email_address');
         if (! is_string($address) || $address === '' || ! str_contains($address, '@')) {
@@ -206,6 +215,11 @@ final class MeController
         $session = app(Session::class);
         if ($session->isImpersonation()) {
             return $this->error(403, ErrorCodes::ACTOR_SESSION_FORBIDDEN, 'Impersonation sessions cannot delete emails.');
+        }
+        $env = app(Environment::class);
+        $signUpMethods = SignUpMethodsSettings::fromUserSettings($env->user_settings);
+        if ($signUpMethods->emailRestrictChanges) {
+            return $this->error(422, ErrorCodes::IDENTIFIER_LOCKED, 'Email-address changes are disabled for this environment.');
         }
         $email = $this->loadEmail($request);
         if ($email instanceof JsonResponse) {

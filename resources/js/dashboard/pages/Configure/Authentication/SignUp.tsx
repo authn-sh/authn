@@ -1,5 +1,4 @@
 import { useForm } from '@inertiajs/react'
-import * as React from 'react'
 import { AtIcon, KeyIcon, PhoneIcon, UserIcon } from '../../../icons'
 import { MethodCard } from '../../../components/MethodCard'
 import { MethodGrid, MethodToggle } from '../../../components/MethodToggle'
@@ -7,25 +6,33 @@ import { AuthenticationConfigurePage } from '../../../components/AuthenticationC
 import { useDashboardUrl } from '../../../shared'
 
 type SignUpMethods = {
+    email: {
+        enabled: boolean
+        required: boolean
+        verify: boolean
+        verify_code: boolean
+        restrict_changes: boolean
+    }
+    phone: { enabled: boolean; required: boolean; verify: boolean; restrict_changes: boolean }
+    username: { enabled: boolean; required: boolean; restrict_changes: boolean }
     password: { enabled: boolean; signup_with_password: boolean; add_password: boolean }
-    phone: { enabled: boolean; required: boolean }
 }
 
-type Props = {
-    sign_up_methods: SignUpMethods
-}
+type Props = { sign_up_methods: SignUpMethods }
 
 export default function SignUp({ sign_up_methods }: Props) {
     const url = useDashboardUrl()
     const form = useForm<SignUpMethods>({
-        password: { ...sign_up_methods.password },
+        email: { ...sign_up_methods.email },
         phone: { ...sign_up_methods.phone },
+        username: { ...sign_up_methods.username },
+        password: { ...sign_up_methods.password },
     })
     const persist = (next: SignUpMethods) => {
         form.transform(() => next).patch(url('configure/sign-up-methods'), { preserveScroll: true })
     }
-    const setPassword = (patch: Partial<SignUpMethods['password']>) => {
-        const next = { ...form.data, password: { ...form.data.password, ...patch } }
+    const setEmail = (patch: Partial<SignUpMethods['email']>) => {
+        const next = { ...form.data, email: { ...form.data.email, ...patch } }
         form.setData(next)
         persist(next)
     }
@@ -34,20 +41,16 @@ export default function SignUp({ sign_up_methods }: Props) {
         form.setData(next)
         persist(next)
     }
-
-    // Email / username cards persistence lands with the broader sign-up
-    // identifier matrix (#280).
-    const [email, setEmail] = React.useState({
-        enabled: true,
-        required: true,
-        verify: true,
-        restrict_changes: false,
-    })
-    const [username, setUsername] = React.useState({
-        enabled: false,
-        required: false,
-        restrict_changes: false,
-    })
+    const setUsername = (patch: Partial<SignUpMethods['username']>) => {
+        const next = { ...form.data, username: { ...form.data.username, ...patch } }
+        form.setData(next)
+        persist(next)
+    }
+    const setPassword = (patch: Partial<SignUpMethods['password']>) => {
+        const next = { ...form.data, password: { ...form.data.password, ...patch } }
+        form.setData(next)
+        persist(next)
+    }
 
     return (
         <AuthenticationConfigurePage active="sign-up">
@@ -56,26 +59,26 @@ export default function SignUp({ sign_up_methods }: Props) {
                     icon={<AtIcon />}
                     title="Email"
                     description="Collect an email address during sign-up."
-                    enabled={email.enabled}
-                    onToggle={(next) => setEmail({ ...email, enabled: next })}
+                    enabled={form.data.email.enabled}
+                    onToggle={(next) => setEmail({ enabled: next })}
                 >
                     <MethodToggle
                         label="Require email address"
                         description="Reject sign-ups that don't supply an email."
-                        checked={email.required}
-                        onChange={(next) => setEmail({ ...email, required: next })}
+                        checked={form.data.email.required}
+                        onChange={(next) => setEmail({ required: next })}
                     />
                     <MethodToggle
                         label="Verify email address"
                         description="Send a one-time code to confirm the user controls the inbox."
-                        checked={email.verify}
-                        onChange={(next) => setEmail({ ...email, verify: next })}
+                        checked={form.data.email.verify}
+                        onChange={(next) => setEmail({ verify: next })}
                     />
                     <MethodToggle
                         label="Restrict changes"
                         description="Users can't change their email after sign-up."
-                        checked={email.restrict_changes}
-                        onChange={(next) => setEmail({ ...email, restrict_changes: next })}
+                        checked={form.data.email.restrict_changes}
+                        onChange={(next) => setEmail({ restrict_changes: next })}
                     />
                 </MethodCard>
                 <MethodCard
@@ -91,25 +94,37 @@ export default function SignUp({ sign_up_methods }: Props) {
                         checked={form.data.phone.required}
                         onChange={(next) => setPhone({ required: next })}
                     />
+                    <MethodToggle
+                        label="Verify phone number"
+                        description="Send an SMS code to confirm the user owns the number."
+                        checked={form.data.phone.verify}
+                        onChange={(next) => setPhone({ verify: next })}
+                    />
+                    <MethodToggle
+                        label="Restrict changes"
+                        description="Users can't change their phone number after sign-up."
+                        checked={form.data.phone.restrict_changes}
+                        onChange={(next) => setPhone({ restrict_changes: next })}
+                    />
                 </MethodCard>
                 <MethodCard
                     icon={<UserIcon />}
                     title="Username"
                     description="Let users pick a username during sign-up."
-                    enabled={username.enabled}
-                    onToggle={(next) => setUsername({ ...username, enabled: next })}
+                    enabled={form.data.username.enabled}
+                    onToggle={(next) => setUsername({ enabled: next })}
                 >
                     <MethodToggle
                         label="Require username"
                         description="Reject sign-ups that don't pick a username."
-                        checked={username.required}
-                        onChange={(next) => setUsername({ ...username, required: next })}
+                        checked={form.data.username.required}
+                        onChange={(next) => setUsername({ required: next })}
                     />
                     <MethodToggle
                         label="Restrict changes"
                         description="Users can't change their username after sign-up."
-                        checked={username.restrict_changes}
-                        onChange={(next) => setUsername({ ...username, restrict_changes: next })}
+                        checked={form.data.username.restrict_changes}
+                        onChange={(next) => setUsername({ restrict_changes: next })}
                     />
                 </MethodCard>
                 <MethodCard

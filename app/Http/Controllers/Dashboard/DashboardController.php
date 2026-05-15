@@ -430,33 +430,41 @@ final class DashboardController
             return redirect(Url::dashboardPathPrefix().'/create-project');
         }
         $request->validate([
+            'email.enabled' => ['sometimes', 'boolean'],
+            'email.required' => ['sometimes', 'boolean'],
+            'email.verify' => ['sometimes', 'boolean'],
+            'email.verify_code' => ['sometimes', 'boolean'],
+            'email.restrict_changes' => ['sometimes', 'boolean'],
+            'phone.enabled' => ['sometimes', 'boolean'],
+            'phone.required' => ['sometimes', 'boolean'],
+            'phone.verify' => ['sometimes', 'boolean'],
+            'phone.restrict_changes' => ['sometimes', 'boolean'],
+            'username.enabled' => ['sometimes', 'boolean'],
+            'username.required' => ['sometimes', 'boolean'],
+            'username.restrict_changes' => ['sometimes', 'boolean'],
             'password.enabled' => ['sometimes', 'boolean'],
             'password.signup_with_password' => ['sometimes', 'boolean'],
             'password.add_password' => ['sometimes', 'boolean'],
-            'phone.enabled' => ['sometimes', 'boolean'],
-            'phone.required' => ['sometimes', 'boolean'],
         ]);
 
         $userSettings = is_array($env->user_settings) ? $env->user_settings : [];
         $previous = SignUpMethodsSettings::fromUserSettings($userSettings);
         $patch = [];
-        $passwordPatch = [];
-        foreach (['enabled', 'signup_with_password', 'add_password'] as $key) {
-            if ($request->has("password.{$key}")) {
-                $passwordPatch[$key] = $request->boolean("password.{$key}");
+        foreach ([
+            'email' => ['enabled', 'required', 'verify', 'verify_code', 'restrict_changes'],
+            'phone' => ['enabled', 'required', 'verify', 'restrict_changes'],
+            'username' => ['enabled', 'required', 'restrict_changes'],
+            'password' => ['enabled', 'signup_with_password', 'add_password'],
+        ] as $section => $keys) {
+            $sectionPatch = [];
+            foreach ($keys as $key) {
+                if ($request->has("{$section}.{$key}")) {
+                    $sectionPatch[$key] = $request->boolean("{$section}.{$key}");
+                }
             }
-        }
-        if ($passwordPatch !== []) {
-            $patch['password'] = $passwordPatch;
-        }
-        $phonePatch = [];
-        foreach (['enabled', 'required'] as $key) {
-            if ($request->has("phone.{$key}")) {
-                $phonePatch[$key] = $request->boolean("phone.{$key}");
+            if ($sectionPatch !== []) {
+                $patch[$section] = $sectionPatch;
             }
-        }
-        if ($phonePatch !== []) {
-            $patch['phone'] = $phonePatch;
         }
         $next = $previous->withPatch($patch);
         $signUpMethods = is_array($userSettings['sign_up_methods'] ?? null) ? $userSettings['sign_up_methods'] : [];
