@@ -165,6 +165,131 @@ final class UsersController
         return $this->scimResponse($this->mapper->toResource($user, $this->parseAttributesParam($request->query('attributes'))));
     }
 
+    /**
+     * SCIM 2.0 PUT (RFC 7644 §3.5.1) — full resource replace. The IdP
+     * re-sends the entire user representation; any attribute absent from
+     * the payload reverts to its mapped default (or `null` for nullable
+     * columns). `active` is the deprovisioning lever — `active: false`
+     * sets `User.banned = true`.
+     */
+    public function update(Request $request): JsonResponse
+    {
+        $id = (string) $request->route('id');
+        $token = app(ScimToken::class);
+        $organization = $this->organizationOf($token);
+
+        $user = $this->scopedUserQuery($token->environment_id, $organization)->where('users.id', $id)->first();
+        if ($user === null) {
+            return $this->scimError(404, 'notFound', "User {$id} not found.");
+        }
+
+        $payload = $request->all();
+        if (! is_array($payload)) {
+            return $this->scimError(400, 'invalidValue', 'SCIM payload must be a JSON object.');
+        }
+
+        $mapped = $this->mapper->fromResource($payload, $organization);
+        $primaryEmail = $mapped['primary_email'];
+
+        DB::transaction(function () use ($user, $mapped, $primaryEmail, $token): void {
+            /** @var array<string, mixed> $attrs */
+            $attrs = $mapped['user'];
+
+            // PUT semantics: attributes omitted from the payload reset to
+            // their column default (null for nullables). Apply each
+            // writable column explicitly so the round-trip is lossless.
+            foreach (['first_name', 'last_name', 'external_id', 'username', 'locale'] as $column) {
+                $user->{$column} = $attrs[$column] ?? null;
+            }
+            if (array_key_exists('banned', $attrs)) {
+                $user->banned = (bool) $attrs['banned'];
+            }
+            $user->save();
+
+            if ($primaryEmail !== null) {
+                $this->replacePrimaryEmail($user, $token->environment_id, $primaryEmail);
+            }
+        });
+
+        $fresh = $user->fresh();
+        $this->emitUpdated($fresh, $token, 'put');
+
+        return $this->scimResponse($this->mapper->toResource($fresh));
+    }
+
+    /**
+     * SCIM 2.0 PATCH (RFC 7644 §3.5.2) — partial update via an
+     * `Operations[]` envelope. Supports the canonical deprovisioning
+     * play (`replace` on `active`) plus `replace` on the scalar
+     * attributes the IdP commonly drifts (`displayName`, `userName`,
+     * `externalId`, `locale`, `name.givenName`, `name.familyName`).
+     *
+     * Add/remove ops + complex filter paths on multi-valued
+     * `emails` / `phoneNumbers` are intentionally out of scope until
+     * v0.8 — IdP deprovisioning works against `replace`/`active` today.
+     */
+    public function patch(Request $request): JsonResponse
+    {
+        $id = (string) $request->route('id');
+        $token = app(ScimToken::class);
+        $organization = $this->organizationOf($token);
+
+        $user = $this->scopedUserQuery($token->environment_id, $organization)->where('users.id', $id)->first();
+        if ($user === null) {
+            return $this->scimError(404, 'notFound', "User {$id} not found.");
+        }
+
+        $payload = $request->all();
+        $ops = is_array($payload) && is_array($payload['Operations'] ?? null) ? $payload['Operations'] : null;
+        if ($ops === null || $ops === []) {
+            return $this->scimError(400, 'invalidValue', 'SCIM PATCH requires a non-empty Operations array.');
+        }
+
+        DB::transaction(function () use ($ops, $user, $token, $organization): void {
+            foreach ($ops as $op) {
+                if (! is_array($op)) {
+                    continue;
+                }
+                $verb = strtolower((string) ($op['op'] ?? ''));
+                $path = is_string($op['path'] ?? null) ? (string) $op['path'] : null;
+                $value = $op['value'] ?? null;
+
+                if ($verb === 'replace' && $path === null && is_array($value)) {
+                    $mapped = $this->mapper->fromResource($value, $organization)['user'] ?? [];
+                    foreach ($mapped as $column => $newValue) {
+                        $user->{$column} = $newValue;
+                    }
+
+                    continue;
+                }
+
+                if ($verb !== 'replace' || $path === null) {
+                    // 'add' / 'remove', or 'replace' without a usable path,
+                    // is silently no-op'd in v0.7.1 — IdPs that rely on
+                    // those flows will see no change rather than a 500.
+                    continue;
+                }
+
+                match (strtolower($path)) {
+                    'active' => $user->banned = ! (bool) $value,
+                    'displayname' => $user->username = is_string($value) ? $value : null,
+                    'username' => $this->replacePrimaryEmail($user, $token->environment_id, is_string($value) ? strtolower($value) : ''),
+                    'externalid' => $user->external_id = is_string($value) ? $value : null,
+                    'locale' => $user->locale = is_string($value) ? $value : null,
+                    'name.givenname' => $user->first_name = is_string($value) ? $value : null,
+                    'name.familyname' => $user->last_name = is_string($value) ? $value : null,
+                    default => null,
+                };
+            }
+            $user->save();
+        });
+
+        $fresh = $user->fresh();
+        $this->emitUpdated($fresh, $token, 'patch');
+
+        return $this->scimResponse($this->mapper->toResource($fresh));
+    }
+
     public function destroy(Request $request): JsonResponse
     {
         $id = (string) $request->route('id');
@@ -190,6 +315,66 @@ final class UsersController
         ]);
 
         return response()->json(null, 204, ['Content-Type' => 'application/scim+json']);
+    }
+
+    private function replacePrimaryEmail(User $user, string $environmentId, string $newEmail): void
+    {
+        if ($newEmail === '' || ! filter_var($newEmail, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $existing = EmailAddress::query()
+            ->withoutGlobalScopes()
+            ->where('environment_id', $environmentId)
+            ->where('email_address', $newEmail)
+            ->first();
+
+        if ($existing !== null && $existing->user_id !== $user->id) {
+            // Another user already claims this address — bail rather than
+            // silently overwrite. The patch operation no-ops; the SCIM
+            // response will reflect the unchanged email.
+            return;
+        }
+
+        if ($existing !== null && $existing->user_id === $user->id) {
+            EmailAddress::query()->withoutGlobalScopes()
+                ->where('user_id', $user->id)
+                ->where('id', '!=', $existing->id)
+                ->update(['is_primary' => false]);
+            $existing->forceFill(['is_primary' => true, 'verified_at' => $existing->verified_at ?? now()])->save();
+            $user->primary_email_address_id = $existing->id;
+
+            return;
+        }
+
+        EmailAddress::query()->withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->update(['is_primary' => false]);
+        $row = EmailAddress::query()->withoutGlobalScopes()->create([
+            'environment_id' => $environmentId,
+            'user_id' => $user->id,
+            'email_address' => $newEmail,
+            'verified_at' => now(),
+            'is_primary' => true,
+        ]);
+        $user->primary_email_address_id = $row->id;
+    }
+
+    private function emitUpdated(User $user, ScimToken $token, string $verb): void
+    {
+        Log::info('audit:auth.enterprise_sso.scim_updated', [
+            'environment_id' => $token->environment_id,
+            'organization_id' => $token->organization_id,
+            'scim_token_id' => $token->id,
+            'user_id' => $user->id,
+            'verb' => $verb,
+        ]);
+        app(Emitter::class)->emit('scimUser.updated', [
+            'object' => 'user_minimal',
+            'user_id' => $user->id,
+            'organization_id' => $token->organization_id,
+            'enterprise_connection_id' => $token->enterprise_connection_id,
+        ]);
     }
 
     /**

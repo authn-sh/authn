@@ -216,6 +216,187 @@ it('soft-deletes the User on DELETE', function (): void {
     expect($reloaded?->deleted_at)->not->toBeNull();
 });
 
+it('PUT /Users/{id} replaces the user attributes (RFC 7644 §3.5.1)', function (): void {
+    $f = bootScimEnv();
+    $plaintext = mintScimToken($f['env'], $f['creator']);
+    $u = User::create(['environment_id' => $f['env']->id, 'first_name' => 'Old', 'last_name' => 'Name', 'username' => 'old_user', 'external_id' => 'ext-old']);
+    EmailAddress::query()->withoutGlobalScopes()->create([
+        'environment_id' => $f['env']->id,
+        'user_id' => $u->id,
+        'email_address' => 'old@acme.test',
+        'verified_at' => now(),
+        'is_primary' => true,
+    ]);
+
+    $r = $this->withHeaders(['Host' => 'acme.authn.local', 'Authorization' => 'Bearer '.$plaintext])
+        ->putJson('https://acme.authn.local/scim/v2/Users/'.$u->id, [
+            'schemas' => ['urn:ietf:params:scim:schemas:core:2.0:User'],
+            'userName' => 'fresh@acme.test',
+            'name' => ['givenName' => 'Fresh', 'familyName' => 'User'],
+            'emails' => [['value' => 'fresh@acme.test', 'primary' => true, 'type' => 'work']],
+            'externalId' => 'ext-new',
+            'active' => true,
+        ]);
+
+    $r->assertOk()
+        ->assertJsonPath('userName', 'fresh@acme.test')
+        ->assertJsonPath('name.givenName', 'Fresh')
+        ->assertJsonPath('name.familyName', 'User')
+        ->assertJsonPath('externalId', 'ext-new')
+        ->assertJsonPath('active', true);
+
+    $reloaded = User::query()->withoutGlobalScopes()->where('id', $u->id)->first();
+    expect($reloaded->first_name)->toBe('Fresh');
+    expect($reloaded->last_name)->toBe('User');
+    expect($reloaded->external_id)->toBe('ext-new');
+});
+
+it('PUT /Users/{id} omitting active leaves banned untouched (PUT-as-replace surfaces null → false)', function (): void {
+    $f = bootScimEnv();
+    $plaintext = mintScimToken($f['env'], $f['creator']);
+    $u = User::create(['environment_id' => $f['env']->id, 'banned' => true]);
+    EmailAddress::query()->withoutGlobalScopes()->create([
+        'environment_id' => $f['env']->id,
+        'user_id' => $u->id,
+        'email_address' => 'banned@acme.test',
+        'verified_at' => now(),
+        'is_primary' => true,
+    ]);
+
+    // Omit 'active' → mapper drops the key, controller leaves banned alone.
+    $r = $this->withHeaders(['Host' => 'acme.authn.local', 'Authorization' => 'Bearer '.$plaintext])
+        ->putJson('https://acme.authn.local/scim/v2/Users/'.$u->id, [
+            'schemas' => ['urn:ietf:params:scim:schemas:core:2.0:User'],
+            'userName' => 'banned@acme.test',
+            'name' => ['givenName' => 'Still', 'familyName' => 'Banned'],
+            'emails' => [['value' => 'banned@acme.test', 'primary' => true]],
+        ]);
+
+    $r->assertOk()->assertJsonPath('active', false);
+    expect(User::query()->withoutGlobalScopes()->where('id', $u->id)->first()->banned)->toBeTrue();
+});
+
+it('PATCH /Users/{id} replace active=false bans the user (deprovisioning play)', function (): void {
+    $f = bootScimEnv();
+    $plaintext = mintScimToken($f['env'], $f['creator']);
+    $u = User::create(['environment_id' => $f['env']->id]);
+    EmailAddress::query()->withoutGlobalScopes()->create([
+        'environment_id' => $f['env']->id,
+        'user_id' => $u->id,
+        'email_address' => 'deprov@acme.test',
+        'verified_at' => now(),
+        'is_primary' => true,
+    ]);
+
+    $r = $this->withHeaders(['Host' => 'acme.authn.local', 'Authorization' => 'Bearer '.$plaintext])
+        ->patchJson('https://acme.authn.local/scim/v2/Users/'.$u->id, [
+            'schemas' => ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+            'Operations' => [['op' => 'replace', 'path' => 'active', 'value' => false]],
+        ]);
+
+    $r->assertOk()->assertJsonPath('active', false);
+    expect(User::query()->withoutGlobalScopes()->where('id', $u->id)->first()->banned)->toBeTrue();
+});
+
+it('PATCH /Users/{id} replace active=true unbans the user', function (): void {
+    $f = bootScimEnv();
+    $plaintext = mintScimToken($f['env'], $f['creator']);
+    $u = User::create(['environment_id' => $f['env']->id, 'banned' => true]);
+    EmailAddress::query()->withoutGlobalScopes()->create([
+        'environment_id' => $f['env']->id,
+        'user_id' => $u->id,
+        'email_address' => 'reprov@acme.test',
+        'verified_at' => now(),
+        'is_primary' => true,
+    ]);
+
+    $r = $this->withHeaders(['Host' => 'acme.authn.local', 'Authorization' => 'Bearer '.$plaintext])
+        ->patchJson('https://acme.authn.local/scim/v2/Users/'.$u->id, [
+            'schemas' => ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+            'Operations' => [['op' => 'replace', 'path' => 'active', 'value' => true]],
+        ]);
+
+    $r->assertOk()->assertJsonPath('active', true);
+});
+
+it('PATCH /Users/{id} replace on scalar paths updates the user', function (): void {
+    $f = bootScimEnv();
+    $plaintext = mintScimToken($f['env'], $f['creator']);
+    $u = User::create(['environment_id' => $f['env']->id, 'first_name' => 'Old']);
+    EmailAddress::query()->withoutGlobalScopes()->create([
+        'environment_id' => $f['env']->id,
+        'user_id' => $u->id,
+        'email_address' => 'patch@acme.test',
+        'verified_at' => now(),
+        'is_primary' => true,
+    ]);
+
+    $r = $this->withHeaders(['Host' => 'acme.authn.local', 'Authorization' => 'Bearer '.$plaintext])
+        ->patchJson('https://acme.authn.local/scim/v2/Users/'.$u->id, [
+            'schemas' => ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+            'Operations' => [
+                ['op' => 'replace', 'path' => 'name.givenName', 'value' => 'New'],
+                ['op' => 'replace', 'path' => 'externalId', 'value' => 'ext-fresh'],
+                ['op' => 'replace', 'path' => 'locale', 'value' => 'pt-BR'],
+            ],
+        ]);
+
+    $r->assertOk();
+    $reloaded = User::query()->withoutGlobalScopes()->where('id', $u->id)->first();
+    expect($reloaded->first_name)->toBe('New');
+    expect($reloaded->external_id)->toBe('ext-fresh');
+    expect($reloaded->locale)->toBe('pt-BR');
+});
+
+it('PATCH /Users/{id} no-path replace applies a full resource replace', function (): void {
+    $f = bootScimEnv();
+    $plaintext = mintScimToken($f['env'], $f['creator']);
+    $u = User::create(['environment_id' => $f['env']->id, 'first_name' => 'Before']);
+    EmailAddress::query()->withoutGlobalScopes()->create([
+        'environment_id' => $f['env']->id,
+        'user_id' => $u->id,
+        'email_address' => 'nopath@acme.test',
+        'verified_at' => now(),
+        'is_primary' => true,
+    ]);
+
+    $r = $this->withHeaders(['Host' => 'acme.authn.local', 'Authorization' => 'Bearer '.$plaintext])
+        ->patchJson('https://acme.authn.local/scim/v2/Users/'.$u->id, [
+            'schemas' => ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+            'Operations' => [['op' => 'replace', 'value' => ['name' => ['givenName' => 'After']]]],
+        ]);
+
+    $r->assertOk();
+    expect(User::query()->withoutGlobalScopes()->where('id', $u->id)->first()->first_name)->toBe('After');
+});
+
+it('PATCH /Users/{id} returns 400 when Operations is missing', function (): void {
+    $f = bootScimEnv();
+    $plaintext = mintScimToken($f['env'], $f['creator']);
+    $u = User::create(['environment_id' => $f['env']->id]);
+
+    $r = $this->withHeaders(['Host' => 'acme.authn.local', 'Authorization' => 'Bearer '.$plaintext])
+        ->patchJson('https://acme.authn.local/scim/v2/Users/'.$u->id, [
+            'schemas' => ['urn:ietf:params:scim:api:messages:2.0:PatchOp'],
+        ]);
+
+    $r->assertStatus(400)->assertJsonPath('scimType', 'invalidValue');
+});
+
+it('PUT /Users/{id} returns 404 for a user outside the token scope', function (): void {
+    $f = bootScimEnv();
+    $plaintext = mintScimToken($f['env'], $f['creator']);
+
+    $r = $this->withHeaders(['Host' => 'acme.authn.local', 'Authorization' => 'Bearer '.$plaintext])
+        ->putJson('https://acme.authn.local/scim/v2/Users/usr_missing', [
+            'schemas' => ['urn:ietf:params:scim:schemas:core:2.0:User'],
+            'userName' => 'whoever@acme.test',
+            'emails' => [['value' => 'whoever@acme.test', 'primary' => true]],
+        ]);
+
+    $r->assertStatus(404)->assertJsonPath('scimType', 'notFound');
+});
+
 it('projects only the requested attributes when attributes= is supplied', function (): void {
     $f = bootScimEnv();
     $plaintext = mintScimToken($f['env'], $f['creator']);

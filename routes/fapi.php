@@ -89,6 +89,8 @@ Route::withoutMiddleware([EnforceFapiOrigin::class])->prefix('scim/v2')->middlew
     Route::get('/Users', [ScimUsersController::class, 'index'])->name('scim.users.index');
     Route::post('/Users', [ScimUsersController::class, 'store'])->name('scim.users.store');
     Route::get('/Users/{id}', [ScimUsersController::class, 'show'])->name('scim.users.show');
+    Route::put('/Users/{id}', [ScimUsersController::class, 'update'])->name('scim.users.update');
+    Route::patch('/Users/{id}', [ScimUsersController::class, 'patch'])->name('scim.users.patch');
     Route::delete('/Users/{id}', [ScimUsersController::class, 'destroy'])->name('scim.users.destroy');
 
     Route::get('/Groups', [ScimGroupsController::class, 'index'])->name('scim.groups.index');
