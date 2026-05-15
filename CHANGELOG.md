@@ -1,10 +1,25 @@
 # Changelog
 
-## [0.7.1] — 2026-05-13
+## [0.7.1] — 2026-05-15
+
+Patch release: contract gaps + fail-open fixes flagged in the cross-repo critical review, plus a Dashboard / Account Portal UI rebuild.
+
+### Added
+
+- **FAPI `DELETE /v1/me/password` (AU-17)** — clears the user's password hash after verifying `current_password`. Returns 422 when the environment requires a password (`user_settings.attributes.password.required = true`) or when the user has no password set. Rejects impersonation sessions.
+- **FAPI `POST` + `DELETE /v1/me/profile-image` (AU-17)** — multipart upload (5 MiB cap, png/jpeg/webp via magic-byte sniff) + idempotent delete; re-uses BAPI `UsersController`'s storage path layout. Rejects impersonation sessions.
+- **FAPI `/v1/organizations/{org}/domains` CRUD (AU-18)** — full `index / store / show / update / destroy` surface on a new `Fapi\OrganizationDomainController`. Gated by `org:sys_domains:read` (GET) and `org:sys_domains:manage` (POST/PATCH/DELETE). Mirrors the BAPI logic and emits `ClientResponseEnvelope` on writes.
+- **SCIM 2.0 `/scim/v2/Users/{id}` PUT + PATCH (AU-16)** — RFC 7644 §3.5.1 full-replace + §3.5.2 PATCH. Supports `op=replace` against `active` (the canonical IdP deprovisioning op), `displayName`, `userName`, `externalId`, `locale`, `name.{givenName,familyName}`, plus no-path replace with a full resource. Webhook `scimUser.updated` + `audit:auth.enterprise_sso.scim_updated` log entry on every successful write. Groups POST/PUT/PATCH/DELETE retargeted to v0.8 (see #293).
 
 ### Changed
 
-- Account Portal layout no longer wraps the SDK SignIn / SignUp / UserProfile in an outer `<section>` box. The SDK component renders its own Card with shadow and centers itself on the page, eliminating the previous box-inside-box look. The layout is now just background + minimum viewport height.
+- **Dashboard rebuild** — restructured into per-tab Inertia pages backed by a shared `<Page>` / `<PageSection>` component family, rebuilt on the new UI primitives (Card / Tabs / DropdownMenu / Inputs / Buttons) with first-class dark mode. Collapsible sidebar with grouped sections + icons + project switcher; topbar adds the theme toggle + Docs link.
+- **Configure tab** — text / number / url / password inputs and buttons migrated to UI primitives; `<fieldset>`+`<legend>` blocks replaced with title-above-card sections; in-page tabs driven by the `Tabs` primitive.
+- **Account Portal layout** — drop the outer `<section>` box around the SDK `<SignIn>` / `<SignUp>` / `<UserProfile>` mount; the SDK component already renders its own Card with shadow and centers on the page, so the previous box-inside-box look is gone. The layout reduces to background + min-viewport-height; the Account Portal also picks up the SDK background tokens and system dark mode.
+
+### Removed
+
+- **`Environment.sms` from `GET /v1/environment` (AU-19)** — `authn-sh/openapi#109` dropped the `sms` block from the FAPI spec (driver / credentials are system-only, never read by the SDK at boot). `EnvironmentResource` was still emitting it, producing 10 contract violations on every PR after the openapi merge. Drop the bootstrap projection and the corresponding helper.
 
 ## [0.7.0] — 2026-05-12
 
